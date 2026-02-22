@@ -8,6 +8,8 @@ Run the [Installation](INSTALLATION.md) and open Sapphire before you configure. 
 
 Your choice of LLM is the biggest factor in Sapphire's persona. Different models have different personalities, strengths, and quirks. Sapphire supports multiple providers with automatic fallback — if your primary LLM fails, it tries the next enabled provider.
 
+<img src="../sapphire-images/sapphire-settings-llm.png" alt="Sapphire LLM provider configuration" width="50%">
+
 ### Local LLM (Private)
 
 Run AI on your own hardware. Nothing leaves your machine.
@@ -81,8 +83,13 @@ Sapphire ships with 11 built-in personas. See [PERSONAS.md](PERSONAS.md) for the
 
 Each chat can have completely different personas, voices, and capabilities. Switch between them instantly.
 
+<img src="../sapphire-images/sapphire-chat-sidebar.png" alt="Sapphire chat sidebar with persona and settings" width="50%">
+
 ### Make the Settings Yours
-- Gear icon → App Settings
+
+<img src="../sapphire-images/sapphire-settings.png" alt="Sapphire settings page" width="50%">
+
+- Settings (gear icon in nav rail)
 - Change names and avatars
 - Enable TTS, STT, and Wakeword if desired
 - Pick your wake word and raise Recorder Background Percentile if you have webcam mic
@@ -172,6 +179,8 @@ Privacy Mode blocks all outbound cloud connections, keeping conversations local-
 
 **Note:** Model downloads (wakeword, STT) still work on first launch even in privacy mode. Once downloaded, everything runs offline.
 
+<img src="../sapphire-images/sapphire-privacy-block.png" alt="Sapphire privacy mode blocking cloud connections" width="50%">
+
 ---
 
 ## Advanced Personalization
@@ -195,7 +204,7 @@ Extensible JavaScript plugins for the interface. See [WEB-PLUGINS.md](WEB-PLUGIN
 Help users configure Sapphire settings and personas.
 
 SETTINGS LOCATION:
-- Web UI: Gear icon → Settings (app-wide)
+- Web UI: Settings view in nav rail (app-wide)
 - Chat Settings: ... menu → Chat Settings (per-chat)
 - Files: user/settings.json (use UI, not direct edit)
 

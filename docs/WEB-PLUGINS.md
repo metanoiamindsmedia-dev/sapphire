@@ -1,6 +1,6 @@
 # Web UI Plugins
 
-Web UI plugins are JavaScript extensions that add features to the Sapphire web interface. They can add widgets to the sidebar, items to the gear menu, or settings tabs in the Plugins popup.
+Web UI plugins are JavaScript extensions that add features to the Sapphire web interface. They can add settings tabs in the Plugins popup or register custom UI components.
 
 **Web UI Plugins vs Backend Plugins:**
 - **Web UI Plugins**: JavaScript, runs in browser, extends the interface
@@ -8,28 +8,27 @@ Web UI plugins are JavaScript extensions that add features to the Sapphire web i
 
 ## What Can Plugins Do?
 
-Plugins can hook into three places:
+Plugins hook into the **Plugins popup** (accessible from Settings) to provide configuration UI for integrations. They can also register custom settings tabs, modals, and API integrations.
 
-| Location | Example Use |
-|----------|-------------|
-| **Sidebar** | Prompt editor, spice manager, toolset editor |
-| **Gear Menu** | Settings, backup manager |
-| **Plugins Popup** | Image generation settings, plugin-specific config |
-
-Think weather widgets, API integrations, custom controls, or anything that extends the UI.
+| Pattern | Example Use |
+|---------|-------------|
+| **Settings-only** | Image generation config, Home Assistant config, email setup |
+| **Modal-based** | Backup manager, plugin enable/disable |
+| **Auto-show** | Setup wizard on first run |
 
 ## Included Plugins
 
-| Plugin | Location | Purpose |
-|--------|----------|---------|
-| backup | Gear menu | Backup management |
-| plugins-modal | Gear menu | Enable/disable plugins |
-| image-gen | Plugins popup | SDXL image generation settings |
-| continuity | Gear menu | Scheduled task management |
-| homeassistant | Plugins popup | Home Assistant integration |
-| email | Plugins popup | Gmail/email configuration |
-| ssh | Plugins popup | SSH server management |
-| setup-wizard | Auto-show | First-run configuration |
+| Plugin | Purpose |
+|--------|---------|
+| setup-wizard | First-run LLM/voice/audio configuration |
+| backup | Backup management |
+| plugins-modal | Enable/disable plugins |
+| image-gen | SDXL image generation settings |
+| continuity | Scheduled task management |
+| homeassistant | Home Assistant integration |
+| email | Gmail/email configuration |
+| bitcoin | Bitcoin wallet configuration |
+| ssh | SSH server management |
 
 ## Creating Plugins with AI
 
@@ -129,7 +128,7 @@ interfaces/web/static/plugins/
 | title | string | Display name |
 | collapsible | bool | Wrap in accordion (sidebar only) |
 | defaultOpen | bool | Start expanded |
-| showInSidebar | bool | false = gear menu only |
+| showInSidebar | bool | true = sidebar widget, false = settings-only |
 
 ### index.js Requirements
 
@@ -253,15 +252,16 @@ WEB PLUGIN VS BACKEND PLUGIN:
 - Web plugin: Runs in browser, modifies UI (JavaScript)
 - Backend plugin: Runs on server, keyword-triggered (Python)
 
-BUILT-IN WEB PLUGINS:
+BUILT-IN WEB PLUGINS (9):
+- setup-wizard: First-run configuration
 - backup: Backup management UI
 - plugins-modal: Plugin management
 - image-gen: Image generation settings
 - continuity: Scheduled task management
 - homeassistant: Home Assistant integration
 - email: Email configuration
+- bitcoin: Bitcoin wallet configuration
 - ssh: SSH server management
-- setup-wizard: First-run configuration
 
 PLUGIN LOCATIONS:
 - interfaces/web/static/plugins/ - Built-in plugins

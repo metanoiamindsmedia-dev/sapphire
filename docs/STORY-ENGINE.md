@@ -12,6 +12,8 @@ The Story Engine turns Sapphire into a game master. It tracks state, gates conte
 - **Romance/drama** — Relationship tracking, emotional arcs that shift the narrative
 - **Anything with state** — If it has variables and progression, the engine can run it
 
+<img src="../sapphire-images/sapphire-story-engine.png" alt="Sapphire story engine with state tracking and dice rolls" width="50%">
+
 ---
 
 ## Quick Start

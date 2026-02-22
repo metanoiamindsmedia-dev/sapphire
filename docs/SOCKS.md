@@ -8,7 +8,7 @@ If the proxy is enabled but broken, tools fail-secure rather than leaking to dir
 
 Open Settings → Network tab.
 
-<img src="screenshots/socks-proxy.png" alt="SOCKS proxy settings" width="100%">
+<img src="../sapphire-images/sapphire-settings.png" alt="Sapphire settings with SOCKS proxy configuration" width="50%">
 
 1. Enable SOCKS proxy toggle
 2. Set host and port (e.g., `127.0.0.1:9050` for Tor)

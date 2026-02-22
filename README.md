@@ -44,7 +44,9 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 - **Privacy** - One toggle blocks all cloud connections. Fully local, nothing leaves your machine.
 - **Plugins** - [docs](docs/PLUGINS.md) Keyword-triggered AI extensions and JavaScript [web UI plugins](docs/WEB-PLUGINS.md).
 - **Desktop/Mobile/Voice** - Run on your local browser, open the same chat to your phone, then finish it on your mic.
-- **74+ Tools** - [docs](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [toolsets](docs/TOOLSETS.md).
+- **65+ Tools** - [docs](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [toolsets](docs/TOOLSETS.md).
+
+<img src="../sapphire-images/sapphire-chat.png" alt="Sapphire chat interface" width="50%">
 
 ### Use Cases
 
@@ -118,7 +120,7 @@ pip install -r requirements.txt
 |-------|-------------|
 | [Installation](docs/INSTALLATION.md) | Setup guide, systemd service |
 | [Configuration](docs/CONFIGURATION.md) | LLM, scopes, thinking, privacy |
-| [API](docs/API.md) | All 156 REST endpoints |
+| [API](docs/API.md) | All 221 REST endpoints |
 | [SOCKS Proxy](docs/SOCKS.md) | Privacy proxy for web tools |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 | [Technical](docs/TECHNICAL.md) | Architecture and internals |

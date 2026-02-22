@@ -2,12 +2,12 @@
 
 Sapphire can generate images using SDXL via a separate server. The AI describes scenes, and character descriptions stay consistent across images.
 
-![Image Generation Settings](screenshots/image-generation.png)
+<img src="../sapphire-images/sapphire-image-gen.png" alt="Sapphire image generation settings" width="50%">
 
 ## Setup
 
 1. **Run the image server** - Follow instructions at [ddxfish/sapphire-image-api](https://github.com/ddxfish/sapphire-image-api)
-2. **Connect Sapphire** - Gear icon → Plugins → Image Generation
+2. **Connect Sapphire** - Settings → Plugins → Image Generation
 3. **Enter your server URL** (e.g., `http://localhost:5153`)
 4. **Click Test** to verify connection
 
@@ -36,6 +36,8 @@ The AI writes prompts using "me" (itself) and "you" (the human). These get repla
 ## Usage
 
 Once configured, the AI can use the `generate_scene_image` tool automatically when describing scenes. Images appear inline in the chat.
+
+<img src="../sapphire-images/sapphire-image-gallery-in-chat.png" alt="Sapphire image gallery displayed inline in chat" width="50%">
 
 ## Reference for AI
 

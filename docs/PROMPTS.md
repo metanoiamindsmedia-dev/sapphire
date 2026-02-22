@@ -23,9 +23,9 @@ Prompt built from swappable pieces. Mix and match. Ideal for stories where the A
 **Editor features:**
 - Edits auto-save as you type
 - Changes activate immediately
-- Prompt pill and editor stay synced — switching either updates both
+- Prompt selector and editor stay synced — switching either updates both
 
-![Prompt editor in Sapphire](screenshots/prompt-editor-assembled.png)
+<img src="../sapphire-images/sapphire-prompts.png" alt="Sapphire prompt editor with assembled components" width="50%">
 
 
 ### Sections

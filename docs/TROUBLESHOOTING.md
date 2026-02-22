@@ -41,7 +41,7 @@
 - Auto detect will route through OS audio defaults, which can resample the audio to be compatible
 
 **Default audio seems to not work via TTS**
-- Gear icon > App Settings > Audio - then change your device to auto-detect
+- Settings > Audio - then change your device to auto-detect
 - Selecting specific audio devices like default or a specific mic can work too
 - Auto-detect sometimes fails test due to it being open, but it may actually work so try it
 
@@ -51,13 +51,13 @@
 - Lapel/lav and headsets mics may be ~10-20, but with webcam or other weak mics, raise to ~40
 
 **No TTS audio output**
-- Verify TTS is enabled in Gear icon > App Settings > TTS
+- Verify TTS is enabled in Settings > TTS
 - Check TTS server started: `grep "kokoro" user/logs/`
 - Test system audio: `aplay /usr/share/sounds/alsa/Front_Center.wav`
 - Check PulseAudio/PipeWire is running
 
 **STT not transcribing**
-- Check STT is enabled in Gear icon > App Settings > STT
+- Check STT is enabled in Settings > STT
 - For GPU: verify CUDA is working (`nvidia-smi`)
 - Try CPU mode: set faster whisper device to cpu in settings
 - Turn up your mic volume to 70% or 100%
@@ -76,18 +76,18 @@
 
 ## Prompt issues
 **If you broke your default prompts**
-- Gear icon > App Settings > System tab
+- Settings > System tab
 - You can reset all prompts to default, or merge the defaults back into yours
 
 ## LLM issues
 **LM Studio (simple) test failing**
 - Open LM studio, click Developer in lower left to show advanced options, click green Developer tab, toggle server on, load a model
-- Go back to Sapphire: Gear icon > App Settings > LLM > LM Studio > test button
+- Go back to Sapphire: Settings > LLM > LM Studio > test button
 
 **Anthropic Claude not responding**
 - conda activate sapphire && pip install anthropic
 - Check API key (some are for Claude Code only)
-- Put new API key in Gear icon > App Settings > LLM > Claude
+- Put new API key in Settings > LLM > Claude
 
 **No thinking/reasoning visible**
 - Not all models support thinking. Check provider supports it.

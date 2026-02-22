@@ -158,7 +158,7 @@ Providers are tried in fallback order. Each chat can override to use a specific 
 ### Claude-Friendly Settings
 
 **For prompt caching (90% cost savings):**
-- Enable caching: Gear icon → App Settings → LLM → Claude → Enable prompt caching
+- Enable caching: Settings → LLM → Claude → Enable prompt caching
 - **Disable Spice** — Changes system prompt every turn, breaks cache
 - **Disable Datetime injection** — Same problem, changes every turn
 - **Disable State vars in prompt** — Changes on state updates, breaks cache
@@ -318,7 +318,7 @@ Each session has message history, per-chat settings (prompt, voice, toolset, LLM
 | `main.py` | Runner with restart loop |
 | `sapphire.py` | VoiceChatSystem entry point |
 | `config.py` | Settings proxy |
-| `core/api_fastapi.py` | Unified FastAPI server (156 endpoints) |
+| `core/api_fastapi.py` | Unified FastAPI server (221 endpoints) |
 | `core/auth.py` | Session auth, CSRF, rate limiting |
 | `core/ssl_utils.py` | Self-signed certificate generation |
 | `core/settings_manager.py` | Settings merge, file watcher, restart tiers |
@@ -345,7 +345,7 @@ Sapphire architecture for troubleshooting and development.
 PROCESSES:
 - main.py: Runner with restart loop (exit 42 = restart)
 - sapphire.py: Core VoiceChatSystem
-- core/api_fastapi.py: Unified FastAPI server (port 8073, HTTPS, 156 endpoints)
+- core/api_fastapi.py: Unified FastAPI server (port 8073, HTTPS, 221 endpoints)
 - TTS server: Kokoro HTTP subprocess (port 5012, if enabled)
 - STT: Faster-whisper thread in main process
 
@@ -380,7 +380,7 @@ HOT RELOAD:
 - LLM settings, SOCKS, privacy: immediate
 - Ports, models, code: require restart
 
-API: See docs/API.md for all 156 endpoints
+API: See docs/API.md for all 221 endpoints
 
 DATABASES:
 - user/history/sapphire_history.db: chats, state_current, state_log

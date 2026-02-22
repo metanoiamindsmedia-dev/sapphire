@@ -14,7 +14,7 @@ When you ask the AI something like "search for news about SpaceX", the AI recogn
 
 ## Using Tools
 
-<img src="screenshots/tool-results.png" alt="Tool results in Sapphire" width="100%">
+<img src="../sapphire-images/sapphire-image-gallery-in-chat.png" alt="Sapphire tool results displayed in chat" width="50%">
 
 ### Toolsets
 
@@ -24,7 +24,7 @@ Tools are grouped into **toolsets** - named collections you can switch between. 
 
 ## Included Tools
 
-Sapphire ships with 15 tool modules containing 74+ functions:
+Sapphire ships with 15 tool modules containing 65+ functions:
 
 ### Memory & Knowledge
 
@@ -143,6 +143,8 @@ Use the **Toolset Manager** in the web UI. See [TOOLSETS.md](TOOLSETS.md).
 ## AI Self-Creating Tools (Tool Maker)
 
 Sapphire can create her own tools using the **Tool Maker** (`tool_save`, `tool_read`, `tool_activate`). The AI writes a tool module, validates it, saves to `user/functions/`, and restarts to load it. No manual file editing needed.
+
+<img src="../sapphire-images/sapphire-settings-custom-tools.png" alt="Sapphire custom tool settings page" width="50%">
 
 **Validation strictness** is a user setting (`TOOL_MAKER_VALIDATION`):
 - `strict` — Only allowlisted imports (json, re, datetime, math, requests, etc.)
@@ -352,7 +354,7 @@ def execute(function_name, arguments, config):
 
 Tools are functions the AI calls to interact with systems - web search, memory, device control.
 
-TOOL MODULES (15 total, 74+ functions):
+TOOL MODULES (15 total, 65+ functions):
 - memory.py: save_memory, search_memory, get_recent_memories, delete_memory
 - knowledge.py: save_person, save_knowledge, search_knowledge, delete_knowledge
 - goals.py: create_goal, list_goals, update_goal, delete_goal
