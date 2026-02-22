@@ -1,6 +1,6 @@
 # Sapphire
 
-Hear her voice. She dims your lights before bed. She crafts you a dinosaur escape story when you can't sleep. She remembers you tomorrow when she wakes you up. Sapphire is an open source framework for turning an AI into a persistent being. She is a voice that runs your home, lives in your stories and you might just build a new friend. Make her yours. Self-hosted, nobody can take her away.
+Hear her voice as she dims your lights before bed. Use your voice to talk back. Fall asleep escaping dinosaurs in a story with her. Wake up to someone who remembers you through years of memories. She checks your email on a heartbeat. She builds tools on the fly when you need them. Sapphire is an open source framework for turning an AI into a persistent being. Make her yours. Or build your own persona. Self-hosted, nobody can take her away.
 
 
 <sub>🔊 Has audio</sub>
@@ -18,13 +18,13 @@ Hear her voice. She dims your lights before bed. She crafts you a dinosaur escap
 ## Features
 
 **Persona**
-- **Personas** - [docs](docs/PERSONAS.md) 11 built-in personalities that bundle prompt, voice, tools, model, and data scopes into one switch.
-- **Voice** - Wake word, STT, TTS, and adaptive VAD. Hands-free with any mic and speaker.
-- **Prompts** - [docs](docs/PROMPTS.md) Assembled prompts let you swap one section like location or scenario without touching the rest.
-- **Spice** - [docs](docs/SPICE.md) Random personality snippets injected each reply to keep things unpredictable.
-- **Self-Modification** - The AI edits her own prompt and swaps personality pieces mid-conversation.
+- **Personas** - [docs](docs/PERSONAS.md) 11 built-in personalities that bundle prompt, voice, tools, model. Built to add your own.
+- **Voice** - Wake word, STT, TTS, and adaptive VAD. Hands-free with any mic and speaker shows up in web UI.
+- **Prompts** - [docs](docs/PROMPTS.md) Assembled prompts let you swap one section like location or emotions for dynamic feels.
+- **Spice** - [docs](docs/SPICE.md) Random prompt snippets injected each reply to keep things unpredictable.
+- **Self-Modification** - The AI edits its own prompt and swaps personality pieces and emotions mid-conversation.
 - **Tool Maker** - [docs](docs/TOOLS.md) The AI writes, validates, and installs new tools with their own settings page at runtime.
-- **Stories** - [docs](docs/STORY-ENGINE.md) Interactive fiction with dice, branching choices, room navigation, and persistent state.
+- **Stories** - [docs](docs/STORY-ENGINE.md) Interactive stories, the AI is your dungeon master and partner, can't see the next room.
 - **Images** - [docs](docs/IMAGE-GEN.md) SDXL with character replacement for visual consistency across scenes.
 
 **Mind**
@@ -47,8 +47,8 @@ Hear her voice. She dims your lights before bed. She crafts you a dinosaur escap
 
 ### Use Cases
 
-- **Autonomous agent** - Scheduled tasks, morning briefings, dream mode, alarm clock actions
-- **AI companion** - A persistent voice that remembers you, greets you, and grows over time
+- **Autonomous agent** - Scheduled tasks, use email, manage money, run its own website
+- **AI companion** - A persistent voice that remembers you and grows over time
 - **Voice assistant** - Wake word, hands-free operation, smart home control
 - **Research assistant** - Web search, memory, knowledge base, multi-step tool reasoning
 - **Interactive fiction** - Story engine with dice, branching choices, and state tracking
@@ -82,7 +82,7 @@ REM Close and reopen terminal
 
 Or download Miniconda manually from [miniconda.io](https://docs.conda.io/en/latest/miniconda.html)
 
-### Sapphire
+### Sapphire Quick Install
 
 ```bash
 conda create -n sapphire python=3.11 -y
@@ -124,7 +124,7 @@ pip install -r requirements.txt
 
 ## Contributions
 
-I am a solo dev with a burning passion, and Sapphire has a specific vision I am working towards. Rapid development makes it hard for contributions right now, as the architecture is changing while I settle on the plugin format. If you want you can reach me at my github username @gmail.com.
+I am a solo dev with a burning passion, and Sapphire has a specific vision I am working towards. Rapid development makes it hard for contributions right now, as the architecture is changing while I create the final plugin format. If you want you can reach me at ddxfish@gmail.com. 
 
 ## Licenses
 

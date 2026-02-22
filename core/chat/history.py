@@ -46,11 +46,22 @@ SYSTEM_DEFAULTS = {
 def get_user_defaults() -> Dict[str, Any]:
     """
     Get user's custom chat defaults, falling back to system defaults.
-    If DEFAULT_PERSONA is set, loads persona settings as the base.
+    Priority: SYSTEM_DEFAULTS < chat_defaults.json < DEFAULT_PERSONA
     """
     merged = SYSTEM_DEFAULTS.copy()
 
-    # Check for default persona
+    # User chat_defaults.json as base layer (if it exists)
+    user_defaults_path = Path("user/settings/chat_defaults.json")
+    if user_defaults_path.exists():
+        try:
+            with open(user_defaults_path, 'r', encoding='utf-8') as f:
+                user_defaults = json.load(f)
+            merged.update(user_defaults)
+            logger.debug(f"Applied user chat defaults from {user_defaults_path}")
+        except Exception as e:
+            logger.error(f"Failed to load user chat defaults: {e}")
+
+    # Default persona overrides on top (most specific wins)
     default_persona = getattr(config, 'DEFAULT_PERSONA', '') or ''
     if default_persona:
         try:
@@ -62,17 +73,6 @@ def get_user_defaults() -> Dict[str, Any]:
                 logger.debug(f"Using default persona '{default_persona}' for new chat")
         except Exception as e:
             logger.warning(f"Failed to load default persona '{default_persona}': {e}")
-
-    # User chat_defaults.json overrides on top (if it exists)
-    user_defaults_path = Path("user/settings/chat_defaults.json")
-    if user_defaults_path.exists():
-        try:
-            with open(user_defaults_path, 'r', encoding='utf-8') as f:
-                user_defaults = json.load(f)
-            merged.update(user_defaults)
-            logger.debug(f"Applied user chat defaults from {user_defaults_path}")
-        except Exception as e:
-            logger.error(f"Failed to load user chat defaults: {e}")
 
     return merged
 
