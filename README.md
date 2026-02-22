@@ -37,12 +37,13 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 
 **Integrations**
 - **Home Assistant** - [docs](docs/HOME-ASSISTANT.md) Lights, scenes, thermostats, switches, phone notifications.
-- **Bitcoin** - Balance, send, transaction history.
+- **Bitcoin** - Balance, send, transaction history, backup wallet.
 - **SSH** - Local and remote command execution on configured servers.
 - **Email** - Inbox, send to whitelisted contacts. AI resolves recipients server-side.
 - **Cloud** (optional) - Claude, GPT, Fireworks. Only active when you enable them. Local-first by default.
 - **Privacy** - One toggle blocks all cloud connections. Fully local, nothing leaves your machine.
 - **Plugins** - [docs](docs/PLUGINS.md) Keyword-triggered AI extensions and JavaScript [web UI plugins](docs/WEB-PLUGINS.md).
+- **Desktop/Mobile/Voice** - Run on your local browser, open the same chat to your phone, then finish it on your mic.
 - **74+ Tools** - [docs](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [toolsets](docs/TOOLSETS.md).
 
 ### Use Cases

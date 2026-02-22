@@ -2,6 +2,7 @@
 import { getInitData, refreshInitData } from '../shared/init-data.js';
 import { uploadAvatar, checkAvatar } from '../shared/settings-api.js';
 import { avatarUrl } from '../shared/persona-api.js';
+import { fetchWithTimeout } from '../shared/fetch.js';
 import * as ui from '../ui.js';
 
 let modal, avatarImg, usernameInput, personaSelect, personaAvatar, profileBtn, profileInitial;
@@ -118,19 +119,16 @@ async function saveUsername() {
     const name = usernameInput.value.trim();
     if (!name || name === currentUsername) return;
     try {
-        const res = await fetch(`/api/settings/DEFAULT_USERNAME`, {
+        await fetchWithTimeout(`/api/settings/DEFAULT_USERNAME`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ value: name, persist: true })
         });
-        if (res.ok) {
-            currentUsername = name;
-            updateInitialBadge(name, null);
-            // Check if avatar exists to preserve it in badge
-            const avatarCheck = await checkAvatar('user').catch(() => ({ exists: false }));
-            updateInitialBadge(name, avatarCheck.exists ? avatarCheck.path : null);
-            refreshInitData();
-        }
+        currentUsername = name;
+        updateInitialBadge(name, null);
+        const avatarCheck = await checkAvatar('user').catch(() => ({ exists: false }));
+        updateInitialBadge(name, avatarCheck.exists ? avatarCheck.path : null);
+        refreshInitData();
     } catch (e) {
         console.warn('[Profile] Save username failed:', e);
     }
@@ -166,13 +164,13 @@ async function saveDefaultPersona() {
     updatePersonaAvatar(name);
     try {
         if (name) {
-            await fetch('/api/personas/default', {
+            await fetchWithTimeout('/api/personas/default', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
             });
         } else {
-            await fetch('/api/personas/default', { method: 'DELETE' });
+            await fetchWithTimeout('/api/personas/default', { method: 'DELETE' });
         }
         refreshInitData();
     } catch (e) {

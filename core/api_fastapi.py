@@ -65,6 +65,15 @@ app = FastAPI(
     openapi_url=None  # Disable openapi.json
 )
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Log unhandled exceptions to app logger instead of just stderr."""
+    logger.error(f"Unhandled {type(exc).__name__} on {request.method} {request.url.path}: {exc}", exc_info=True)
+    from starlette.responses import JSONResponse
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 # Session middleware added after HTTP middleware decorators below (outermost = LIFO)
 
 # Static files
@@ -2456,6 +2465,27 @@ async def create_persona(request: Request, _=Depends(require_login)):
     return {"status": "success", "name": persona_manager._sanitize_name(name)}
 
 
+@app.put("/api/personas/default")
+async def set_default_persona(request: Request, _=Depends(require_login)):
+    """Set the default persona for new chats."""
+    from core.modules.system.personas import persona_manager
+    from core.settings_manager import settings
+    data = await request.json()
+    name = data.get("name", "")
+    if name and not persona_manager.exists(name):
+        raise HTTPException(status_code=404, detail="Persona not found")
+    settings.set("DEFAULT_PERSONA", name, persist=True)
+    return {"status": "success", "default": name}
+
+
+@app.delete("/api/personas/default")
+async def clear_default_persona(request: Request, _=Depends(require_login)):
+    """Clear the default persona."""
+    from core.settings_manager import settings
+    settings.set("DEFAULT_PERSONA", "", persist=True)
+    return {"status": "success"}
+
+
 @app.put("/api/personas/{name}")
 async def update_persona(name: str, request: Request, _=Depends(require_login)):
     """Update an existing persona."""
@@ -2570,25 +2600,6 @@ async def create_persona_from_chat(request: Request, _=Depends(require_login), s
     if not persona_manager.create_from_settings(name, chat_settings):
         raise HTTPException(status_code=409, detail="Persona already exists or invalid name")
     return {"status": "success", "name": persona_manager._sanitize_name(name)}
-
-
-@app.put("/api/personas/default")
-async def set_default_persona(request: Request, _=Depends(require_login)):
-    """Set the default persona for new chats."""
-    from core.modules.system.personas import persona_manager
-    data = await request.json()
-    name = data.get("name", "")
-    if name and not persona_manager.exists(name):
-        raise HTTPException(status_code=404, detail="Persona not found")
-    config.settings_manager.set("DEFAULT_PERSONA", name, persist=True)
-    return {"status": "success", "default": name}
-
-
-@app.delete("/api/personas/default")
-async def clear_default_persona(request: Request, _=Depends(require_login)):
-    """Clear the default persona."""
-    config.settings_manager.set("DEFAULT_PERSONA", "", persist=True)
-    return {"status": "success"}
 
 
 # =============================================================================
