@@ -181,7 +181,7 @@ class AudioRecorder:
                         break
                 else:
                     speech_chunks += 1
-                    silent_chunks = max(0, silent_chunks - 1)
+                    silent_chunks = 0
                     if speech_chunks > (self.rate / self.blocksize *
                                        config.RECORDER_SPEECH_DURATION):
                         has_speech = True
