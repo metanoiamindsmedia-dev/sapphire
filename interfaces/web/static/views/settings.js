@@ -20,7 +20,7 @@ import systemTab from './settings-tabs/system.js';
 
 import { getRegisteredTabs } from '../plugins/plugins-modal/plugin-registry.js';
 
-const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, llmTab, toolsTab, customToolsTab, identityTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
+const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, llmTab, toolsTab, identityTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
 
 let container = null;
 let activeTab = 'appearance';

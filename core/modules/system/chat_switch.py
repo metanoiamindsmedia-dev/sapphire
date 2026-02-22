@@ -140,4 +140,4 @@ class ChatSwitcher:
         # Format list with current chat marked
         chat_list = [f"Your selected chat is: {chat}. Also available are:" if chat == current else f"  {chat}" for chat in available]
     
-        return chat_list
+        return "\n".join(chat_list)

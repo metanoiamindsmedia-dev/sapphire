@@ -437,7 +437,15 @@ class ConversationHistory:
             while total_tokens > effective_limit and len(msgs) > 1:
                 removed = msgs.pop(0)
                 total_tokens -= count_tokens(str(removed.get("content", "")))
-        
+
+        # Clean up orphaned tool results at the front.
+        # Trimming can remove an assistant message with tool_calls while leaving
+        # its tool_result messages behind — LLM APIs reject these.
+        while len(msgs) > 1 and msgs[0].get("role") in ("tool",):
+            removed = msgs.pop(0)
+            if context_limit > 0:
+                total_tokens -= count_tokens(str(removed.get("content", "")))
+
         return msgs
 
     def clear_thinking_raw(self):

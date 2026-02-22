@@ -34,9 +34,6 @@ class ContinuityExecutor:
         Returns:
             Result dict with success, responses, errors
         """
-        self._progress_cb = progress_callback
-        self._response_cb = response_callback
-
         # Resolve persona defaults into task (task-level fields override persona)
         task = self._resolve_persona(task)
 
@@ -53,16 +50,20 @@ class ContinuityExecutor:
 
         # Blank chat_target = ephemeral: isolated, no chat creation, no UI impact
         if not chat_target:
-            return self._run_background(task, result)
+            return self._run_background(task, result, progress_callback, response_callback)
 
         # Named chat_target = foreground: switches to that chat, runs, restores
-        return self._run_foreground(task, result)
+        return self._run_foreground(task, result, progress_callback, response_callback)
     
-    def _run_background(self, task: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    def _run_background(self, task: Dict[str, Any], result: Dict[str, Any],
+                        progress_cb=None, response_cb=None) -> Dict[str, Any]:
         """Run task in background mode - completely isolated, no session state changes."""
         task_name = task.get("name", "Unknown")
         logger.info(f"[Continuity] Running '{task_name}' in BACKGROUND mode (isolated)")
-        
+
+        # Snapshot voice state for restore
+        original_voice = self._snapshot_voice()
+
         try:
             # Build task settings for isolated_chat
             task_settings = {
@@ -78,7 +79,7 @@ class ContinuityExecutor:
                 "email_scope": task.get("email_scope", "default"),
                 "bitcoin_scope": task.get("bitcoin_scope", "default"),
             }
-            
+
             # Apply voice settings before any TTS calls
             self._apply_voice(task)
 
@@ -89,8 +90,8 @@ class ContinuityExecutor:
                 response = self.system.llm_chat.isolated_chat(msg, task_settings)
 
                 # Update UI before TTS (which blocks)
-                if self._response_cb and response:
-                    try: self._response_cb(response)
+                if response_cb and response:
+                    try: response_cb(response)
                     except Exception: pass
 
                 if tts_enabled and response and hasattr(self.system, 'tts') and self.system.tts:
@@ -109,8 +110,8 @@ class ContinuityExecutor:
                 logger.error(f"[Continuity] {error_msg}")
                 result["errors"].append(error_msg)
 
-            if self._progress_cb:
-                self._progress_cb(1, 1)
+            if progress_cb:
+                progress_cb(1, 1)
 
             result["success"] = len(result["errors"]) == 0
 
@@ -118,16 +119,21 @@ class ContinuityExecutor:
             error_msg = f"Background task failed: {e}"
             logger.error(f"[Continuity] {error_msg}", exc_info=True)
             result["errors"].append(error_msg)
-        
+
+        finally:
+            self._restore_voice(original_voice)
+
         result["completed_at"] = datetime.now().isoformat()
         return result
     
-    def _run_foreground(self, task: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    def _run_foreground(self, task: Dict[str, Any], result: Dict[str, Any],
+                        progress_cb=None, response_cb=None) -> Dict[str, Any]:
         """Run task in foreground mode - switches to named chat, runs, restores original."""
         import config
         session_manager = self.system.llm_chat.session_manager
         original_chat = session_manager.get_active_chat_name()
         original_toolset = self.system.llm_chat.function_manager.current_toolset_name
+        original_voice = self._snapshot_voice()
         target_original_settings = None
         target_chat = task.get("chat_target", "").strip()
 
@@ -180,8 +186,8 @@ class ContinuityExecutor:
                 response = self.system.process_llm_query(msg, skip_tts=True)
 
                 # Update UI before TTS (which blocks)
-                if self._response_cb and response:
-                    try: self._response_cb(response)
+                if response_cb and response:
+                    try: response_cb(response)
                     except Exception: pass
 
                 if tts_enabled and response and hasattr(self.system, 'tts') and self.system.tts:
@@ -199,8 +205,8 @@ class ContinuityExecutor:
                 logger.error(f"[Continuity] {error_msg}")
                 result["errors"].append(error_msg)
 
-            if self._progress_cb:
-                self._progress_cb(1, 1)
+            if progress_cb:
+                progress_cb(1, 1)
 
             result["success"] = len(result["errors"]) == 0
 
@@ -217,7 +223,7 @@ class ContinuityExecutor:
                     _settings.set(config_key, original_val, persist=False)
                 logger.debug(f"[Continuity] Restored config overrides: {list(_config_overrides.keys())}")
 
-            # Always restore original chat context and toolset
+            # Always restore original chat context, toolset, and voice
             try:
                 # Restore target chat's original settings before switching away
                 # (set_active_chat saves current settings, so this must come first)
@@ -233,6 +239,8 @@ class ContinuityExecutor:
             except Exception as e:
                 logger.error(f"[Continuity] Failed to restore chat context: {e}")
                 result["errors"].append(f"Context restore failed: {e}")
+
+            self._restore_voice(original_voice)
 
         result["completed_at"] = datetime.now().isoformat()
         return result
@@ -284,6 +292,38 @@ class ContinuityExecutor:
         except Exception as e:
             logger.error(f"[Continuity] Persona resolution failed: {e}")
             return task
+
+    def _snapshot_voice(self) -> Dict[str, Any]:
+        """Snapshot current TTS voice/pitch/speed for later restore."""
+        tts = getattr(self.system, 'tts', None)
+        if not tts:
+            return {}
+        try:
+            return {
+                "voice": getattr(tts, 'voice_name', None),
+                "pitch": getattr(tts, 'pitch_shift', None),
+                "speed": getattr(tts, 'speed', None),
+            }
+        except Exception:
+            return {}
+
+    def _restore_voice(self, snapshot: Dict[str, Any]) -> None:
+        """Restore TTS voice/pitch/speed from snapshot."""
+        if not snapshot:
+            return
+        tts = getattr(self.system, 'tts', None)
+        if not tts:
+            return
+        try:
+            if snapshot.get("voice") is not None:
+                tts.set_voice(snapshot["voice"])
+            if snapshot.get("pitch") is not None:
+                tts.set_pitch(snapshot["pitch"])
+            if snapshot.get("speed") is not None:
+                tts.set_speed(snapshot["speed"])
+            logger.debug(f"[Continuity] Restored voice settings: {snapshot}")
+        except Exception as e:
+            logger.warning(f"[Continuity] Failed to restore voice settings: {e}")
 
     def _apply_voice(self, task: Dict[str, Any]) -> None:
         """Apply voice/pitch/speed settings to TTS if available."""
