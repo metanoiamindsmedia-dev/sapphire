@@ -26,7 +26,8 @@ Sapphire ships with 11 pre-made personas:
 
 These are starting points. Edit them freely — your changes are saved separately from the defaults.
 
-<img src="../sapphire-images/sapphire-personas.png" alt="Sapphire persona manager" width="50%">
+<img width="50%" alt="sapphire-personas" src="https://github.com/user-attachments/assets/430dfb18-ee09-4fca-b788-61e9bcb5d1d6" />
+
 
 ---
 
