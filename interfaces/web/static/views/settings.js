@@ -289,13 +289,6 @@ function renderInput(key, value, type) {
             ${['onnx', 'tflite'].map(f => `<option value="${f}" ${value === f ? 'selected' : ''}>${f.toUpperCase()}</option>`).join('')}
         </select>`;
     }
-    if (key === 'TOOL_MAKER_VALIDATION') {
-        const modes = [['strict', 'Strict — allowlisted imports only'], ['moderate', 'Moderate — blocks dangerous ops'], ['trust', 'Trust — syntax check only']];
-        return `<select id="${id}" data-key="${key}">
-            ${modes.map(([v, label]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${label}</option>`).join('')}
-        </select>`;
-    }
-
     if (type === 'checkbox') {
         return `<label class="setting-toggle">
             <input type="checkbox" id="${id}" data-key="${key}" ${value ? 'checked' : ''}>

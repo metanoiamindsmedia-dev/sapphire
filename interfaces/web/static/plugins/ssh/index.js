@@ -3,6 +3,7 @@
 
 import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
 import pluginsAPI from '../plugins-modal/plugins-api.js';
+import { showDangerConfirm } from '../../shared/danger-confirm.js';
 
 function csrfHeaders(extra = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -354,8 +355,25 @@ function renderForm(container, settings) {
 
   renderServerList(container);
 
-  // Localhost toggle — auto-save
-  container.querySelector('#ssh-localhost').addEventListener('change', () => autoSave(container));
+  // Localhost toggle — danger gate every time it's enabled
+  container.querySelector('#ssh-localhost').addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      const confirmed = await showDangerConfirm({
+        title: 'Enable Localhost Execution',
+        warnings: [
+          'The AI will be able to run commands directly on THIS machine',
+          'This is equivalent to giving the AI a terminal session',
+          'File deletion, process management, and system changes are all possible',
+        ],
+        buttonLabel: 'Enable Localhost',
+      });
+      if (!confirmed) {
+        e.target.checked = false;
+        return;
+      }
+    }
+    autoSave(container);
+  });
 
   // Add server button
   container.querySelector('#ssh-add-btn').addEventListener('click', () => {

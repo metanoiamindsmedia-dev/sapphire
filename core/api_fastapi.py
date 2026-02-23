@@ -4237,6 +4237,28 @@ async def reset_plugin_settings(plugin_name: str, request: Request, _=Depends(re
     return {"status": "success", "plugin": plugin_name, "message": "Settings reset"}
 
 
+@app.get("/api/webui/plugins/toolmaker/tools")
+async def list_toolmaker_tools(request: Request, _=Depends(require_login)):
+    """List custom tools installed by Tool Maker."""
+    user_functions = PROJECT_ROOT / 'user' / 'functions'
+    tools = []
+    if user_functions.exists():
+        for py_file in sorted(user_functions.glob("*.py")):
+            if py_file.name.startswith("_"):
+                continue
+            # Extract function names from TOOLS list
+            funcs = []
+            try:
+                content = py_file.read_text()
+                import re
+                for m in re.finditer(r"'name':\s*'(\w+)'", content):
+                    funcs.append(m.group(1))
+            except Exception:
+                pass
+            tools.append({"module": py_file.stem, "functions": funcs})
+    return {"tools": tools}
+
+
 @app.get("/api/webui/plugins/config")
 async def get_plugins_config(request: Request, _=Depends(require_login)):
     """Get full plugins config."""

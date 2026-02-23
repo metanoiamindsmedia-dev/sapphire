@@ -14,6 +14,33 @@ from core.modules.system.toolsets import toolset_manager
 
 logger = logging.getLogger(__name__)
 
+
+def _is_toolmaker_enabled():
+    """Check if Tool Maker plugin is enabled by reading the plugins config."""
+    try:
+        plugins_json = Path(__file__).parent.parent.parent / 'user' / 'webui' / 'plugins.json'
+        if not plugins_json.exists():
+            return False
+        with open(plugins_json) as f:
+            data = json.load(f)
+        return 'toolmaker' in data.get('enabled', [])
+    except Exception:
+        return False
+
+
+def _get_toolmaker_validation():
+    """Get Tool Maker validation level from plugin settings."""
+    try:
+        settings_json = Path(__file__).parent.parent.parent / 'user' / 'webui' / 'plugins' / 'toolmaker.json'
+        if not settings_json.exists():
+            return 'moderate'
+        with open(settings_json) as f:
+            data = json.load(f)
+        return data.get('validation', 'moderate')
+    except Exception:
+        return 'moderate'
+
+
 # Per-context scope isolation — each thread/async-task gets its own values
 scope_memory:   ContextVar[str]  = ContextVar('scope_memory',   default='default')
 scope_goal:     ContextVar[str]  = ContextVar('scope_goal',     default='default')
@@ -546,6 +573,13 @@ class FunctionManager:
             logger.info(f"Function '{function_name}' blocked by privacy mode: {error_msg}")
             self._log_tool_call(function_name, arguments, error_msg, time.time() - start_time, False)
             return error_msg
+
+        # Tool Maker gate — tools exist in toolsets but require plugin to be enabled
+        if function_name in ('tool_save', 'tool_read', 'tool_activate'):
+            if not _is_toolmaker_enabled():
+                result = "Tool Maker is disabled. The user must enable it in Settings → Plugins before you can create or modify tools."
+                self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
+                return result
 
         logger.info(f"Executing function: {function_name}")
         

@@ -1,10 +1,86 @@
 // settings-tabs/plugins.js - Plugin toggles tab
 import * as ui from '../../ui.js';
+import { showDangerConfirm } from '../../shared/danger-confirm.js';
 
 // Infrastructure plugins hidden from toggle list
 const HIDDEN = new Set([
     'setup-wizard', 'plugins-modal'
 ]);
+
+// Danger confirmation configs for risky plugins
+const DANGER_PLUGINS = {
+    ssh: {
+        title: 'Enable SSH — Remote Command Execution',
+        warnings: [
+            'The AI can execute shell commands on configured servers',
+            'Commands run with the permissions of the SSH user',
+            'There is no confirmation before command execution',
+            'A blacklist blocks obvious destructive commands, but it is not comprehensive',
+        ],
+        buttonLabel: 'Enable SSH',
+        doubleConfirm: true,
+        stage2Title: '\u26A0 Final Confirmation — Shell Access',
+        stage2Warnings: [
+            'The AI can delete files, kill processes, and modify system configuration',
+            'A single bad command can brick a server or destroy data',
+            'Review your blacklist and keep SSH out of chats with scheduled tasks',
+        ],
+    },
+    bitcoin: {
+        title: 'Enable Bitcoin — Autonomous Transactions',
+        warnings: [
+            'The AI can send Bitcoin from any configured wallet',
+            'Transactions are irreversible — sent BTC cannot be recovered',
+            'There is no amount limit or address whitelist',
+            'A single hallucinated tool call can result in permanent loss of funds',
+        ],
+        buttonLabel: 'Enable Bitcoin',
+        doubleConfirm: true,
+        stage2Title: '\u26A0 Final Confirmation — Real Money',
+        stage2Warnings: [
+            'You are enabling autonomous control over real financial assets',
+            'Ensure your toolsets are configured carefully',
+            'Consider keeping BTC tools out of chats with scheduled tasks',
+        ],
+    },
+    email: {
+        title: 'Enable Email — AI Sends From Your Address',
+        warnings: [
+            'The AI can read your inbox and send emails to whitelisted contacts',
+            'The AI can reply to any email regardless of whitelist',
+            'The AI can archive (permanently move) messages',
+            'Emails are sent from your real email address',
+        ],
+        buttonLabel: 'Enable Email',
+    },
+    homeassistant: {
+        title: 'Enable Home Assistant — Smart Home Control',
+        warnings: [
+            'The AI can control lights, switches, thermostats, and scenes',
+            'The AI can read presence data (who is home)',
+            'The AI can trigger HA scripts which may have broad permissions',
+            'Locks and covers are blocked by default — review your blacklist',
+        ],
+        buttonLabel: 'Enable Home Assistant',
+    },
+    toolmaker: {
+        title: 'Enable Tool Maker — AI Code Execution',
+        warnings: [
+            'The AI can write Python code and install it as a live tool',
+            'Custom tools run inside the Sapphire process with full access',
+            'Validation catches common dangerous patterns but is not a sandbox',
+            'A motivated prompt injection could bypass validation',
+        ],
+        buttonLabel: 'Enable Tool Maker',
+        doubleConfirm: true,
+        stage2Title: '\u26A0 Final Confirmation — Code Execution',
+        stage2Warnings: [
+            'Custom tools persist across restarts',
+            'Review tools in user/functions/ periodically',
+            'Consider keeping Tool Maker out of public-facing chats',
+        ],
+    },
+};
 
 // Plugins that own a nav-rail view
 const PLUGIN_NAV_MAP = { continuity: 'schedule' };
@@ -55,6 +131,24 @@ export default {
                 e.target.checked = !e.target.checked;  // revert browser toggle
                 return;
             }
+
+            // Danger gate for risky plugins on enable
+            const dangerConfig = DANGER_PLUGINS[name];
+            if (dangerConfig && e.target.checked) {
+                const ackKey = `sapphire_danger_ack_${name}`;
+                if (!localStorage.getItem(ackKey)) {
+                    // Prevent the toggle from firing until confirmed
+                    toggling.add(name);
+                    const confirmed = await showDangerConfirm(dangerConfig);
+                    toggling.delete(name);
+                    if (!confirmed) {
+                        e.target.checked = false;
+                        return;
+                    }
+                    localStorage.setItem(ackKey, Date.now().toString());
+                }
+            }
+
             toggling.add(name);
             e.target.disabled = true;
 

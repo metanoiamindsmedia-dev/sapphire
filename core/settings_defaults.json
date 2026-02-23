@@ -213,9 +213,7 @@
     "TOOL_HISTORY_MAX_ENTRIES": 0,
     "MAX_TOOL_ITERATIONS": 5,
     "MAX_PARALLEL_TOOLS": 3,
-    "DEBUG_TOOL_CALLING": false,
-    "TOOL_MAKER_VALIDATION": "moderate",
-    "_tool_maker_modes": "strict=allowlisted imports only, moderate=blocked dangerous ops, trust=syntax check only"
+    "DEBUG_TOOL_CALLING": false
   },
   
   "rag": {

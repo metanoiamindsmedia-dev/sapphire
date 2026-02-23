@@ -263,7 +263,8 @@ def execute(function_name, arguments, config):
             if not code.strip():
                 return "No code provided.", False
 
-            strictness = getattr(config, 'TOOL_MAKER_VALIDATION', 'moderate')
+            from core.chat.function_manager import _get_toolmaker_validation
+            strictness = _get_toolmaker_validation()
 
             ok, err = _validate_ast(code, strictness)
             if not ok:

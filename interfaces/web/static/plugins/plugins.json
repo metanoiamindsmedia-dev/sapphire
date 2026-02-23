@@ -4,11 +4,7 @@
     "plugins-modal",
     "backup",
     "image-gen",
-    "continuity",
-    "homeassistant",
-    "email",
-    "bitcoin",
-    "ssh"
+    "continuity"
   ],
   "plugins": {
     "setup-wizard": {
@@ -52,6 +48,10 @@
     },
     "ssh": {
       "title": "SSH",
+      "showInSidebar": false
+    },
+    "toolmaker": {
+      "title": "Tool Maker",
       "showInSidebar": false
     }
   }
