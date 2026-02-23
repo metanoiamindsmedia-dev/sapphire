@@ -18,33 +18,33 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 ## Features
 
 **Persona**
-- **Personas** - [docs](docs/PERSONAS.md) 11 built-in personalities that bundle prompt, voice, tools, model. Built to add your own.
+- **Personas** - [PERSONAS.md](docs/PERSONAS.md) 11 built-in personalities that bundle prompt, voice, tools, model. Built to add your own.
 - **Voice** - Wake word, STT, TTS, and adaptive VAD. Hands-free with any mic and speaker shows up in web UI.
-- **Prompts** - [docs](docs/PROMPTS.md) Assembled prompts let you swap one section like location or emotions for dynamic feels.
-- **Spice** - [docs](docs/SPICE.md) Random prompt snippets injected each reply to keep things unpredictable.
+- **Prompts** - [PROMPTS.md](docs/PROMPTS.md) Assembled prompts let you swap one section like location or emotions for dynamic feels.
+- **Spice** - [SPICE.md](docs/SPICE.md) Random prompt snippets injected each reply to keep things unpredictable.
 - **Self-Modification** - The AI edits its own prompt and swaps personality pieces and emotions mid-conversation.
-- **Tool Maker** - [docs](docs/TOOLS.md) The AI writes, validates, and installs new tools with their own settings page at runtime.
-- **Stories** - [docs](docs/STORY-ENGINE.md) Interactive stories, the AI is your dungeon master and partner, can't see the next room.
-- **Images** - [docs](docs/IMAGE-GEN.md) SDXL with character replacement for visual consistency across scenes.
+- **Tool Maker** - [TOOLS.md](docs/TOOLS.md) The AI writes, validates, and installs new tools with their own settings page at runtime.
+- **Stories** - [STORY-ENGINE.md](docs/STORY-ENGINE.md) Interactive stories, the AI is your dungeon master and partner, can't see the next room.
+- **Images** - [IMAGE-GEN.md](docs/IMAGE-GEN.md) SDXL with character replacement for visual consistency across scenes.
 
 **Mind**
 - **Memory** - Semantic vector search across 100K+ labeled entries.
-- **Knowledge** - [docs](docs/KNOWLEDGE.md) Organized categories with file upload, auto-chunking, and vector search.
+- **Knowledge** - [KNOWLEDGE.md](docs/KNOWLEDGE.md) Organized categories with file upload, auto-chunking, and vector search.
 - **Goals** - Hierarchical with priority and a timestamped progress journal.
-- **People** - [docs](docs/PEOPLE.md) Contact book with privacy-first email. The AI never sees addresses, only recipient IDs.
-- **Heartbeat** - [docs](docs/CONTINUITY.md) Cron-scheduled autonomous tasks. Morning greetings, dream mode, alarms, random check-ins.
+- **People** - [PEOPLE.md](docs/PEOPLE.md) Contact book with privacy-first email. The AI never sees addresses, only recipient IDs.
+- **Heartbeat** - [CONTINUITY.md](docs/CONTINUITY.md) Cron-scheduled autonomous tasks. Morning greetings, dream mode, alarms, random check-ins.
 - **Research** - Multi-page web research with site crawling and summarization.
 
 **Integrations**
-- **Home Assistant** - [docs](docs/HOME-ASSISTANT.md) Lights, scenes, thermostats, switches, phone notifications.
+- **Home Assistant** - [HOME-ASSISTANT.md](docs/HOME-ASSISTANT.md) Lights, scenes, thermostats, switches, phone notifications.
 - **Bitcoin** - Balance, send, transaction history, backup wallet.
 - **SSH** - Local and remote command execution on configured servers.
 - **Email** - Inbox, send to whitelisted contacts. AI resolves recipients server-side.
 - **Cloud** (optional) - Claude, GPT, Fireworks. Only active when you enable them. Local-first by default.
 - **Privacy** - One toggle blocks all cloud connections. Fully local, nothing leaves your machine.
-- **Plugins** - [docs](docs/PLUGINS.md) Keyword-triggered AI extensions and JavaScript [web UI plugins](docs/WEB-PLUGINS.md).
+- **Plugins** - [PLUGINS.md](docs/PLUGINS.md) Keyword-triggered AI extensions and JavaScript [WEB-PLUGINS.md](docs/WEB-PLUGINS.md).
 - **Desktop/Mobile/Voice** - Run on your local browser, open the same chat to your phone, then finish it on your mic.
-- **65+ Tools** - [docs](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [toolsets](docs/TOOLSETS.md).
+- **65+ Tools** - [TOOLS.md](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [TOOLSETS.md](docs/TOOLSETS.md).
 
 <img src="../sapphire-images/sapphire-chat.png" alt="Sapphire chat interface" width="50%">
 
