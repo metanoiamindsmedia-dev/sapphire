@@ -84,11 +84,12 @@ Sapphire ships with 11 built-in personas. See [PERSONAS.md](PERSONAS.md) for the
 
 Each chat can have completely different personas, voices, and capabilities. Switch between them instantly.
 
-<img src="../sapphire-images/sapphire-chat-sidebar.png" alt="Sapphire chat sidebar with persona and settings" width="50%">
+<img width="50%" alt="sapphire-chat-sidebar" src="https://github.com/user-attachments/assets/c4979288-92f2-4763-af2c-49921c6e7a9b" />
 
 ### Make the Settings Yours
 
-<img src="../sapphire-images/sapphire-settings.png" alt="Sapphire settings page" width="50%">
+<img width="50%" alt="sapphire-settings" src="https://github.com/user-attachments/assets/3881c457-a96b-49e5-b217-90ef1bd7e6a0" />
+
 
 - Settings (gear icon in nav rail)
 - Change names and avatars
@@ -180,7 +181,8 @@ Privacy Mode blocks all outbound cloud connections, keeping conversations local-
 
 **Note:** Model downloads (wakeword, STT) still work on first launch even in privacy mode. Once downloaded, everything runs offline.
 
-<img src="../sapphire-images/sapphire-privacy-block.png" alt="Sapphire privacy mode blocking cloud connections" width="50%">
+
+<img width="50%" alt="sapphire-privacy-block" src="https://github.com/user-attachments/assets/f6a9e2a7-8519-425c-b4a4-a66413ae1631" />
 
 ---
 
