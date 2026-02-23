@@ -111,6 +111,29 @@ git pull
 pip install -r requirements.txt
 ```
 
+## Upgrading from 1.x to 2.0
+
+Version 2.0 has new dependencies that usually require a fresh conda environment. Your `user/` directory is preserved.
+
+```bash
+conda deactivate
+conda remove -n sapphire --all -y
+conda create -n sapphire python=3.11 -y
+conda activate sapphire
+cd sapphire
+git pull
+pip install -r requirements.txt
+```
+
+## Uninstall
+
+```bash
+conda deactivate
+conda remove -n sapphire --all -y
+```
+
+This removes the Python environment. Delete the `sapphire/` folder to remove everything. Your `user/` directory inside it contains all settings and data.
+
 ## Requirements
 
 - Ubuntu 22.04+ or Windows 11+

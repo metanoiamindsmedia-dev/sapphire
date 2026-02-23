@@ -830,10 +830,11 @@ function setSidebarMode(container, mode) {
 
 const VOICE_NAMES = {
     am_adam: 'Adam', am_eric: 'Eric', am_liam: 'Liam', am_michael: 'Michael',
+    am_onyx: 'Onyx', am_puck: 'Puck',
     af_bella: 'Bella', af_nicole: 'Nicole', af_heart: 'Heart', af_jessica: 'Jessica',
     af_sarah: 'Sarah', af_river: 'River', af_sky: 'Sky',
     bf_emma: 'Emma', bf_isabella: 'Isabella', bf_alice: 'Alice', bf_lily: 'Lily',
-    bm_george: 'George', bm_daniel: 'Daniel', bm_lewis: 'Lewis'
+    bm_george: 'George', bm_daniel: 'Daniel', bm_lewis: 'Lewis', bm_fable: 'Fable'
 };
 
 function updateEasyMode(container, settings, init) {
