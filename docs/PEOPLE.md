@@ -4,7 +4,7 @@ Sapphire can remember the people in your life — names, relationships, phone nu
 
 People are managed in the **Mind** view (brain icon) under the **People** tab.
 
-<img src="../sapphire-images/sapphire-people.png" alt="Sapphire people tab with contact management" width="50%">
+<img width="50%" alt="sapphire-people" src="https://github.com/user-attachments/assets/77b1df57-a0cf-4666-8bfe-4dcb5ce96579" />
 
 ---
 
