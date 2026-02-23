@@ -10,7 +10,8 @@ Use the UI to edit tool sets. Look in the sidebar for Toolset Editor. You can us
 
 You can quick-switch the active toolset below the user chat input. Each chat/persona has its own toolset saved in the chat history file, so if you switch to another chat, it activates that toolset.
 
-<img src="../sapphire-images/sapphire-toolsets.png" alt="Sapphire toolset editor" width="50%">
+<img width="50%" alt="sapphire-toolsets" src="https://github.com/user-attachments/assets/a800437e-f571-4b13-9e15-9f221f56c96f" />
+
 
 ## Reference for AI
 
