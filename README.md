@@ -7,7 +7,8 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 > Sapphire can execute shell commands, send Bitcoin, send emails, control your smart home, and write its own tools — all autonomously, without asking first. Combined with scheduled tasks, this means **unsupervised AI acting on your behalf**. Every dangerous integration requires explicit setup and opt-in, but once enabled, there are no training wheels. Configure your toolsets carefully. If you wouldn't hand someone your terminal, don't hand it to an LLM.
 
 <sub>🔊 Has audio</sub>
-<video src="https://github.com/user-attachments/assets/ed0dca80-121b-46e0-9c94-b98d6e9228c8" controls width="100%"></video>
+
+<video src="https://github.com/user-attachments/assets/1bc08408-0a7c-46a8-a68a-ee03496e4e81" controls width="100%"></video>
 
 
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-blue)
