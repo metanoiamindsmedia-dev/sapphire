@@ -8,7 +8,7 @@ If the proxy is enabled but broken, tools fail-secure rather than leaking to dir
 
 Open Settings → Network tab.
 
-<img width="50%" alt="sapphire-settings" src="https://github.com/user-attachments/assets/e4921726-efb5-4f01-8f0e-49e0c42b9bc0" />
+<img width="50%" alt="sapphire-network" src="https://github.com/user-attachments/assets/44d18b5c-2f92-4b06-acd6-b6ba26bc6f0f" />
 
 
 1. Enable SOCKS proxy toggle
