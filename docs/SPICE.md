@@ -10,13 +10,12 @@ Spice prevents stories from going stale and helps avoid loops or repetitive form
 4. Each message, one random snippet injects into the prompt
 5. Rotates every X messages based on your settings
 
-<img src="../sapphire-images/sapphire-spices.png" alt="Sapphire spice editor with category toggles" width="50%">
+<img width="50%" alt="sapphire-spices" src="https://github.com/user-attachments/assets/f5563bed-7c5d-490a-9d18-c7f87339d9ef" />
+
 
 ## Quick Toggle
 
-The hot pepper icon 🌶️ in the input area gives quick access to spice:
-
-<img src="../sapphire-images/sapphire-chat.png" alt="Sapphire user input area with spice toggle" width="50%">
+The Spice dropdown in the Chat Settings gives quick access to spice:
 
 - **Hover** — Shows the current spice for last message
 - **Click** — Toggle spice on/off for this chat only
@@ -65,7 +64,7 @@ SETUP:
 5. Set rotation interval
 
 QUICK ACCESS:
-- Hot pepper icon 🌶️ in input area
+- Spice dropdown input area
 - Hover: shows current spice
 - Click: toggle spice for this chat
 
