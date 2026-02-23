@@ -7,7 +7,7 @@
     "avatar_full": null,
     "settings": {
       "prompt": "sapphire",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "companion",
       "voice": "af_heart",
       "pitch": 0.98,
@@ -36,7 +36,7 @@
     "avatar_full": null,
     "settings": {
       "prompt": "cobalt",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "companion",
       "voice": "am_adam",
       "pitch": 0.9,
@@ -65,7 +65,7 @@
     "avatar_full": null,
     "settings": {
       "prompt": "anita",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "companion",
       "voice": "af_nicole",
       "pitch": 1.0,
@@ -90,7 +90,7 @@
   "claude": {
     "name": "claude",
     "tagline": "Two minds, one problem",
-    "avatar": null,
+    "avatar": "claude.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "claude",
@@ -119,7 +119,7 @@
   "alfred": {
     "name": "alfred",
     "tagline": "Already handled",
-    "avatar": null,
+    "avatar": "alfred.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "alfred",
@@ -148,11 +148,11 @@
   "lovelace": {
     "name": "lovelace",
     "tagline": "Elegance in every function",
-    "avatar": null,
+    "avatar": "lovelace.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "lovelace",
-      "toolset": "all",
+      "toolset": "work",
       "spice_set": "default",
       "voice": "bf_emma",
       "pitch": 1.0,
@@ -181,7 +181,7 @@
     "avatar_full": null,
     "settings": {
       "prompt": "einstein",
-      "toolset": "all",
+      "toolset": "work",
       "spice_set": "default",
       "voice": "bm_george",
       "pitch": 0.85,
@@ -206,11 +206,11 @@
   "nexus": {
     "name": "nexus",
     "tagline": "The house that thinks",
-    "avatar": null,
+    "avatar": "nexus.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "nexus",
-      "toolset": "all",
+      "toolset": "smarthome",
       "spice_set": "default",
       "voice": "am_onyx",
       "pitch": 0.85,
@@ -235,11 +235,11 @@
   "cantos": {
     "name": "cantos",
     "tagline": "Every word has weight",
-    "avatar": null,
+    "avatar": "cantos.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "cantos",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "default",
       "voice": "bm_fable",
       "pitch": 0.95,
@@ -264,11 +264,11 @@
   "yuki": {
     "name": "yuki",
     "tagline": "It's not like I care or anything",
-    "avatar": null,
+    "avatar": "yuki.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "yuki",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "companion",
       "voice": "af_sky",
       "pitch": 1.1,
@@ -293,11 +293,11 @@
   "eddie": {
     "name": "eddie",
     "tagline": "Heart over horsepower",
-    "avatar": null,
+    "avatar": "eddie.webp",
     "avatar_full": null,
     "settings": {
       "prompt": "eddie",
-      "toolset": "all",
+      "toolset": "personality",
       "spice_set": "default",
       "voice": "am_puck",
       "pitch": 1.05,

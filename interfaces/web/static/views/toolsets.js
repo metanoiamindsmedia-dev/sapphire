@@ -60,7 +60,7 @@ async function loadData() {
             getCurrentToolset(),
             getFunctions()
         ]);
-        toolsets = (tsList || []).filter(t => t.type !== 'module');
+        toolsets = (tsList || []).filter(t => t.type !== 'module').sort((a, b) => a.name.localeCompare(b.name));
         currentToolset = cur;
         functions = funcs;
         if (!selectedName || !toolsets.some(t => t.name === selectedName))

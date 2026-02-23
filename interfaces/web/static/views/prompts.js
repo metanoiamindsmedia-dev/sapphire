@@ -40,7 +40,7 @@ export default {
 async function loadAll() {
     try {
         const [pList, comps] = await Promise.all([listPrompts(), getComponents()]);
-        prompts = pList || [];
+        prompts = (pList || []).sort((a, b) => a.name.localeCompare(b.name));
         components = comps || {};
 
         const active = prompts.find(p => p.active);

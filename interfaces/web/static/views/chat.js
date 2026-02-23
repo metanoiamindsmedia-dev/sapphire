@@ -807,7 +807,11 @@ function initSidebarModes(container) {
             content.style.display = open ? '' : 'none';
             return;
         }
-        if (e.target.closest('.sb-pdetail-edit')) switchView('personas');
+        if (e.target.closest('.sb-pdetail-edit')) {
+            const name = container.querySelector('.sb-pdetail-name')?.textContent?.trim();
+            if (name) window._pendingPersonaSelect = name;
+            switchView('personas');
+        }
     });
 }
 

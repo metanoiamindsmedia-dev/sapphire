@@ -324,10 +324,17 @@ class PersonaManager:
                     self._personas[name] = persona
                     self._seed_avatar(persona.get('avatar'))
                     added += 1
+                else:
+                    # Seed avatar for existing personas that are missing theirs
+                    core_avatar = persona.get('avatar')
+                    if core_avatar and not self._personas[name].get('avatar'):
+                        self._personas[name]['avatar'] = core_avatar
+                        self._seed_avatar(core_avatar)
+                        added += 1
 
             if added > 0:
                 self._save_to_user()
-                logger.info(f"Merged {added} new personas from defaults")
+                logger.info(f"Merged {added} new personas/avatars from defaults")
 
         return added
 
