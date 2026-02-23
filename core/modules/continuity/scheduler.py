@@ -396,13 +396,13 @@ class ContinuityScheduler:
                     self._task_running[task_id] = False
                     break
 
-    def _in_active_hours(self, task):
-        """Check if current hour is within the task's active hours window."""
+    def _in_active_hours(self, task, check_hour=None):
+        """Check if an hour is within the task's active hours window."""
         start = task.get("active_hours_start")
         end = task.get("active_hours_end")
         if start is None or end is None:
             return True  # no restriction
-        hour = datetime.now().hour
+        hour = check_hour if check_hour is not None else datetime.now().hour
         if start <= end:
             return start <= hour < end
         return hour >= start or hour < end  # wrap-around (e.g. 20→04)
@@ -650,7 +650,10 @@ class ContinuityScheduler:
                         next_time = cron.get_next(datetime)
                         if next_time > end:
                             break
-                        
+
+                        if not self._in_active_hours(task, next_time.hour):
+                            continue
+
                         timeline.append({
                             "task_id": task["id"],
                             "task_name": task.get("name"),
