@@ -146,10 +146,14 @@ function _showStage({ title, warnings, detail, confirmPhrase, buttonLabel, isDan
     const input = overlay.querySelector('.dc-input');
     const confirmBtn = overlay.querySelector('.dc-confirm');
 
+    let escHandler;
     const close = () => {
+        document.removeEventListener('keydown', escHandler);
         overlay.classList.remove('active');
         setTimeout(() => overlay.remove(), 300);
     };
+    escHandler = e => { if (e.key === 'Escape') { close(); onCancel(); } };
+    document.addEventListener('keydown', escHandler);
 
     input.addEventListener('input', () => {
         const valid = input.value.trim().toUpperCase() === confirmPhrase.toUpperCase();
@@ -167,15 +171,6 @@ function _showStage({ title, warnings, detail, confirmPhrase, buttonLabel, isDan
     overlay.querySelector('.dc-close').addEventListener('click', () => { close(); onCancel(); });
     overlay.querySelector('.dc-cancel').addEventListener('click', () => { close(); onCancel(); });
     overlay.addEventListener('click', e => { if (e.target === overlay) { close(); onCancel(); } });
-
-    const escHandler = e => {
-        if (e.key === 'Escape') {
-            close();
-            onCancel();
-            document.removeEventListener('keydown', escHandler);
-        }
-    };
-    document.addEventListener('keydown', escHandler);
 
     setTimeout(() => input.focus(), 50);
 }
