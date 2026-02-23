@@ -39,7 +39,7 @@ async function loadData() {
             getCurrentSpiceSet(),
             getSpices()
         ]);
-        spiceSets = sets || [];
+        spiceSets = (sets || []).sort((a, b) => a.name.localeCompare(b.name));
         currentSetName = cur;
         spiceData = spices;
         if (!selectedSetName || !spiceSets.some(s => s.name === selectedSetName))

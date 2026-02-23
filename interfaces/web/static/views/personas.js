@@ -37,6 +37,10 @@ export default {
         });
     },
     async show() {
+        if (window._pendingPersonaSelect) {
+            selectedName = window._pendingPersonaSelect;
+            delete window._pendingPersonaSelect;
+        }
         if (container) container.innerHTML = '';
         await loadData();
         render();
@@ -62,6 +66,7 @@ async function loadData() {
         ]);
 
         personas = pRes.status === 'fulfilled' ? (pRes.value?.personas || []) : [];
+        personas.sort((a, b) => a.name.localeCompare(b.name));
         initData = init.status === 'fulfilled' ? init.value : null;
         defaultPersona = initData?.personas?.default || '';
         const llmData = llmResp.status === 'fulfilled' ? llmResp.value : null;
@@ -402,6 +407,8 @@ function bindEvents() {
     container.querySelectorAll('.pa-section-link[data-nav]').forEach(link => {
         link.addEventListener('click', e => {
             e.preventDefault();
+            const select = link.closest('.pa-field-with-link')?.querySelector('select');
+            if (select?.value) window._viewSelect = select.value;
             switchView(link.dataset.nav);
         });
     });
