@@ -8,7 +8,8 @@ Run the [Installation](INSTALLATION.md) and open Sapphire before you configure. 
 
 Your choice of LLM is the biggest factor in Sapphire's persona. Different models have different personalities, strengths, and quirks. Sapphire supports multiple providers with automatic fallback — if your primary LLM fails, it tries the next enabled provider.
 
-<img src="../sapphire-images/sapphire-settings-llm.png" alt="Sapphire LLM provider configuration" width="50%">
+<img width="50%" alt="sapphire-settings-llm" src="https://github.com/user-attachments/assets/c2e4432a-d516-43f6-9696-c049791cb5f4" />
+
 
 ### Local LLM (Private)
 
