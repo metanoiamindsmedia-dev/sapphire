@@ -147,6 +147,10 @@ class SettingsManager:
                     merged_providers[key] = user_config
             self._config['LLM_PROVIDERS'] = merged_providers
 
+        # Deep-merge MODEL_GENERATION_PROFILES so new model profiles from defaults aren't lost
+        if 'MODEL_GENERATION_PROFILES' in self._defaults and 'MODEL_GENERATION_PROFILES' in self._user:
+            self._config['MODEL_GENERATION_PROFILES'] = {**self._defaults['MODEL_GENERATION_PROFILES'], **self._user['MODEL_GENERATION_PROFILES']}
+
         # Initialize PRIVACY_MODE from persistent START_IN_PRIVACY_MODE on first load
         if 'PRIVACY_MODE' not in self._config and 'PRIVACY_MODE' not in self._runtime:
             self._config['PRIVACY_MODE'] = self._config.get('START_IN_PRIVACY_MODE', False)

@@ -55,6 +55,7 @@ PROVIDER_METADATA = {
         'optional_fields': ['timeout'],
         'model_options': {
             'claude-opus-4-6': 'Opus 4.6',
+            'claude-sonnet-4-6': 'Sonnet 4.6',
             'claude-sonnet-4-5': 'Sonnet 4.5',
             'claude-haiku-4-5': 'Haiku 4.5',
             'claude-opus-4-5': 'Opus 4.5',
