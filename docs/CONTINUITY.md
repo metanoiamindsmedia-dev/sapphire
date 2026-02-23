@@ -2,7 +2,8 @@
 
 Your AI doesn't have to wait for you to talk first. Continuity lets Sapphire wake up on a schedule and do things on its own—greet you in the morning, check the weather, run a dream sequence while you sleep, or remind you about something important.
 
-<img src="../sapphire-images/sapphire-heartbeat.png" alt="Sapphire continuity heartbeat with scheduled tasks" width="50%">
+<img width="50%" alt="sapphire-heartbeat" src="https://github.com/user-attachments/assets/4f12989f-96d2-4407-bf0a-5309738415ad" />
+
 
 ## What's It For?
 
