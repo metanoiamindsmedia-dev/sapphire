@@ -4,7 +4,7 @@ Sapphire can remember facts about your world — people you know, topics you car
 
 Everything lives in the **Mind** view (brain icon in the nav bar), which has five tabs: Memories, People, Knowledge, AI Notes, and Goals.
 
-<img src="../sapphire-images/sapphire-memories.png" alt="Sapphire memories tab with semantic search" width="50%">
+<img width="50%" alt="sapphire-memories" src="https://github.com/user-attachments/assets/348f1628-5f0c-4ce3-948e-2e0c1385bc75" />
 
 ---
 
@@ -20,7 +20,7 @@ Knowledge is **scoped** — each chat can access a different set of knowledge. T
 
 Knowledge is organized into **tabs** (categories). Each tab holds entries — chunks of text that the AI can search.
 
-<img src="../sapphire-images/sapphire-knowledge.png" alt="Sapphire knowledge base with categorized tabs" width="50%">
+<img width="50%" alt="sapphire-knowledge" src="https://github.com/user-attachments/assets/405a43e1-b542-4489-b213-6eb82c9226e4" />
 
 ### Adding Knowledge (Web UI)
 
@@ -59,7 +59,7 @@ Useful for giving the AI reference material for a specific conversation without 
 
 Track what you're working toward. Goals support hierarchy (subtasks), priorities, and progress journaling.
 
-<img src="../sapphire-images/sapphire-goals.png" alt="Sapphire goals with hierarchy and progress journal" width="50%">
+<img width="50%" alt="sapphire-goals" src="https://github.com/user-attachments/assets/9ab3e309-5014-4d83-add0-4004d507085c" />
 
 ### Creating Goals
 
