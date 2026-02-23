@@ -10,7 +10,7 @@ When you say a trigger keyword, Sapphire checks if any plugin is listening for t
 
 **Example:** Say "example" → the example plugin intercepts, returns the time instantly, no AI involved.
 
-<img src="../sapphire-images/sapphire-plugins.png" alt="Sapphire plugin management interface" width="50%">
+<img width="50%" alt="sapphire-plugins" src="https://github.com/user-attachments/assets/a435de45-5f0a-461c-856e-33ed22141151" />
 
 **Plugins vs Tools:**
 - **Plugins**: YOU trigger them by saying keywords. Deterministic, predictable.
