@@ -2,7 +2,7 @@
 
 Sapphire can generate images using SDXL via a separate server. The AI describes scenes, and character descriptions stay consistent across images.
 
-<img src="../sapphire-images/sapphire-image-gen.png" alt="Sapphire image generation settings" width="50%">
+<img width="50%" alt="sapphire-image-gen" src="https://github.com/user-attachments/assets/81e1a906-a7ce-4265-be82-42edb324fde3" />
 
 ## Setup
 
@@ -36,8 +36,6 @@ The AI writes prompts using "me" (itself) and "you" (the human). These get repla
 ## Usage
 
 Once configured, the AI can use the `generate_scene_image` tool automatically when describing scenes. Images appear inline in the chat.
-
-<img src="../sapphire-images/sapphire-image-gallery-in-chat.png" alt="Sapphire image gallery displayed inline in chat" width="50%">
 
 ## Reference for AI
 
