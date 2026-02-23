@@ -19,6 +19,7 @@ DEFAULTS = {
 
 ENABLED = True
 EMOJI = '🏠'
+PLUGIN = 'homeassistant'
 
 AVAILABLE_FUNCTIONS = [
     'ha_list_scenes_and_scripts',

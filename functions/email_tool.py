@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 ENABLED = True
 EMOJI = '📧'
+PLUGIN = 'email'
 
 AVAILABLE_FUNCTIONS = [
     'get_inbox',

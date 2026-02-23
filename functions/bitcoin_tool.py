@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 ENABLED = True
 EMOJI = '₿'
+PLUGIN = 'bitcoin'
 
 AVAILABLE_FUNCTIONS = [
     'get_wallet',

@@ -15,30 +15,23 @@ from core.modules.system.toolsets import toolset_manager
 logger = logging.getLogger(__name__)
 
 
-def _is_toolmaker_enabled():
-    """Check if Tool Maker plugin is enabled by reading the plugins config."""
+def _is_plugin_enabled(plugin_name):
+    """Check if a plugin is enabled by reading the user plugins config."""
     try:
         plugins_json = Path(__file__).parent.parent.parent / 'user' / 'webui' / 'plugins.json'
         if not plugins_json.exists():
-            return False
+            # No user overrides — check static defaults
+            static_json = Path(__file__).parent.parent.parent / 'interfaces' / 'web' / 'static' / 'plugins' / 'plugins.json'
+            if not static_json.exists():
+                return False
+            with open(static_json) as f:
+                data = json.load(f)
+            return plugin_name in data.get('enabled', [])
         with open(plugins_json) as f:
             data = json.load(f)
-        return 'toolmaker' in data.get('enabled', [])
+        return plugin_name in data.get('enabled', [])
     except Exception:
         return False
-
-
-def _get_toolmaker_validation():
-    """Get Tool Maker validation level from plugin settings."""
-    try:
-        settings_json = Path(__file__).parent.parent.parent / 'user' / 'webui' / 'plugins' / 'toolmaker.json'
-        if not settings_json.exists():
-            return 'moderate'
-        with open(settings_json) as f:
-            data = json.load(f)
-        return data.get('validation', 'moderate')
-    except Exception:
-        return 'moderate'
 
 
 # Per-context scope isolation — each thread/async-task gets its own values
@@ -70,6 +63,7 @@ class FunctionManager:
         self._network_functions = set()  # Function names that require network access
         self._is_local_map = {}  # function_name -> is_local value (True, False, or "endpoint")
         self._function_module_map = {}  # function_name -> module_name (for endpoint lookups)
+        self._function_plugin_map = {}  # function_name -> plugin_name (for plugin gate)
         
         # Story engine for games/simulations (None = disabled)
         self._story_engine = None
@@ -125,6 +119,7 @@ class FunctionManager:
                     executor = getattr(module, 'execute', None)
                     mode_filter = getattr(module, 'MODE_FILTER', None)
                     emoji = getattr(module, 'EMOJI', '')
+                    plugin = getattr(module, 'PLUGIN', None)
 
                     if not tools or not executor:
                         logger.warning(f"Module '{module_name}' missing TOOLS or execute()")
@@ -148,7 +143,7 @@ class FunctionManager:
                         tool_help = getattr(module, 'SETTINGS_HELP', None)
                         sm.register_tool_settings(module_name, tool_settings, tool_help)
                     
-                    # Track network functions and is_local (per-tool flags)
+                    # Track network functions, is_local, and plugin gate (per-tool flags)
                     for tool in tools:
                         func_name = tool['function']['name']
                         if tool.get('network', False):
@@ -157,6 +152,8 @@ class FunctionManager:
                         if 'is_local' in tool:
                             self._is_local_map[func_name] = tool['is_local']
                         self._function_module_map[func_name] = module_name
+                        if plugin:
+                            self._function_plugin_map[func_name] = plugin
                     
                     # Store mode filter if present
                     if mode_filter:
@@ -574,12 +571,14 @@ class FunctionManager:
             self._log_tool_call(function_name, arguments, error_msg, time.time() - start_time, False)
             return error_msg
 
-        # Tool Maker gate — tools exist in toolsets but require plugin to be enabled
-        if function_name in ('tool_save', 'tool_read', 'tool_activate'):
-            if not _is_toolmaker_enabled():
-                result = "Tool Maker is disabled. The user must enable it in Settings → Plugins before you can create or modify tools."
-                self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
-                return result
+        # Plugin gate — tools with PLUGIN metadata require their plugin to be enabled
+        required_plugin = self._function_plugin_map.get(function_name)
+        if required_plugin and not _is_plugin_enabled(required_plugin):
+            plugin_title = required_plugin.replace('_', ' ').title()
+            result = f"{plugin_title} is disabled. Tell the user to enable it in Settings → Plugins to use this tool."
+            logger.info(f"Function '{function_name}' blocked — plugin '{required_plugin}' not enabled")
+            self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
+            return result
 
         logger.info(f"Executing function: {function_name}")
         

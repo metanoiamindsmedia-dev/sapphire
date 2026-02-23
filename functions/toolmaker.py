@@ -16,8 +16,22 @@ logger = logging.getLogger(__name__)
 
 ENABLED = True
 EMOJI = '🛠️'
+PLUGIN = 'toolmaker'
 
 _USER_FUNCTIONS = Path(__file__).parent.parent / "user" / "functions"
+_PLUGIN_SETTINGS = Path(__file__).parent.parent / "user" / "webui" / "plugins" / "toolmaker.json"
+
+
+def _get_validation_level():
+    """Read validation level from plugin settings."""
+    try:
+        if _PLUGIN_SETTINGS.exists():
+            import json
+            with open(_PLUGIN_SETTINGS) as f:
+                return json.load(f).get('validation', 'moderate')
+    except Exception:
+        pass
+    return 'moderate'
 
 AVAILABLE_FUNCTIONS = ['tool_activate', 'tool_read', 'tool_save']
 
@@ -263,8 +277,7 @@ def execute(function_name, arguments, config):
             if not code.strip():
                 return "No code provided.", False
 
-            from core.chat.function_manager import _get_toolmaker_validation
-            strictness = _get_toolmaker_validation()
+            strictness = _get_validation_level()
 
             ok, err = _validate_ast(code, strictness)
             if not ok:

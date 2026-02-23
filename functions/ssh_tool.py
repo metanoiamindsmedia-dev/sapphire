@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 ENABLED = True
 EMOJI = '🖥️'
+PLUGIN = 'ssh'
 
 AVAILABLE_FUNCTIONS = [
     'ssh_get_servers',
