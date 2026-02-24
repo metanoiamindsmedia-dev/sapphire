@@ -160,8 +160,16 @@ class FunctionManager:
                         self._mode_filters[module_name] = mode_filter
                         logger.info(f"Module '{module_name}' has mode filtering: {list(mode_filter.keys())}")
                     
-                    self.all_possible_tools.extend(tools)
-                    
+                    # Dedup: warn and skip tools with names already registered
+                    existing_names = {t['function']['name'] for t in self.all_possible_tools}
+                    for tool in tools:
+                        fname = tool['function']['name']
+                        if fname in existing_names:
+                            logger.warning(f"Duplicate tool name '{fname}' in module '{module_name}' — skipping (already registered by '{self._function_module_map.get(fname, '?')}')")
+                        else:
+                            self.all_possible_tools.append(tool)
+                            existing_names.add(fname)
+
                     for tool in tools:
                         self.execution_map[tool['function']['name']] = executor
                     
@@ -243,7 +251,17 @@ class FunctionManager:
             if custom:
                 tools = tools + custom
 
-        return tools
+        # Final dedup — Claude API requires unique tool names
+        seen = set()
+        deduped = []
+        for tool in tools:
+            name = tool['function']['name']
+            if name not in seen:
+                seen.add(name)
+                deduped.append(tool)
+            else:
+                logger.warning(f"Duplicate tool '{name}' removed from enabled_tools")
+        return deduped
 
     def update_enabled_functions(self, enabled_names: list):
         """Update enabled tools based on function names from config or ability name."""
