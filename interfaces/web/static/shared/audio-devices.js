@@ -145,18 +145,22 @@ export async function populateDeviceSelects(container, inputSelectId = 'audio-in
     const inputSelect = container.querySelector(`#${inputSelectId}`);
     if (inputSelect && data.input) {
       inputSelect.innerHTML = '<option value="auto">Auto-detect (recommended)</option>';
+      const cfgIn = data.configured_input;
 
       for (const dev of data.input) {
         const opt = document.createElement('option');
         opt.value = dev.index;
+        opt.dataset.name = dev.name;
         opt.textContent = `[${dev.index}] ${dev.name}${dev.is_default ? ' (default)' : ''}`;
-        if (data.configured_input === dev.index) {
+        // Match by name (string config) or index (int config, backward compat)
+        if ((typeof cfgIn === 'string' && dev.name.toLowerCase().includes(cfgIn.toLowerCase()))
+            || (typeof cfgIn === 'number' && cfgIn === dev.index)) {
           opt.selected = true;
         }
         inputSelect.appendChild(opt);
       }
 
-      if (data.configured_input === null) {
+      if (cfgIn === null || cfgIn === undefined) {
         inputSelect.value = 'auto';
       }
     }
@@ -348,11 +352,15 @@ export function attachAudioDeviceListeners(container, options = {}) {
     onOutputChange = null
   } = options;
 
-  // Input device change
+  // Input device change — save device name (stable across reboots) not index
   const inputSelect = container.querySelector(`#${inputSelectId}`);
   if (inputSelect) {
     inputSelect.addEventListener('change', async (e) => {
-      const value = e.target.value === 'auto' ? null : parseInt(e.target.value);
+      let value = null;
+      if (e.target.value !== 'auto') {
+        const selected = e.target.selectedOptions[0];
+        value = selected?.dataset?.name || parseInt(e.target.value);
+      }
       await updateAudioSetting('AUDIO_INPUT_DEVICE', value);
       if (onInputChange) onInputChange(value);
     });

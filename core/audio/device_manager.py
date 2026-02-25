@@ -36,13 +36,14 @@ class DeviceInfo:
     is_default_output: bool = False
 
 
-@dataclass  
+@dataclass
 class DeviceConfig:
     """Working configuration for a device."""
     device_index: int
     sample_rate: int
     channels: int
     blocksize: int
+    device_name: str = ''
     needs_stereo_downmix: bool = False
     needs_resampling: bool = False
     resample_ratio: float = 1.0
@@ -105,16 +106,27 @@ class DeviceManager:
                       getattr(config, 'RECORDER_BLOCKSIZE_FALLBACKS',
                              [1024, 512, 2048, 4096]))
     
-    def _get_configured_input_device(self) -> Optional[int]:
-        """Get explicitly configured input device index, if any."""
+    def _get_configured_input_device(self) -> Tuple[Optional[int], Optional[str]]:
+        """Get explicitly configured input device as (index, name).
+
+        Returns:
+            (int, None) if configured by index (backward compat)
+            (None, str) if configured by name
+            (None, None) if auto/unset
+        """
         config = self._get_settings()
         device = getattr(config, 'AUDIO_INPUT_DEVICE', None)
-        if device is not None and device != 'auto':
-            try:
-                return int(device)
-            except (ValueError, TypeError):
-                pass
-        return None
+        if device is None or device == 'auto':
+            return (None, None)
+        # Try as integer index first (backward compat)
+        try:
+            return (int(device), None)
+        except (ValueError, TypeError):
+            pass
+        # It's a string device name
+        if isinstance(device, str) and device.strip():
+            return (None, device.strip())
+        return (None, None)
     
     def query_devices(self, force_refresh: bool = False) -> List[DeviceInfo]:
         """
@@ -176,35 +188,86 @@ class DeviceManager:
             return "Available input devices:\n" + "\n".join(lines)
         return "No input devices detected. Check audio drivers and connections."
     
-    def test_device_config(self, device_index: int, sample_rate: int, 
-                           channels: int, blocksize: int) -> bool:
+    def resolve_device_by_name(self, name: str) -> Optional[DeviceInfo]:
+        """Find an input device by substring match (case-insensitive).
+
+        Does a fresh device enumeration to get current indexes.
+        """
+        devices = self.query_devices(force_refresh=True)
+        name_lower = name.lower()
+        for dev in devices:
+            if dev.max_input_channels > 0 and name_lower in dev.name.lower():
+                return dev
+        return None
+
+    def reopen_device(self, device_name: str,
+                      target_rate: Optional[int] = None,
+                      preferred_blocksize: Optional[int] = None) -> Optional[DeviceConfig]:
+        """Re-enumerate devices and resolve by name for recovery.
+
+        Used by STT/wakeword when a stream fails due to stale index.
+        """
+        dev = self.resolve_device_by_name(device_name)
+        if not dev:
+            logger.warning(f"Device re-resolution failed: '{device_name}' not found")
+            return None
+        logger.info(f"Re-resolved '{device_name}' -> index {dev.index}")
+        config = self.find_working_config(dev.index, dev, target_rate, preferred_blocksize)
+        if config:
+            config.device_name = dev.name
+        return config
+
+    def test_device_config(self, device_index: int, sample_rate: int,
+                           channels: int, blocksize: int,
+                           timeout: float = 5.0) -> bool:
         """
         Test if a device supports the given configuration.
-        
+
         Args:
             device_index: Device index to test
             sample_rate: Sample rate in Hz
             channels: Number of channels
             blocksize: Buffer size in samples
-            
+            timeout: Max seconds to wait for stream open
+
         Returns:
             True if configuration is supported
         """
-        try:
-            stream = sd.InputStream(
-                device=device_index,
-                samplerate=sample_rate,
-                channels=channels,
-                dtype=np.int16,
-                blocksize=blocksize
-            )
-            stream.close()
+        import threading
+
+        result = [False]
+        error = [None]
+
+        def _try_open():
+            try:
+                stream = sd.InputStream(
+                    device=device_index,
+                    samplerate=sample_rate,
+                    channels=channels,
+                    dtype=np.int16,
+                    blocksize=blocksize
+                )
+                stream.close()
+                result[0] = True
+            except Exception as e:
+                error[0] = e
+
+        t = threading.Thread(target=_try_open, daemon=True)
+        t.start()
+        t.join(timeout=timeout)
+
+        if t.is_alive():
+            logger.debug(f"  TIMEOUT: device={device_index}, rate={sample_rate}, "
+                        f"ch={channels}, block={blocksize} (>{timeout}s)")
+            return False
+
+        if result[0]:
             logger.debug(f"  OK: device={device_index}, rate={sample_rate}, "
                         f"ch={channels}, block={blocksize}")
             return True
-        except Exception as e:
+        else:
             logger.debug(f"  FAIL: device={device_index}, rate={sample_rate}, "
-                        f"ch={channels}, block={blocksize}: {e}")
+                        f"ch={channels}, block={blocksize}: {error[0]}")
             return False
     
     def find_working_config(self, device_index: int, dev_info: DeviceInfo,
@@ -262,6 +325,7 @@ class DeviceManager:
                             sample_rate=rate,
                             channels=channels,
                             blocksize=blocksize,
+                            device_name=dev_info.name,
                             needs_stereo_downmix=(channels == 2),
                             needs_resampling=bool(needs_resample),
                             resample_ratio=resample_ratio,
@@ -305,18 +369,35 @@ class DeviceManager:
                         f"default_rate={dev.default_samplerate})")
         
         # Try explicitly configured device first
-        configured_idx = self._get_configured_input_device()
+        configured_idx, configured_name = self._get_configured_input_device()
+
+        # Configured by name — resolve fresh each time
+        if configured_name:
+            dev = self.resolve_device_by_name(configured_name)
+            if dev:
+                logger.info(f"Trying configured device by name '{configured_name}': {dev.name}")
+                cfg = self.find_working_config(
+                    dev.index, dev, target_rate, preferred_blocksize
+                )
+                if cfg:
+                    logger.info(f"Using configured device {dev.index}: {dev.name}")
+                    return cfg
+                logger.warning(f"Configured device '{configured_name}' failed config, trying others")
+            else:
+                logger.warning(f"Configured device name '{configured_name}' not found, trying others")
+
+        # Configured by index (backward compat)
         if configured_idx is not None:
             dev = next((d for d in input_devices if d.index == configured_idx), None)
             if dev:
-                logger.info(f"Trying configured device: {dev.name}")
-                config = self.find_working_config(
+                logger.info(f"Trying configured device by index: {dev.name}")
+                cfg = self.find_working_config(
                     dev.index, dev, target_rate, preferred_blocksize
                 )
-                if config:
+                if cfg:
                     logger.info(f"Using configured device {dev.index}: {dev.name}")
-                    return config
-                logger.warning(f"Configured device {configured_idx} failed, trying others")
+                    return cfg
+                logger.warning(f"Configured device index {configured_idx} failed, trying others")
         
         # Try platform-preferred devices
         preferred = self._get_platform_preferred_devices()

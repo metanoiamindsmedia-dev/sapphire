@@ -43,19 +43,14 @@ class AudioRecorder:
         # Get device configuration from unified manager
         dm = get_device_manager()
         preferred_blocksize = config.RECORDER_CHUNK_SIZE
-        
+
         try:
             device_config = dm.find_input_device(
                 target_rate=None,  # STT can handle any rate
                 preferred_blocksize=preferred_blocksize
             )
-            
-            self.device_index = device_config.device_index
-            self.rate = device_config.sample_rate
-            self.channels = device_config.channels
-            self.blocksize = device_config.blocksize
-            self._needs_stereo_downmix = device_config.needs_stereo_downmix
-            
+            self._apply_device_config(device_config)
+
         except Exception as e:
             # Retry once
             logger.warning(f"First device search failed: {e}, retrying...")
@@ -65,11 +60,7 @@ class AudioRecorder:
                     target_rate=None,
                     preferred_blocksize=preferred_blocksize
                 )
-                self.device_index = device_config.device_index
-                self.rate = device_config.sample_rate
-                self.channels = device_config.channels
-                self.blocksize = device_config.blocksize
-                self._needs_stereo_downmix = device_config.needs_stereo_downmix
+                self._apply_device_config(device_config)
             except Exception as e2:
                 raise RuntimeError(
                     f"No suitable input device found after retry. {e2}\n" +
@@ -80,6 +71,15 @@ class AudioRecorder:
                    f"channels={self.channels}, blocksize={self.blocksize}, "
                    f"stereo_downmix={self._needs_stereo_downmix}")
         logger.info(f"Temp directory: {self.temp_dir}")
+
+    def _apply_device_config(self, device_config):
+        """Apply a DeviceConfig to this recorder's state."""
+        self.device_index = device_config.device_index
+        self.device_name = device_config.device_name
+        self.rate = device_config.sample_rate
+        self.channels = device_config.channels
+        self.blocksize = device_config.blocksize
+        self._needs_stereo_downmix = device_config.needs_stereo_downmix
 
     def _update_threshold(self, level: float) -> None:
         """Update adaptive silence threshold based on background noise."""
@@ -98,7 +98,7 @@ class AudioRecorder:
         return level < self.adaptive_threshold
 
     def _open_stream(self) -> bool:
-        """Open the audio stream."""
+        """Open the audio stream. Retries once with device re-resolution on failure."""
         # Close existing stream if any
         if self._stream:
             try:
@@ -107,7 +107,7 @@ class AudioRecorder:
             except Exception:
                 pass
             self._stream = None
-        
+
         try:
             self._stream = sd.InputStream(
                 device=self.device_index,
@@ -119,7 +119,27 @@ class AudioRecorder:
             self._stream.start()
             return True
         except Exception as e:
-            logger.error(f"Error opening audio stream: {classify_audio_error(e)}")
+            logger.warning(f"STT stream open failed: {classify_audio_error(e)}")
+            # Retry once — re-resolve device by name in case index shifted
+            if getattr(self, 'device_name', ''):
+                logger.info(f"Retrying with device re-resolution for '{self.device_name}'")
+                dm = get_device_manager()
+                new_config = dm.reopen_device(self.device_name)
+                if new_config:
+                    self._apply_device_config(new_config)
+                    try:
+                        self._stream = sd.InputStream(
+                            device=self.device_index,
+                            samplerate=self.rate,
+                            channels=self.channels,
+                            dtype=np.int16,
+                            blocksize=self.blocksize
+                        )
+                        self._stream.start()
+                        logger.info(f"STT stream reopened on device {self.device_index}: {self.device_name}")
+                        return True
+                    except Exception as e2:
+                        logger.error(f"STT retry also failed: {classify_audio_error(e2)}")
             return False
 
     def record_audio(self) -> Optional[str]:
