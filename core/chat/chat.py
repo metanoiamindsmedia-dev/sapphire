@@ -415,7 +415,7 @@ class LLMChat:
                 hook_runner.fire("pre_chat", hook_event)
                 if hook_event.skip_llm:
                     response = hook_event.response or ""
-                    if response:
+                    if response and not hook_event.ephemeral:
                         self.session_manager.add_user_message(user_input)
                         self.session_manager.add_assistant_final(response)
                     return response

@@ -31,6 +31,7 @@ class HookEvent:
         result: Tool result for post_execute
         tts_text: Text about to be spoken for pre_tts (mutable)
         skip_tts: Set True in pre_tts to cancel TTS entirely
+        ephemeral: Set True with skip_llm to show response without persisting to history
     """
     input: str = ""
     skip_llm: bool = False
@@ -44,6 +45,7 @@ class HookEvent:
     result: Optional[str] = None
     tts_text: Optional[str] = None
     skip_tts: bool = False
+    ephemeral: bool = False
 
 
 class HookRunner:

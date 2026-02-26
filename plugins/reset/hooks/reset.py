@@ -26,4 +26,5 @@ def pre_chat(event):
         event.response = "Reset failed — system not available."
 
     event.skip_llm = True
+    event.ephemeral = True
     event.stop_propagation = True

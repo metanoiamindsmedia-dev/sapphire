@@ -236,6 +236,13 @@ class FunctionManager:
                 for tool in tools:
                     self.execution_map[tool['function']['name']] = executor
 
+                # If "all" toolset is active, add new tools to _enabled_tools too
+                if self.current_toolset_name == "all":
+                    enabled_names = {t['function']['name'] for t in self._enabled_tools}
+                    for tool in tools:
+                        if tool['function']['name'] not in enabled_names:
+                            self._enabled_tools.append(tool)
+
                 logger.info(f"Plugin '{plugin_name}' tool '{module_name}': {len(tools)} tools registered")
 
             except Exception as e:

@@ -87,8 +87,11 @@ class StreamingChat:
                 if hook_event.skip_llm:
                     response = hook_event.response or ""
                     if response:
-                        self.main_chat.session_manager.add_user_message(user_input)
-                        self.main_chat.session_manager.add_assistant_final(response)
+                        if not hook_event.ephemeral:
+                            self.main_chat.session_manager.add_user_message(user_input)
+                            self.main_chat.session_manager.add_assistant_final(response)
+                        else:
+                            self.ephemeral = True
                         yield {"type": "content", "text": response}
                     publish(Events.AI_TYPING_END)
                     self.is_streaming = False
