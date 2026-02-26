@@ -4391,11 +4391,13 @@ async def test_sdxl_connection(request: Request, _=Depends(require_login)):
 @app.get("/api/webui/plugins/image-gen/defaults")
 async def get_image_gen_defaults(request: Request, _=Depends(require_login)):
     """Get image-gen defaults."""
-    try:
-        from functions.image import DEFAULTS
-        return DEFAULTS
-    except ImportError:
-        raise HTTPException(status_code=500, detail="Could not load defaults")
+    return {
+        'api_url': 'http://localhost:5153',
+        'negative_prompt': 'ugly, deformed, noisy, blurry, distorted, grainy, low quality, bad anatomy, jpeg artifacts',
+        'static_keywords': 'wide shot',
+        'character_descriptions': {'me': '', 'you': ''},
+        'defaults': {'height': 1024, 'width': 1024, 'steps': 23, 'cfg_scale': 3.0, 'scheduler': 'dpm++_2m_karras'}
+    }
 
 
 @app.get("/api/webui/plugins/homeassistant/defaults")

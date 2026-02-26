@@ -624,20 +624,6 @@ class FunctionManager:
 
     def _get_tool_endpoint(self, function_name: str) -> str:
         """Get the configured endpoint URL for conditional tools."""
-        module_name = self._function_module_map.get(function_name, '')
-
-        if module_name == 'image':
-            # Image generation endpoint from plugin settings
-            import json
-            settings_path = Path(config.BASE_DIR) / 'user' / 'webui' / 'plugins' / 'image-gen.json'
-            try:
-                if settings_path.exists():
-                    with open(settings_path) as f:
-                        return json.load(f).get('api_url', 'http://localhost:5153')
-                return 'http://localhost:5153'  # Default
-            except Exception:
-                return 'http://localhost:5153'
-
         return ''
 
     def execute_function(self, function_name, arguments, scopes=None):
