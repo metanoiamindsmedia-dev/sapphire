@@ -105,16 +105,13 @@ export default {
             <div class="plugin-toggles-list">
                 ${visible.map(p => {
                     const locked = ctx.lockedPlugins.includes(p.name);
-                    const isBackend = p.verified !== undefined;
                     let verifyBadge = '';
-                    if (isBackend) {
-                        if (p.verified) {
-                            verifyBadge = '<span class="plugin-toggle-badge verified">Signed</span>';
-                        } else if (p.verify_msg === 'unsigned') {
-                            verifyBadge = '<span class="plugin-toggle-badge unsigned">Unsigned</span>';
-                        } else {
-                            verifyBadge = `<span class="plugin-toggle-badge failed">Tampered</span>`;
-                        }
+                    if (p.verified === true) {
+                        verifyBadge = '<span class="plugin-toggle-badge verified">Signed</span>';
+                    } else if (p.verify_msg === 'unsigned') {
+                        verifyBadge = '<span class="plugin-toggle-badge unsigned">Unsigned</span>';
+                    } else if (p.verified === false && p.verify_msg && p.verify_msg !== 'unsigned') {
+                        verifyBadge = `<span class="plugin-toggle-badge failed">Tampered</span>`;
                     }
                     const meta = [];
                     if (p.version) meta.push(`v${p.version}`);

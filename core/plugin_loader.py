@@ -127,14 +127,22 @@ class PluginLoader:
             if not self._validate_manifest(name, manifest):
                 continue
 
+            # Enabled if in user config, or if manifest declares default_enabled
+            is_enabled = name in enabled_list or manifest.get("default_enabled", False)
+
+            # Verify signature on discovery (before any code loads)
+            verified, verify_msg = verify_plugin(child)
+
             self._plugins[name] = {
                 "manifest": manifest,
                 "path": child,
-                "enabled": name in enabled_list,
+                "enabled": is_enabled,
                 "band": band,
                 "loaded": False,
+                "verified": verified,
+                "verify_msg": verify_msg,
             }
-            logger.debug(f"[PLUGINS] Found: {name} ({band}, enabled={name in enabled_list})")
+            logger.debug(f"[PLUGINS] Found: {name} ({band}, enabled={is_enabled}, {verify_msg})")
 
     def _validate_manifest(self, name: str, manifest: dict) -> bool:
         """Basic manifest validation."""
@@ -155,25 +163,21 @@ class PluginLoader:
         return []
 
     def _load_plugin(self, name: str):
-        """Load an enabled plugin — verify signature, register hooks, voice commands."""
+        """Load an enabled plugin — check cached verification, register hooks, voice commands."""
         info = self._plugins.get(name)
         if not info:
             return
 
-        plugin_dir = info["path"]
-
-        # Verify plugin signature before loading any code
-        verified, verify_msg = verify_plugin(plugin_dir)
-        info["verified"] = verified
-        info["verify_msg"] = verify_msg
+        # Use verification result from scan
+        verified = info.get("verified", False)
+        verify_msg = info.get("verify_msg", "unknown")
 
         if not verified:
-            # Check if unsigned plugins are allowed
             try:
                 import config
                 allow_unsigned = config.ALLOW_UNSIGNED_PLUGINS
             except Exception:
-                allow_unsigned = True  # Safe default during startup
+                allow_unsigned = True
 
             if verify_msg == "unsigned" and allow_unsigned:
                 logger.warning(f"[PLUGINS] {name}: unsigned plugin (sideloading enabled)")
@@ -181,13 +185,13 @@ class PluginLoader:
                 logger.warning(f"[PLUGINS] BLOCKED {name}: unsigned plugin (sideloading disabled)")
                 return
             else:
-                # Signature exists but failed verification — always block
                 logger.error(f"[PLUGINS] BLOCKED {name}: {verify_msg}")
                 return
         else:
             logger.info(f"[PLUGINS] {name}: signature verified")
 
         manifest = info["manifest"]
+        plugin_dir = info["path"]
         band = info["band"]
         base_priority = manifest.get("priority", 50)
 
