@@ -1,7 +1,7 @@
 // index.js - Bitcoin wallet settings plugin (multi-wallet)
 // Settings tab in Plugins modal for Bitcoin wallet management
 
-import { registerPluginSettings } from '/static/core-ui/plugins-modal/plugin-registry.js';
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 
 function csrfHeaders(extra = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';

@@ -22,7 +22,6 @@ Plugins hook into the **Plugins popup** (accessible from Settings) to provide co
 |--------|---------|
 | setup-wizard | First-run LLM/voice/audio configuration |
 | backup | Backup management |
-| plugins-modal | Enable/disable plugins |
 | image-gen | SDXL image generation settings |
 | continuity | Scheduled task management |
 | homeassistant | Home Assistant integration |
@@ -154,7 +153,7 @@ export default {
 For plugins that only need a settings panel in the Plugins popup:
 
 ```javascript
-import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 
 export default {
   name: 'my-settings-plugin',
@@ -210,10 +209,10 @@ import { showHelpModal } from '../../shared/modal.js';
 showHelpModal('Title', 'Content');
 
 // Plugin settings registry
-import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 
 // Plugin settings API
-import pluginsAPI from '../plugins-modal/plugins-api.js';
+import pluginsAPI from '/static/shared/plugins-api.js';
 await pluginsAPI.getSettings('plugin-name');
 await pluginsAPI.saveSettings('plugin-name', { key: 'value' });
 ```
@@ -255,7 +254,6 @@ WEB PLUGIN VS BACKEND PLUGIN:
 BUILT-IN WEB PLUGINS (9):
 - setup-wizard: First-run configuration
 - backup: Backup management UI
-- plugins-modal: Plugin management
 - image-gen: Image generation settings
 - continuity: Scheduled task management
 - homeassistant: Home Assistant integration

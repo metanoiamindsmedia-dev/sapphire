@@ -121,11 +121,14 @@ function renderTaskList() {
     return sorted.map(t => {
         const sched = describeCron(t.schedule);
         const lastRun = t.last_run ? formatTime(t.last_run) : 'Never';
+        const isPlugin = (t.source || '').startsWith('plugin:');
+        const pluginName = isPlugin ? t.source.replace('plugin:', '') : '';
         let statusText = '';
         if (t.running) {
             statusText = `<span class="sched-progress">Running...</span>`;
         }
         const meta = [
+            isPlugin ? `<span class="sched-plugin-badge" title="Managed by ${esc(pluginName)} plugin">plugin</span>` : '',
             t.chance < 100 ? `${t.chance}%` : '',
             t.active_hours_start != null ? `\uD83D\uDD53 ${formatHourRange(t.active_hours_start, t.active_hours_end)}` : '',
             statusText,
@@ -133,21 +136,28 @@ function renderTaskList() {
             `Last: ${lastRun}`
         ].filter(Boolean).join(' \u00B7 ');
 
-        return `
-            <div class="sched-task-card${t.running ? ' running' : ''}">
+        const actions = isPlugin
+            ? `<button class="btn-icon" data-action="run" data-id="${t.id}" title="Run now">\u25B6</button>`
+            : `<button class="btn-icon" data-action="run" data-id="${t.id}" title="Run now">\u25B6</button>
+               <button class="btn-icon" data-action="edit" data-id="${t.id}" title="Edit">\u270F\uFE0F</button>
+               <button class="btn-icon danger" data-action="delete" data-id="${t.id}" title="Delete">\u2715</button>`;
+
+        const toggle = isPlugin ? '' : `
                 <label class="sched-toggle" title="${t.enabled ? 'Disable' : 'Enable'}">
                     <input type="checkbox" ${t.enabled ? 'checked' : ''} data-action="toggle" data-id="${t.id}">
                     <span class="toggle-slider"></span>
-                </label>
+                </label>`;
+
+        return `
+            <div class="sched-task-card${t.running ? ' running' : ''}${isPlugin ? ' plugin-task' : ''}">
+                ${toggle}
                 <div class="sched-task-info">
                     <div class="sched-task-name">${esc(t.name)}</div>
                     <div class="sched-task-schedule">${esc(sched)}</div>
                     <div class="sched-task-meta">${meta}</div>
                 </div>
                 <div class="sched-task-actions">
-                    <button class="btn-icon" data-action="run" data-id="${t.id}" title="Run now">\u25B6</button>
-                    <button class="btn-icon" data-action="edit" data-id="${t.id}" title="Edit">\u270F\uFE0F</button>
-                    <button class="btn-icon danger" data-action="delete" data-id="${t.id}" title="Delete">\u2715</button>
+                    ${actions}
                 </div>
             </div>`;
     }).join('');

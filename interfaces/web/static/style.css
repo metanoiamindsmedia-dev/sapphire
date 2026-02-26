@@ -1691,6 +1691,8 @@ body {
 .sched-task-meta { font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px; }
 .sched-task-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .sched-progress { color: var(--trim, #4fc3f7); }
+.sched-plugin-badge { background: var(--surface-alt, #333); color: var(--text-muted); padding: 1px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.sched-task-card.plugin-task { opacity: 0.85; }
 
 /* Right column */
 .sched-mission { display: flex; flex-direction: column; gap: 16px; }

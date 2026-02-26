@@ -1,4 +1,4 @@
-// plugins-api.js - API calls for plugin management
+// shared/plugins-api.js - API calls for plugin management
 
 function csrfHeaders(extra = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';

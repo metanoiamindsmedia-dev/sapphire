@@ -1,8 +1,8 @@
 // index.js - Tool Maker settings plugin
 // Settings tab in Plugins modal for Tool Maker configuration
 
-import { registerPluginSettings } from '/static/core-ui/plugins-modal/plugin-registry.js';
-import pluginsAPI from '/static/core-ui/plugins-modal/plugins-api.js';
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
+import pluginsAPI from '/static/shared/plugins-api.js';
 import { showDangerConfirm } from '/static/shared/danger-confirm.js';
 
 function csrfHeaders(extra = {}) {

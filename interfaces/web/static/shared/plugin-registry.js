@@ -1,5 +1,5 @@
-// plugin-registry.js - Registry for plugin settings tabs
-// Plugins can register their settings UI here to appear in the Plugins modal
+// shared/plugin-registry.js - Registry for plugin settings tabs
+// Plugins register their settings UI here; Settings view reads them via getRegisteredTabs()
 
 const settingsTabs = new Map();
 
@@ -20,7 +20,7 @@ export function registerPluginSettings(config) {
     console.warn('[PluginRegistry] Invalid config, needs id, name, render:', config);
     return false;
   }
-  
+
   settingsTabs.set(config.id, {
     id: config.id,
     name: config.name,
@@ -31,7 +31,7 @@ export function registerPluginSettings(config) {
     save: config.save || (() => Promise.resolve()),
     getSettings: config.getSettings || null
   });
-  
+
   console.log(`[PluginRegistry] Registered settings tab: ${config.name}`);
   return true;
 }

@@ -237,6 +237,9 @@ export const Events = {
     CONTINUITY_TASK_PROGRESS: 'continuity_task_progress',
     CONTINUITY_TASK_ERROR: 'continuity_task_error',
 
+    // Plugin events
+    PLUGIN_RELOADED: 'plugin_reloaded',
+
     // Connection events
     CONNECTED: 'connected',           // Server confirms SSE subscription
     BUS_CONNECTED: 'bus_connected',   // Client-side: EventSource opened

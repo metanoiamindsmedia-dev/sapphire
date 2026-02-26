@@ -4116,7 +4116,7 @@ async def check_avatar(role: str, request: Request, _=Depends(require_login)):
 USER_WEBUI_DIR = PROJECT_ROOT / 'user' / 'webui'
 USER_PLUGINS_JSON = USER_WEBUI_DIR / 'plugins.json'
 USER_PLUGIN_SETTINGS_DIR = USER_WEBUI_DIR / 'plugins'
-LOCKED_PLUGINS = ['plugins-modal']
+LOCKED_PLUGINS = []
 
 
 def _get_merged_plugins():
@@ -4251,10 +4251,10 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
 
 @app.post("/api/plugins/rescan")
 async def rescan_plugins(_=Depends(require_login)):
-    """Scan for newly added plugin folders without restart."""
+    """Scan for new/removed plugin folders without restart."""
     from core.plugin_loader import plugin_loader
-    new_plugins = plugin_loader.rescan()
-    return {"status": "ok", "new_plugins": new_plugins}
+    result = plugin_loader.rescan()
+    return {"status": "ok", "added": result["added"], "removed": result["removed"]}
 
 
 @app.post("/api/plugins/{plugin_name}/reload")

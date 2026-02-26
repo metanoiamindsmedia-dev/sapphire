@@ -675,7 +675,7 @@ class FunctionManager:
             exec_event = HookEvent(
                 function_name=function_name,
                 arguments=dict(arguments) if arguments else {},
-                config=config, metadata={"system": getattr(self, '_system', None)}
+                config=config, metadata={"system": self.system_instance}
             )
             hook_runner.fire("pre_execute", exec_event)
             arguments = exec_event.arguments

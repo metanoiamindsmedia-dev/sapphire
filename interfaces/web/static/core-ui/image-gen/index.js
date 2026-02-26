@@ -2,8 +2,8 @@
 // This plugin only injects a settings tab into the Plugins modal
 // No sidebar presence, no gear menu entry - settings only
 
-import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
-import pluginsAPI from '../plugins-modal/plugins-api.js';
+import { registerPluginSettings } from '../../shared/plugin-registry.js';
+import pluginsAPI from '../../shared/plugins-api.js';
 
 // Cached defaults from backend (fetched once)
 let DEFAULTS = null;
@@ -499,6 +499,6 @@ export default {
   },
   
   destroy() {
-    // Nothing to clean up - settings tab is managed by plugins-modal
+    // Nothing to clean up - settings tab is managed by plugin-registry
   }
 };

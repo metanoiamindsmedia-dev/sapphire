@@ -59,11 +59,11 @@ curl -sk -X PUT \
     "$BASE_URL/api/webui/plugins/toggle/image-gen" | python3 -m json.tool
 echo ""
 
-# Try to toggle locked plugin (should fail)
-echo "--- PUT /api/webui/plugins/toggle/plugins-modal (should fail) ---"
+# Toggle test for non-existent plugin (should fail)
+echo "--- PUT /api/webui/plugins/toggle/nonexistent (should fail) ---"
 curl -sk -X PUT \
     -H "Cookie: $SAPPHIRE_COOKIE" \
-    "$BASE_URL/api/webui/plugins/toggle/plugins-modal" | python3 -m json.tool
+    "$BASE_URL/api/webui/plugins/toggle/nonexistent" | python3 -m json.tool
 echo ""
 
 echo "=== Done ==="

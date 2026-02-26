@@ -4,7 +4,7 @@ import { showDangerConfirm } from '../../shared/danger-confirm.js';
 
 // Infrastructure plugins hidden from toggle list
 const HIDDEN = new Set([
-    'setup-wizard', 'plugins-modal', 'backup', 'continuity'
+    'setup-wizard', 'backup', 'continuity'
 ]);
 
 // Danger confirmation configs for risky plugins
@@ -99,6 +99,9 @@ export default {
         if (!visible.length) return '<p class="text-muted">No feature plugins available.</p>';
 
         return `
+            <div class="plugin-actions" style="margin-bottom:12px;display:flex;gap:8px">
+                <button class="btn btn-sm" id="rescan-plugins-btn">Rescan Plugins</button>
+            </div>
             <div class="plugin-toggles-list">
                 ${visible.map(p => {
                     const locked = ctx.lockedPlugins.includes(p.name);
@@ -121,6 +124,41 @@ export default {
     },
 
     attachListeners(ctx, el) {
+        // Rescan button
+        const rescanBtn = el.querySelector('#rescan-plugins-btn');
+        if (rescanBtn) {
+            rescanBtn.addEventListener('click', async () => {
+                rescanBtn.disabled = true;
+                rescanBtn.textContent = 'Scanning...';
+                try {
+                    const res = await fetch('/api/plugins/rescan', { method: 'POST' });
+                    if (!res.ok) throw new Error('Rescan failed');
+                    const data = await res.json();
+                    const added = data.added?.length || 0;
+                    const removed = data.removed?.length || 0;
+                    if (added || removed) {
+                        ui.showToast(`Rescan: ${added} added, ${removed} removed`, 'success');
+                        // Refresh plugin list from server
+                        const listRes = await fetch('/api/webui/plugins');
+                        if (listRes.ok) {
+                            const listData = await listRes.json();
+                            if (listData.plugins) {
+                                ctx.pluginList = listData.plugins;
+                                ctx.refreshTab('plugins');
+                            }
+                        }
+                    } else {
+                        ui.showToast('No new plugins found', 'info');
+                    }
+                } catch (err) {
+                    ui.showToast(`Rescan failed: ${err.message}`, 'error');
+                } finally {
+                    rescanBtn.disabled = false;
+                    rescanBtn.textContent = 'Rescan Plugins';
+                }
+            });
+        }
+
         el.addEventListener('change', async e => {
             const name = e.target.dataset.pluginToggle;
             if (!name) return;
@@ -169,7 +207,7 @@ export default {
                     await ctx.loadPluginTab(name, cached.settingsUI);
                 } else if (!data.enabled) {
                     const { unregisterPluginSettings } = await import(
-                        '../../core-ui/plugins-modal/plugin-registry.js'
+                        '../../shared/plugin-registry.js'
                     );
                     unregisterPluginSettings(name);
                     ctx.syncDynamicTabs();

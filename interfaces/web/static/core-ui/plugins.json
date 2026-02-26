@@ -1,7 +1,6 @@
 {
   "enabled": [
     "setup-wizard",
-    "plugins-modal",
     "backup",
     "image-gen",
     "continuity"
@@ -11,12 +10,6 @@
       "title": "Setup Wizard",
       "showInSidebar": false,
       "autoShow": true
-    },
-    "plugins-modal": {
-      "title": "Plugins",
-      "menuText": "Plugins",
-      "showInSidebar": false,
-      "lazy": true
     },
     "backup": {
       "title": "Backup",

@@ -73,6 +73,7 @@ class PluginLoader:
     def __init__(self):
         # {plugin_name: {manifest, path, enabled, band, state}}
         self._plugins: Dict[str, dict] = {}
+        self._lock = threading.Lock()
         self._function_manager = None  # Set via scan() for plugin tool loading
         self._scheduler = None  # Set via set_scheduler() for plugin schedule tasks
         self._watcher_running = False
@@ -279,45 +280,95 @@ class PluginLoader:
         if self._function_manager:
             self._function_manager.unregister_plugin_tools(name)
         # Remove plugin schedule tasks
-        if self._scheduler and name in self._plugins:
-            for tid in self._plugins[name].get("schedule_task_ids", []):
-                try:
-                    self._scheduler.delete_task(tid)
-                except Exception as e:
-                    logger.warning(f"[PLUGINS] Failed to delete schedule task {tid}: {e}")
-            self._plugins[name].pop("schedule_task_ids", None)
-        if name in self._plugins:
-            self._plugins[name]["loaded"] = False
+        with self._lock:
+            if self._scheduler and name in self._plugins:
+                for tid in self._plugins[name].get("schedule_task_ids", []):
+                    try:
+                        self._scheduler.delete_task(tid)
+                    except Exception as e:
+                        logger.warning(f"[PLUGINS] Failed to delete schedule task {tid}: {e}")
+                self._plugins[name].pop("schedule_task_ids", None)
+            if name in self._plugins:
+                self._plugins[name]["loaded"] = False
         logger.info(f"[PLUGINS] Unloaded: {name}")
 
     def reload_plugin(self, name: str):
-        """Unload and reload a plugin. Safe — if reload fails, plugin stays unloaded."""
+        """Unload and reload a plugin. Safe — if reload fails, plugin stays unloaded.
+
+        Also re-enables plugin tools in the active toolset.
+        """
         self.unload_plugin(name)
-        if name in self._plugins and self._plugins[name]["enabled"]:
+        with self._lock:
+            should_load = name in self._plugins and self._plugins[name]["enabled"]
+        if should_load:
             try:
                 self._load_plugin(name)
+                # Re-enable tools in active toolset
+                if self._function_manager:
+                    current = self._function_manager.current_toolset_name
+                    if current:
+                        self._function_manager.update_enabled_functions([current])
                 logger.info(f"[PLUGINS] Reloaded: {name}")
                 from core.event_bus import publish, Events
                 publish(Events.PLUGIN_RELOADED, {"plugin": name})
             except Exception as e:
                 logger.error(f"[PLUGINS] Reload failed for {name}: {e}", exc_info=True)
-                # Leave unloaded rather than half-loaded
-                if name in self._plugins:
-                    self._plugins[name]["loaded"] = False
+                with self._lock:
+                    if name in self._plugins:
+                        self._plugins[name]["loaded"] = False
 
     def set_scheduler(self, scheduler):
-        """Set the continuity scheduler for plugin schedule tasks."""
+        """Set the continuity scheduler for plugin schedule tasks.
+
+        Also registers schedule tasks for plugins that were already loaded
+        during scan() (before the scheduler existed).
+        """
         self._scheduler = scheduler
+        self._register_pending_schedules()
+
+    def _register_pending_schedules(self):
+        """Register schedule tasks for loaded plugins that missed registration during scan()."""
+        if not self._scheduler:
+            return
+        for name, info in self._plugins.items():
+            if not info.get("loaded"):
+                continue
+            if info.get("schedule_task_ids"):
+                continue  # Already registered
+            schedules = info["manifest"].get("capabilities", {}).get("schedule", [])
+            if not schedules:
+                continue
+            plugin_dir = info["path"]
+            task_ids = []
+            for sched in schedules:
+                try:
+                    task = self._scheduler.create_task({
+                        "name": sched.get("name", f"{name} task"),
+                        "schedule": sched.get("cron", "0 9 * * *"),
+                        "enabled": sched.get("enabled", True),
+                        "chance": sched.get("chance", 100),
+                        "initial_message": sched.get("description", "Plugin scheduled task"),
+                        "source": f"plugin:{name}",
+                        "handler": sched.get("handler", ""),
+                        "plugin_dir": str(plugin_dir),
+                    })
+                    task_ids.append(task["id"])
+                    logger.info(f"[PLUGINS] Deferred schedule registration: '{sched.get('name')}' for {name}")
+                except Exception as e:
+                    logger.error(f"[PLUGINS] Failed deferred schedule for {name}: {e}")
+            info["schedule_task_ids"] = task_ids
 
     def rescan(self):
-        """Scan for new plugins without disturbing already-loaded ones.
+        """Scan for new plugins and clean up removed ones.
 
-        Returns list of newly discovered plugin names.
+        Returns dict with 'added' and 'removed' plugin name lists.
         """
         enabled_list = self._get_enabled_list()
-        existing = set(self._plugins.keys())
         new_found = []
+        removed = []
 
+        # Collect all plugin names currently on disk
+        on_disk = set()
         for directory, band in [(SYSTEM_PLUGINS_DIR, "system"), (USER_PLUGINS_DIR, "user")]:
             if not directory.exists():
                 continue
@@ -332,27 +383,44 @@ class PluginLoader:
                 except Exception:
                     continue
                 name = manifest.get("name", child.name)
-                if name in existing:
-                    continue
+                on_disk.add(name)
+
+                with self._lock:
+                    if name in self._plugins:
+                        continue
+
                 if not self._validate_manifest(name, manifest):
                     continue
 
-                self._plugins[name] = {
-                    "manifest": manifest,
-                    "path": child,
-                    "enabled": name in enabled_list,
-                    "band": band,
-                    "loaded": False,
-                }
+                with self._lock:
+                    self._plugins[name] = {
+                        "manifest": manifest,
+                        "path": child,
+                        "enabled": name in enabled_list,
+                        "band": band,
+                        "loaded": False,
+                    }
                 new_found.append(name)
 
                 if name in enabled_list:
                     self._load_plugin(name)
                     logger.info(f"[PLUGINS] Rescan: loaded new plugin '{name}'")
 
-        if new_found:
-            logger.info(f"[PLUGINS] Rescan found {len(new_found)} new: {new_found}")
-        return new_found
+        # Detect removed plugins (folder deleted while running)
+        with self._lock:
+            for name in list(self._plugins.keys()):
+                if name not in on_disk:
+                    removed.append(name)
+
+        for name in removed:
+            logger.info(f"[PLUGINS] Rescan: plugin '{name}' removed from disk, unloading")
+            self.unload_plugin(name)
+            with self._lock:
+                self._plugins.pop(name, None)
+
+        if new_found or removed:
+            logger.info(f"[PLUGINS] Rescan: {len(new_found)} added, {len(removed)} removed")
+        return {"added": new_found, "removed": removed}
 
     # ── Query methods ──
 
@@ -416,17 +484,28 @@ class PluginLoader:
 
         # Snapshot initial mtimes
         mtimes: Dict[str, float] = {}
-        for name, info in self._plugins.items():
+        with self._lock:
+            snapshot = list(self._plugins.items())
+        for name, info in snapshot:
             if info.get("loaded"):
                 mtimes[name] = self._dir_mtime(info["path"])
 
         while self._watcher_running:
             _time.sleep(2)
-            for name, info in list(self._plugins.items()):
+            with self._lock:
+                snapshot = list(self._plugins.items())
+            for name, info in snapshot:
                 if not info.get("loaded"):
+                    # Track newly loaded plugins so first poll doesn't spuriously reload
+                    if name not in mtimes and info["path"].exists():
+                        mtimes[name] = self._dir_mtime(info["path"])
                     continue
                 current = self._dir_mtime(info["path"])
                 prev = mtimes.get(name, 0)
+                if prev == 0:
+                    # First time seeing this plugin loaded — snapshot, don't reload
+                    mtimes[name] = current
+                    continue
                 if current > prev:
                     logger.info(f"[PLUGINS] File change detected in '{name}', reloading...")
                     self.reload_plugin(name)

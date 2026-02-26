@@ -314,6 +314,11 @@ function initEventBus() {
         populateChatDropdown();
     });
 
+    // Plugin reload notification
+    eventBus.on(eventBus.Events.PLUGIN_RELOADED, (data) => {
+        ui.showToast(`Plugin '${data?.plugin || 'unknown'}' reloaded`, 'success');
+    });
+
     // Server restart detection — full state resync
     eventBus.on(eventBus.Events.SERVER_RESTARTED, async () => {
         console.log('[Main] Server restarted — full resync');

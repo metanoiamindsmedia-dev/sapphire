@@ -16,7 +16,7 @@ def pre_chat(event):
         session = system.llm_chat.session_manager
         chat_name = session.get_active_chat_name() or "chat"
         try:
-            session.clear_history()
+            session.clear()
             logger.info(f"[RESET] Cleared history for '{chat_name}'")
             event.response = f"Chat '{chat_name}' has been reset."
         except Exception as e:

@@ -17,7 +17,7 @@ import customToolsTab from './settings-tabs/custom-tools.js';
 import backupTab from './settings-tabs/backup.js';
 import systemTab from './settings-tabs/system.js';
 
-import { getRegisteredTabs } from '../core-ui/plugins-modal/plugin-registry.js';
+import { getRegisteredTabs } from '../shared/plugin-registry.js';
 
 const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
 

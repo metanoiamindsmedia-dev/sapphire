@@ -94,15 +94,27 @@ class ContinuityScheduler:
     # =========================================================================
     
     def _load_tasks(self):
-        """Load tasks from JSON file."""
+        """Load tasks from JSON file. Purges plugin-sourced tasks (they re-register on load)."""
         if not self._tasks_path.exists():
             self._tasks = {}
             return
-        
+
         try:
             with open(self._tasks_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            self._tasks = {t["id"]: t for t in data.get("tasks", [])}
+            all_tasks = {t["id"]: t for t in data.get("tasks", [])}
+
+            # Purge plugin-sourced tasks — plugins re-register theirs via set_scheduler()
+            plugin_count = 0
+            for tid in list(all_tasks):
+                if all_tasks[tid].get("source", "").startswith("plugin:"):
+                    del all_tasks[tid]
+                    plugin_count += 1
+
+            self._tasks = all_tasks
+            if plugin_count:
+                self._save_tasks()
+                logger.info(f"[Continuity] Purged {plugin_count} plugin task(s) from previous session")
             logger.info(f"[Continuity] Loaded {len(self._tasks)} tasks")
         except Exception as e:
             logger.error(f"[Continuity] Failed to load tasks: {e}")
