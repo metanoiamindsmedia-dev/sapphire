@@ -2,7 +2,6 @@
   "enabled": [
     "setup-wizard",
     "backup",
-    "image-gen",
     "continuity"
   ],
   "plugins": {
@@ -16,10 +15,6 @@
       "menuText": "Backup & Restore",
       "showInSidebar": false,
       "lazy": true
-    },
-    "image-gen": {
-      "title": "Image Generation",
-      "showInSidebar": false
     },
     "continuity": {
       "title": "Continuity",
