@@ -1,5 +1,5 @@
 // index.js - SSH settings plugin
-// Settings tab in Plugins modal for SSH server management
+// Settings tab for SSH server management
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 import pluginsAPI from '/static/shared/plugins-api.js';

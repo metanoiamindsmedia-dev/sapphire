@@ -1,5 +1,5 @@
 // index.js - Email settings plugin (multi-account)
-// Settings tab in Plugins modal for email configuration
+// Settings tab for email configuration
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 

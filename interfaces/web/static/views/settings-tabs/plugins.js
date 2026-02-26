@@ -138,15 +138,7 @@ export default {
                     const removed = data.removed?.length || 0;
                     if (added || removed) {
                         ui.showToast(`Rescan: ${added} added, ${removed} removed`, 'success');
-                        // Refresh plugin list from server
-                        const listRes = await fetch('/api/webui/plugins');
-                        if (listRes.ok) {
-                            const listData = await listRes.json();
-                            if (listData.plugins) {
-                                ctx.pluginList = listData.plugins;
-                                ctx.refreshTab('plugins');
-                            }
-                        }
+                        await ctx.refreshTab();
                     } else {
                         ui.showToast('No new plugins found', 'info');
                     }

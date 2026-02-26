@@ -1,5 +1,5 @@
 // index.js - Bitcoin wallet settings plugin (multi-wallet)
-// Settings tab in Plugins modal for Bitcoin wallet management
+// Settings tab for Bitcoin wallet management
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 

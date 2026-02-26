@@ -1,5 +1,5 @@
 // index.js - Home Assistant settings plugin
-// Settings tab in Plugins modal for HA configuration
+// Settings tab for Home Assistant configuration
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 import pluginsAPI from '/static/shared/plugins-api.js';

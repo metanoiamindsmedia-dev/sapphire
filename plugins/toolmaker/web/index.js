@@ -1,5 +1,5 @@
 // index.js - Tool Maker settings plugin
-// Settings tab in Plugins modal for Tool Maker configuration
+// Settings tab for Tool Maker configuration
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
 import pluginsAPI from '/static/shared/plugins-api.js';

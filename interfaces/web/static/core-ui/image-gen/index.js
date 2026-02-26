@@ -1,6 +1,5 @@
 // index.js - Image Generation settings plugin
-// This plugin only injects a settings tab into the Plugins modal
-// No sidebar presence, no gear menu entry - settings only
+// Registers a settings tab in Settings > Plugins
 
 import { registerPluginSettings } from '../../shared/plugin-registry.js';
 import pluginsAPI from '../../shared/plugins-api.js';
@@ -479,7 +478,7 @@ export default {
   init(container) {
     injectStyles();
     
-    // Register settings tab in Plugins modal
+    // Register settings tab
     registerPluginSettings({
       id: 'image-gen',
       name: 'Image Generation',

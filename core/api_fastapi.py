@@ -4252,9 +4252,12 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
 @app.post("/api/plugins/rescan")
 async def rescan_plugins(_=Depends(require_login)):
     """Scan for new/removed plugin folders without restart."""
-    from core.plugin_loader import plugin_loader
-    result = plugin_loader.rescan()
-    return {"status": "ok", "added": result["added"], "removed": result["removed"]}
+    try:
+        from core.plugin_loader import plugin_loader
+        result = plugin_loader.rescan()
+        return {"status": "ok", "added": result["added"], "removed": result["removed"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/plugins/{plugin_name}/reload")
@@ -4273,9 +4276,24 @@ async def reload_plugin(plugin_name: str, _=Depends(require_login)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _require_known_plugin(plugin_name: str):
+    """404 if plugin doesn't exist in merged config or backend loader."""
+    merged = _get_merged_plugins()
+    if plugin_name in merged.get("plugins", {}):
+        return
+    try:
+        from core.plugin_loader import plugin_loader
+        if plugin_loader.get_plugin_info(plugin_name):
+            return
+    except Exception:
+        pass
+    raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
+
+
 @app.get("/api/webui/plugins/{plugin_name}/settings")
 async def get_plugin_settings(plugin_name: str, request: Request, _=Depends(require_login)):
     """Get plugin settings."""
+    _require_known_plugin(plugin_name)
     settings_file = USER_PLUGIN_SETTINGS_DIR / f"{plugin_name}.json"
     if not settings_file.exists():
         return {"plugin": plugin_name, "settings": {}}
@@ -4290,6 +4308,7 @@ async def get_plugin_settings(plugin_name: str, request: Request, _=Depends(requ
 @app.put("/api/webui/plugins/{plugin_name}/settings")
 async def update_plugin_settings(plugin_name: str, request: Request, _=Depends(require_login)):
     """Update plugin settings."""
+    _require_known_plugin(plugin_name)
     data = await request.json()
     settings = data.get("settings", data)
 
@@ -4304,6 +4323,7 @@ async def update_plugin_settings(plugin_name: str, request: Request, _=Depends(r
 @app.delete("/api/webui/plugins/{plugin_name}/settings")
 async def reset_plugin_settings(plugin_name: str, request: Request, _=Depends(require_login)):
     """Reset plugin settings."""
+    _require_known_plugin(plugin_name)
     settings_file = USER_PLUGIN_SETTINGS_DIR / f"{plugin_name}.json"
     if settings_file.exists():
         settings_file.unlink()
