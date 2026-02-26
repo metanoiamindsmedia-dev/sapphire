@@ -515,6 +515,13 @@ class StreamingChat:
                         thinking=current_thinking if current_thinking else None,
                         metadata=metadata
                     )
+
+                    if hook_runner.has_handlers("post_chat"):
+                        hook_runner.fire("post_chat", HookEvent(
+                            input=user_input, response=full_content,
+                            config=config, metadata={"system": self.main_chat.system}
+                        ))
+
                     return
             
             # Loop exhausted - force final response
@@ -596,6 +603,7 @@ class StreamingChat:
                         thinking=final_thinking if final_thinking else None,
                         metadata=final_metadata
                     )
+                    _post_response = full_final
                 else:
                     fallback = f"I used {tool_call_count} tools and gathered information."
                     yield {"type": "content", "text": fallback}
@@ -603,7 +611,14 @@ class StreamingChat:
                         content=fallback,
                         metadata=final_metadata
                     )
-                    
+                    _post_response = fallback
+
+                if hook_runner.has_handlers("post_chat"):
+                    hook_runner.fire("post_chat", HookEvent(
+                        input=user_input, response=_post_response,
+                        config=config, metadata={"system": self.main_chat.system}
+                    ))
+
             except Exception as final_error:
                 logger.error(f"[STREAMING] Forced final response failed: {final_error}")
                 error_msg = f"I completed {tool_call_count} tool calls but encountered an error generating the final response."

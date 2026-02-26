@@ -4249,6 +4249,22 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
     return {"status": "success", "plugin": plugin_name, "enabled": new_state, "reload_required": reload_required}
 
 
+@app.post("/api/plugins/{plugin_name}/reload")
+async def reload_plugin(plugin_name: str, _=Depends(require_login)):
+    """Hot-reload a plugin (unload + load). For development."""
+    from core.plugin_loader import plugin_loader
+    info = plugin_loader.get_plugin_info(plugin_name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
+    if not info["enabled"]:
+        raise HTTPException(status_code=400, detail=f"Plugin '{plugin_name}' is not enabled")
+    try:
+        plugin_loader.reload_plugin(plugin_name)
+        return {"status": "ok", "plugin": plugin_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/webui/plugins/{plugin_name}/settings")
 async def get_plugin_settings(plugin_name: str, request: Request, _=Depends(require_login)):
     """Get plugin settings."""

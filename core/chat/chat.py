@@ -660,6 +660,13 @@ class LLMChat:
                 }
                 
                 self.session_manager.add_assistant_final(final_response_content, metadata=metadata)
+
+                if hook_runner.has_handlers("post_chat"):
+                    hook_runner.fire("post_chat", HookEvent(
+                        input=user_input, response=final_response_content,
+                        config=config, metadata={"system": self.system}
+                    ))
+
                 return final_response_content
 
             logger.warning(f"Exceeded max iterations ({config.MAX_TOOL_ITERATIONS}). Forcing final answer.")
@@ -712,6 +719,13 @@ class LLMChat:
             }
 
             self.session_manager.add_assistant_final(final_response_content, metadata=metadata)
+
+            if hook_runner.has_handlers("post_chat"):
+                hook_runner.fire("post_chat", HookEvent(
+                    input=user_input, response=final_response_content,
+                    config=config, metadata={"system": self.system}
+                ))
+
             return final_response_content
 
         except Exception as e:

@@ -668,62 +668,75 @@ class FunctionManager:
             return error_msg
 
         logger.info(f"Executing function: {function_name}")
-        
-        # Check if this is a story tool
+
+        # pre_execute hook — plugins can mutate arguments or skip execution
+        from core.hooks import hook_runner, HookEvent
+        if hook_runner.has_handlers("pre_execute"):
+            exec_event = HookEvent(
+                function_name=function_name,
+                arguments=dict(arguments) if arguments else {},
+                config=config, metadata={"system": getattr(self, '_system', None)}
+            )
+            hook_runner.fire("pre_execute", exec_event)
+            arguments = exec_event.arguments
+            if exec_event.skip_llm:
+                result = exec_event.result or "Execution skipped by plugin."
+                self._log_tool_call(function_name, arguments, result, time.time() - start_time, True)
+                return result
+
+        # Execute — 3 paths: story tools, custom story tools, standard
+        result = None
         from core.story_engine import STORY_TOOL_NAMES, execute as story_execute
+
         if function_name in STORY_TOOL_NAMES:
             if not self._story_engine or not self._story_engine_enabled:
                 result = f"Error: Story engine not active for tool '{function_name}'"
                 self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
                 return result
 
-            # Get current turn number
             turn = self._turn_getter() if self._turn_getter else 0
-
             try:
                 result, success = story_execute(function_name, arguments, self._story_engine, turn)
-                execution_time = time.time() - start_time
-                self._log_tool_call(function_name, arguments, result, execution_time, success)
-                return result
             except Exception as e:
                 logger.error(f"Error executing story tool {function_name}: {e}")
-                execution_time = time.time() - start_time
-                self._log_tool_call(function_name, arguments, f"Error: {e}", execution_time, False)
-                return f"Error executing {function_name}: {str(e)}"
-        
-        # Check if this is a custom story tool
-        if (self._story_engine and self._story_engine_enabled and
+                result = f"Error executing {function_name}: {str(e)}"
+                success = False
+
+        elif (self._story_engine and self._story_engine_enabled and
                 function_name in self._story_engine.story_tool_names):
             try:
                 result, success = self._story_engine.execute_story_tool(function_name, arguments)
-                execution_time = time.time() - start_time
-                self._log_tool_call(function_name, arguments, result, execution_time, success)
-                return result
             except Exception as e:
                 logger.error(f"Error executing custom story tool {function_name}: {e}")
-                execution_time = time.time() - start_time
-                self._log_tool_call(function_name, arguments, f"Error: {e}", execution_time, False)
-                return f"Error executing {function_name}: {str(e)}"
+                result = f"Error executing {function_name}: {str(e)}"
+                success = False
 
-        # Standard function execution
-        executor = self.execution_map.get(function_name)
-        if not executor:
-            logger.error(f"No executor found for function '{function_name}'")
-            result = f"The tool {function_name} is recognized but has no execution logic."
-            self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
-            return result
-        
-        try:
-            result, success = executor(function_name, arguments, config)
-            execution_time = time.time() - start_time
-            self._log_tool_call(function_name, arguments, result, execution_time, success)
-            return result
-                
-        except Exception as e:
-            logger.error(f"Error executing function {function_name}: {e}")
-            execution_time = time.time() - start_time
-            self._log_tool_call(function_name, arguments, f"Error: {e}", execution_time, False)
-            return f"Error executing {function_name}: {str(e)}"
+        else:
+            executor = self.execution_map.get(function_name)
+            if not executor:
+                logger.error(f"No executor found for function '{function_name}'")
+                result = f"The tool {function_name} is recognized but has no execution logic."
+                self._log_tool_call(function_name, arguments, result, time.time() - start_time, False)
+                return result
+
+            try:
+                result, success = executor(function_name, arguments, config)
+            except Exception as e:
+                logger.error(f"Error executing function {function_name}: {e}")
+                result = f"Error executing {function_name}: {str(e)}"
+                success = False
+
+        execution_time = time.time() - start_time
+        self._log_tool_call(function_name, arguments, result, execution_time, success)
+
+        # post_execute hook — plugins can observe results
+        if hook_runner.has_handlers("post_execute"):
+            hook_runner.fire("post_execute", HookEvent(
+                function_name=function_name, arguments=arguments,
+                result=result, config=config
+            ))
+
+        return result
 
     def _load_tool_history(self):
         """Load tool history from disk. Disabled - legacy debug feature."""

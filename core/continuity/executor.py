@@ -34,6 +34,11 @@ class ContinuityExecutor:
         Returns:
             Result dict with success, responses, errors
         """
+        # Plugin-sourced tasks run their handler directly
+        source = task.get("source", "")
+        if source.startswith("plugin:"):
+            return self._run_plugin_task(task, progress_callback, response_callback)
+
         # Resolve persona defaults into task (task-level fields override persona)
         task = self._resolve_persona(task)
 
@@ -244,7 +249,73 @@ class ContinuityExecutor:
 
         result["completed_at"] = datetime.now().isoformat()
         return result
-    
+
+    def _run_plugin_task(self, task: Dict[str, Any], progress_cb=None, response_cb=None) -> Dict[str, Any]:
+        """Execute a plugin-sourced scheduled task by calling its handler."""
+        from pathlib import Path
+        import config
+
+        result = {
+            "success": False,
+            "task_id": task.get("id"),
+            "task_name": task.get("name"),
+            "started_at": datetime.now().isoformat(),
+            "responses": [],
+            "errors": []
+        }
+
+        plugin_name = task.get("source", "").replace("plugin:", "")
+        handler_path = task.get("handler", "")
+        plugin_dir = task.get("plugin_dir", "")
+
+        if not handler_path or not plugin_dir:
+            result["errors"].append(f"Plugin task missing handler or plugin_dir")
+            return result
+
+        full_path = Path(plugin_dir) / handler_path
+        if not full_path.exists():
+            result["errors"].append(f"Handler not found: {full_path}")
+            return result
+
+        try:
+            source = full_path.read_text(encoding="utf-8")
+            namespace = {"__file__": str(full_path), "__name__": f"plugin_schedule_{plugin_name}"}
+            exec(compile(source, str(full_path), "exec"), namespace)
+
+            run_func = namespace.get("run")
+            if not run_func or not callable(run_func):
+                result["errors"].append(f"No 'run' function in {full_path}")
+                return result
+
+            # Build event dict for the handler
+            from core.plugin_loader import plugin_loader
+            plugin_state = plugin_loader.get_plugin_state(plugin_name)
+
+            event = {
+                "system": self.system,
+                "config": config,
+                "task": task,
+                "plugin_state": plugin_state,
+            }
+
+            output = run_func(event)
+            result["responses"].append({"output": str(output) if output else None})
+            result["success"] = True
+
+            if response_cb and output:
+                try: response_cb(str(output))
+                except Exception: pass
+
+        except Exception as e:
+            logger.error(f"[Continuity] Plugin task '{task.get('name')}' failed: {e}", exc_info=True)
+            result["errors"].append(str(e))
+
+        if progress_cb:
+            progress_cb(1, 1)
+
+        result["completed_at"] = datetime.now().isoformat()
+        return result
+
     def _resolve_persona(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """If task has a persona, merge persona settings as defaults under task-level overrides."""
         persona_name = task.get("persona", "")

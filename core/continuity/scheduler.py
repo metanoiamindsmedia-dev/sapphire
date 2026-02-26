@@ -220,6 +220,9 @@ class ContinuityScheduler:
             "max_tool_rounds": data.get("max_tool_rounds", 0),
             "active_hours_start": data.get("active_hours_start", None),
             "active_hours_end": data.get("active_hours_end", None),
+            "source": data.get("source", ""),  # "plugin:{name}" for plugin-sourced tasks
+            "handler": data.get("handler", ""),  # handler path for plugin tasks
+            "plugin_dir": data.get("plugin_dir", ""),  # plugin directory for handler resolution
             "last_run": None,
             "last_response": None,
             "created": datetime.now().isoformat()

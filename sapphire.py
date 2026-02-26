@@ -464,6 +464,7 @@ class VoiceChatSystem:
         """Stop all components with error isolation - one failure won't block others."""
         logger.info("Stopping voice chat system...")
 
+        from core.plugin_loader import plugin_loader as _pl
         stop_actions = [
             ("voice components", self.stop_components),
             ("continuity scheduler", lambda: hasattr(self, 'continuity_scheduler') and self.continuity_scheduler and self.continuity_scheduler.stop()),
@@ -471,6 +472,7 @@ class VoiceChatSystem:
             ("settings watcher", settings.stop_file_watcher),
             ("prompt watcher", lambda: prompts.prompt_manager.stop_file_watcher()),
             ("toolset watcher", toolset_manager.stop_file_watcher),
+            ("plugin watcher", _pl.stop_watcher),
         ]
 
         for name, action in stop_actions:
@@ -526,6 +528,16 @@ def run():
         voice_chat.continuity_scheduler = continuity_scheduler  # Attach for stop() and API routes
         continuity_scheduler.start()
         logger.info("Continuity scheduler started")
+
+        # Wire scheduler into plugin loader for plugin schedule tasks
+        from core.plugin_loader import plugin_loader
+        plugin_loader.set_scheduler(continuity_scheduler)
+
+        # Dev mode: auto-reload plugins on file changes
+        import os
+        if os.environ.get("SAPPHIRE_DEV"):
+            plugin_loader.start_watcher()
+            logger.info("Plugin file watcher started (SAPPHIRE_DEV)")
 
         settings.start_file_watcher()
 

@@ -230,3 +230,6 @@ class Events:
     CONTINUITY_TASK_SKIPPED = "continuity_task_skipped"
     CONTINUITY_TASK_ERROR = "continuity_task_error"
     CONTINUITY_TASK_PROGRESS = "continuity_task_progress"
+
+    # Plugin events
+    PLUGIN_RELOADED = "plugin_reloaded"

@@ -21,11 +21,16 @@ class HookEvent:
     Fields:
         input: User's message text (mutable by pre_chat hooks)
         skip_llm: Set True to bypass LLM entirely (voice commands, cached responses)
-        response: Direct response text when skip_llm is True
+        response: Direct response text when skip_llm is True / post_chat final response
         context_parts: Append strings to inject into system prompt (prompt_inject hooks)
         stop_propagation: Set True to prevent lower-priority hooks from firing
         config: System config object (read-only by convention)
         metadata: Arbitrary data plugins can pass between hooks
+        function_name: Tool name for pre_execute/post_execute hooks
+        arguments: Tool arguments for pre_execute (mutable — plugins can modify)
+        result: Tool result for post_execute
+        tts_text: Text about to be spoken for pre_tts (mutable)
+        skip_tts: Set True in pre_tts to cancel TTS entirely
     """
     input: str = ""
     skip_llm: bool = False
@@ -34,6 +39,11 @@ class HookEvent:
     stop_propagation: bool = False
     config: Any = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    function_name: Optional[str] = None
+    arguments: Optional[dict] = None
+    result: Optional[str] = None
+    tts_text: Optional[str] = None
+    skip_tts: bool = False
 
 
 class HookRunner:

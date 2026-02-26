@@ -241,6 +241,15 @@ class TTSClient:
             logger.warning(f"[TTS] speak: too short after processing ({len(processed_text) if processed_text else 0} chars), skipping")
             return False
 
+        # pre_tts hook — plugins can alter or cancel TTS
+        from core.hooks import hook_runner, HookEvent
+        if hook_runner.has_handlers("pre_tts"):
+            tts_event = HookEvent(tts_text=processed_text, config=config)
+            hook_runner.fire("pre_tts", tts_event)
+            if tts_event.skip_tts:
+                return False
+            processed_text = tts_event.tts_text
+
         self.stop()
         self.should_stop.clear()
 
@@ -262,6 +271,15 @@ class TTSClient:
         if not processed_text or len(processed_text) < 3:
             logger.warning(f"[TTS] speak_sync: too short after processing ({len(processed_text) if processed_text else 0} chars), skipping")
             return False
+
+        # pre_tts hook — plugins can alter or cancel TTS
+        from core.hooks import hook_runner, HookEvent
+        if hook_runner.has_handlers("pre_tts"):
+            tts_event = HookEvent(tts_text=processed_text, config=config)
+            hook_runner.fire("pre_tts", tts_event)
+            if tts_event.skip_tts:
+                return False
+            processed_text = tts_event.tts_text
 
         logger.debug(f"[TTS] speak_sync: {len(text)} chars raw → {len(processed_text)} chars processed")
         self.stop()
