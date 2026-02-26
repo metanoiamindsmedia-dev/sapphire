@@ -4892,6 +4892,12 @@ a.gallery-caption:hover {
 
 .plugin-toggle-info {
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.plugin-toggle-header {
+    display: flex;
     align-items: center;
     gap: 8px;
 }
@@ -4899,6 +4905,18 @@ a.gallery-caption:hover {
 .plugin-toggle-name {
     font-weight: 500;
 }
+
+.plugin-toggle-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.plugin-toggle-link {
+    font-size: 11px;
+    color: var(--trim-border, rgba(74,158,255,0.8));
+    text-decoration: none;
+}
+.plugin-toggle-link:hover { text-decoration: underline; }
 
 .plugin-toggle-badge {
     font-size: 10px;
@@ -4909,6 +4927,18 @@ a.gallery-caption:hover {
     border-radius: var(--radius-sm);
     background: rgba(255,255,255,0.08);
     color: var(--text-muted);
+}
+.plugin-toggle-badge.verified {
+    background: rgba(46,160,67,0.15);
+    color: #3fb950;
+}
+.plugin-toggle-badge.unsigned {
+    background: rgba(210,153,34,0.15);
+    color: #d2992a;
+}
+.plugin-toggle-badge.failed {
+    background: rgba(248,81,73,0.15);
+    color: #f85149;
 }
 
 .plugin-tab-container {

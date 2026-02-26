@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from core.hooks import hook_runner
+from core.plugin_verify import verify_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -154,13 +155,39 @@ class PluginLoader:
         return []
 
     def _load_plugin(self, name: str):
-        """Load an enabled plugin — register hooks, voice commands."""
+        """Load an enabled plugin — verify signature, register hooks, voice commands."""
         info = self._plugins.get(name)
         if not info:
             return
 
-        manifest = info["manifest"]
         plugin_dir = info["path"]
+
+        # Verify plugin signature before loading any code
+        verified, verify_msg = verify_plugin(plugin_dir)
+        info["verified"] = verified
+        info["verify_msg"] = verify_msg
+
+        if not verified:
+            # Check if unsigned plugins are allowed
+            try:
+                import config
+                allow_unsigned = config.ALLOW_UNSIGNED_PLUGINS
+            except Exception:
+                allow_unsigned = True  # Safe default during startup
+
+            if verify_msg == "unsigned" and allow_unsigned:
+                logger.warning(f"[PLUGINS] {name}: unsigned plugin (sideloading enabled)")
+            elif verify_msg == "unsigned" and not allow_unsigned:
+                logger.warning(f"[PLUGINS] BLOCKED {name}: unsigned plugin (sideloading disabled)")
+                return
+            else:
+                # Signature exists but failed verification — always block
+                logger.error(f"[PLUGINS] BLOCKED {name}: {verify_msg}")
+                return
+        else:
+            logger.info(f"[PLUGINS] {name}: signature verified")
+
+        manifest = info["manifest"]
         band = info["band"]
         base_priority = manifest.get("priority", 50)
 
@@ -448,6 +475,8 @@ class PluginLoader:
             "enabled": info["enabled"],
             "band": info["band"],
             "loaded": info.get("loaded", False),
+            "verified": info.get("verified"),
+            "verify_msg": info.get("verify_msg"),
         }
 
     def get_all_plugin_info(self) -> List[dict]:

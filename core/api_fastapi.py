@@ -4186,7 +4186,12 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                     "title": manifest.get("description", info["name"]).split("—")[0].strip(),
                     "showInSidebar": False,
                     "collapsible": True,
-                    "settingsUI": "plugin" if has_web else None
+                    "settingsUI": "plugin" if has_web else None,
+                    "verified": info.get("verified"),
+                    "verify_msg": info.get("verify_msg"),
+                    "url": manifest.get("url"),
+                    "version": manifest.get("version"),
+                    "author": manifest.get("author"),
                 })
     except Exception:
         pass

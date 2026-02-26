@@ -224,6 +224,10 @@
     "SESSION_TIMEOUT_DAYS": 30
   },
   
+  "plugins": {
+    "ALLOW_UNSIGNED_PLUGINS": true
+  },
+
   "setup": {
     "SETUP_WIZARD_STEP": 0,
     "_wizard_steps": "0=not started, 1=voice done, 2=audio done, 3=llm done, 4=complete"

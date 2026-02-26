@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Voice Command: Stop — halt TTS playback and cancel LLM generation",
   "author": "sapphire",
+  "url": "https://sapphireblue.dev",
   "priority": 1,
   "capabilities": {
     "voice_commands": [

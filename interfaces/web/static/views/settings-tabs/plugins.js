@@ -105,11 +105,33 @@ export default {
             <div class="plugin-toggles-list">
                 ${visible.map(p => {
                     const locked = ctx.lockedPlugins.includes(p.name);
+                    const isBackend = p.verified !== undefined;
+                    let verifyBadge = '';
+                    if (isBackend) {
+                        if (p.verified) {
+                            verifyBadge = '<span class="plugin-toggle-badge verified">Signed</span>';
+                        } else if (p.verify_msg === 'unsigned') {
+                            verifyBadge = '<span class="plugin-toggle-badge unsigned">Unsigned</span>';
+                        } else {
+                            verifyBadge = `<span class="plugin-toggle-badge failed">Tampered</span>`;
+                        }
+                    }
+                    const meta = [];
+                    if (p.version) meta.push(`v${p.version}`);
+                    if (p.author) meta.push(p.author);
+                    const metaStr = meta.length ? `<span class="plugin-toggle-meta">${meta.join(' · ')}</span>` : '';
+                    const urlLink = p.url ? `<a href="${p.url}" target="_blank" rel="noopener" class="plugin-toggle-link">View</a>` : '';
+
                     return `
                         <div class="plugin-toggle-item${p.enabled ? ' enabled' : ''}" data-plugin="${p.name}">
                             <div class="plugin-toggle-info">
-                                <span class="plugin-toggle-name">${p.title || p.name}</span>
-                                ${locked ? '<span class="plugin-toggle-badge">Core</span>' : ''}
+                                <div class="plugin-toggle-header">
+                                    <span class="plugin-toggle-name">${p.title || p.name}</span>
+                                    ${locked ? '<span class="plugin-toggle-badge">Core</span>' : ''}
+                                    ${verifyBadge}
+                                    ${urlLink}
+                                </div>
+                                ${metaStr}
                             </div>
                             <label class="setting-toggle">
                                 <input type="checkbox" data-plugin-toggle="${p.name}"
