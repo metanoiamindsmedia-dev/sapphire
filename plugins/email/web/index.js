@@ -1,7 +1,7 @@
 // index.js - Email settings plugin (multi-account)
 // Settings tab in Plugins modal for email configuration
 
-import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
+import { registerPluginSettings } from '/static/core-ui/plugins-modal/plugin-registry.js';
 
 function csrfHeaders(extra = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';

@@ -196,7 +196,7 @@ async function init() {
         if (typeof wizardStep === 'number' && wizardStep < 3) {
             setTimeout(async () => {
                 try {
-                    const mod = await import(`./plugins/setup-wizard/index.js${_v}`);
+                    const mod = await import(`./core-ui/setup-wizard/index.js${_v}`);
                     if (mod.default?.init) await mod.default.init();
                 } catch (e) { console.warn('[Init] Setup wizard failed:', e); }
             }, 500);

@@ -33,26 +33,6 @@
       "menuText": "Continuity Tasks",
       "showInSidebar": false,
       "lazy": true
-    },
-    "homeassistant": {
-      "title": "Home Assistant",
-      "showInSidebar": false
-    },
-    "email": {
-      "title": "Email",
-      "showInSidebar": false
-    },
-    "bitcoin": {
-      "title": "Bitcoin",
-      "showInSidebar": false
-    },
-    "ssh": {
-      "title": "SSH",
-      "showInSidebar": false
-    },
-    "toolmaker": {
-      "title": "Tool Maker",
-      "showInSidebar": false
     }
   }
 }

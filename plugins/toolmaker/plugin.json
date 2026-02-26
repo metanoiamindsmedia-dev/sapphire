@@ -1,7 +1,7 @@
 {
   "name": "toolmaker",
   "version": "1.0.0",
-  "description": "AI self-extension — create, read, and activate custom tools",
+  "description": "Tool Maker — create, read, and activate custom tools",
   "author": "sapphire",
   "priority": 50,
   "capabilities": {

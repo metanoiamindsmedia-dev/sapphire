@@ -1,7 +1,7 @@
 {
   "name": "stop",
   "version": "1.0.0",
-  "description": "Voice command to halt TTS playback and cancel LLM generation",
+  "description": "Voice Command: Stop — halt TTS playback and cancel LLM generation",
   "author": "sapphire",
   "priority": 1,
   "capabilities": {

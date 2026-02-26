@@ -17,7 +17,7 @@ import customToolsTab from './settings-tabs/custom-tools.js';
 import backupTab from './settings-tabs/backup.js';
 import systemTab from './settings-tabs/system.js';
 
-import { getRegisteredTabs } from '../plugins/plugins-modal/plugin-registry.js';
+import { getRegisteredTabs } from '../core-ui/plugins-modal/plugin-registry.js';
 
 const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
 
@@ -71,17 +71,20 @@ async function loadPluginList() {
             const d = await res.json();
             pluginList = d.plugins || [];
             lockedPlugins = d.locked || [];
-            // Auto-load settings tabs for enabled plugins
+            // Auto-load settings tabs for enabled plugins that have a web UI
             for (const p of pluginList) {
-                if (p.enabled) await loadPluginTab(p.name).catch(() => {});
+                if (p.enabled && p.settingsUI) await loadPluginTab(p.name, p.settingsUI).catch(() => {});
             }
         }
     } catch {}
 }
 
-async function loadPluginTab(name) {
+async function loadPluginTab(name, source) {
     try {
-        const mod = await import(`/static/plugins/${name}/index.js`);
+        const url = source === 'plugin'
+            ? `/plugin-web/${name}/index.js`
+            : `/static/core-ui/${name}/index.js`;
+        const mod = await import(url);
         const plugin = mod.default;
         if (plugin?.init) {
             const dummy = document.createElement('div');

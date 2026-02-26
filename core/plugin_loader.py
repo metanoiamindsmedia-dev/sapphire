@@ -20,7 +20,7 @@ PLUGIN_STATE_DIR = PROJECT_ROOT / "user" / "plugin_state"
 
 # Where enabled/disabled state is stored
 USER_PLUGINS_JSON = PROJECT_ROOT / "user" / "webui" / "plugins.json"
-STATIC_PLUGINS_JSON = PROJECT_ROOT / "interfaces" / "web" / "static" / "plugins" / "plugins.json"
+STATIC_PLUGINS_JSON = PROJECT_ROOT / "interfaces" / "web" / "static" / "core-ui" / "plugins.json"
 
 
 class PluginState:

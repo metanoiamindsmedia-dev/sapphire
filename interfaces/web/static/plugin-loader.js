@@ -110,7 +110,7 @@ class PluginLoader {
 
         if (!response.ok) {
           console.log('[PluginLoader] API unavailable, falling back to static plugins.json');
-          response = await fetch('/static/plugins/plugins.json');
+          response = await fetch('/static/core-ui/plugins.json');
         }
 
         if (!response.ok) {
@@ -227,7 +227,7 @@ class PluginLoader {
 
     try {
       // Load the plugin module
-      const module = await import(`/static/plugins/${name}/index.js?v=${PLUGIN_VERSION}`);
+      const module = await import(`/static/core-ui/${name}/index.js?v=${PLUGIN_VERSION}`);
       const plugin = module.default;
 
       if (!plugin) {
@@ -276,7 +276,7 @@ class PluginLoader {
       // Phase 1: Import module (version param busts ES module cache)
       let module;
       try {
-        module = await import(`/static/plugins/${name}/index.js?v=${PLUGIN_VERSION}`);
+        module = await import(`/static/core-ui/${name}/index.js?v=${PLUGIN_VERSION}`);
       } catch (importErr) {
         console.error(`[Plugin:${name}] Import failed:`, importErr);
         return;

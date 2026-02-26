@@ -1,9 +1,9 @@
 // index.js - SSH settings plugin
 // Settings tab in Plugins modal for SSH server management
 
-import { registerPluginSettings } from '../plugins-modal/plugin-registry.js';
-import pluginsAPI from '../plugins-modal/plugins-api.js';
-import { showDangerConfirm } from '../../shared/danger-confirm.js';
+import { registerPluginSettings } from '/static/core-ui/plugins-modal/plugin-registry.js';
+import pluginsAPI from '/static/core-ui/plugins-modal/plugins-api.js';
+import { showDangerConfirm } from '/static/shared/danger-confirm.js';
 
 function csrfHeaders(extra = {}) {
   const token = document.querySelector('meta[name="csrf-token"]')?.content || '';

@@ -4,7 +4,7 @@ import { showDangerConfirm } from '../../shared/danger-confirm.js';
 
 // Infrastructure plugins hidden from toggle list
 const HIDDEN = new Set([
-    'setup-wizard', 'plugins-modal'
+    'setup-wizard', 'plugins-modal', 'backup', 'continuity'
 ]);
 
 // Danger confirmation configs for risky plugins
@@ -165,11 +165,11 @@ export default {
                 if (cached) cached.enabled = data.enabled;
 
                 // Load or unload dynamic settings tab
-                if (data.enabled) {
-                    await ctx.loadPluginTab(name);
-                } else {
+                if (data.enabled && cached?.settingsUI) {
+                    await ctx.loadPluginTab(name, cached.settingsUI);
+                } else if (!data.enabled) {
                     const { unregisterPluginSettings } = await import(
-                        '../../plugins/plugins-modal/plugin-registry.js'
+                        '../../core-ui/plugins-modal/plugin-registry.js'
                     );
                     unregisterPluginSettings(name);
                     ctx.syncDynamicTabs();

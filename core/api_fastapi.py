@@ -83,6 +83,25 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 if USER_PUBLIC_DIR.exists():
     app.mount("/user-assets", StaticFiles(directory=str(USER_PUBLIC_DIR)), name="user-assets")
 
+# Plugin web assets — serves from plugins/{name}/web/ and user/plugins/{name}/web/
+SYSTEM_PLUGINS_DIR = PROJECT_ROOT / "plugins"
+USER_PLUGINS_DIR_WEB = PROJECT_ROOT / "user" / "plugins"
+
+import mimetypes
+@app.get("/plugin-web/{plugin_name}/{path:path}")
+async def serve_plugin_web(plugin_name: str, path: str):
+    """Serve web assets from plugin web/ directories."""
+    for base_dir in [SYSTEM_PLUGINS_DIR, USER_PLUGINS_DIR_WEB]:
+        web_dir = (base_dir / plugin_name / "web").resolve()
+        file_path = (web_dir / path).resolve()
+        # Security: ensure path doesn't escape web/ dir
+        if not str(file_path).startswith(str(web_dir)):
+            continue
+        if file_path.exists() and file_path.is_file():
+            content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+            return FileResponse(file_path, media_type=content_type)
+    return JSONResponse({"error": "Not found"}, status_code=404)
+
 # Templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -4102,7 +4121,7 @@ LOCKED_PLUGINS = ['plugins-modal']
 
 def _get_merged_plugins():
     """Merge static and user plugins.json."""
-    static_plugins_json = STATIC_DIR / 'plugins' / 'plugins.json'
+    static_plugins_json = STATIC_DIR / 'core-ui' / 'plugins.json'
     try:
         with open(static_plugins_json) as f:
             static = json.load(f)
@@ -4134,11 +4153,12 @@ def _get_merged_plugins():
 
 @app.get("/api/webui/plugins")
 async def list_plugins(request: Request, _=Depends(require_login)):
-    """List all plugins."""
+    """List all plugins (core-ui + backend plugins)."""
     merged = _get_merged_plugins()
     enabled_set = set(merged.get("enabled", []))
 
     result = []
+    seen = set()
     for name, meta in merged.get("plugins", {}).items():
         result.append({
             "name": name,
@@ -4146,8 +4166,30 @@ async def list_plugins(request: Request, _=Depends(require_login)):
             "locked": name in LOCKED_PLUGINS,
             "title": meta.get("title", name),
             "showInSidebar": meta.get("showInSidebar", True),
-            "collapsible": meta.get("collapsible", True)
+            "collapsible": meta.get("collapsible", True),
+            "settingsUI": "core"
         })
+        seen.add(name)
+
+    # Include backend plugins discovered by plugin_loader
+    try:
+        from core.plugin_loader import plugin_loader
+        for info in plugin_loader.get_all_plugin_info():
+            if info["name"] not in seen:
+                manifest = info.get("manifest", {})
+                plugin_dir = info.get("path", "")
+                has_web = (Path(plugin_dir) / "web" / "index.js").exists() if plugin_dir else False
+                result.append({
+                    "name": info["name"],
+                    "enabled": info["name"] in enabled_set,
+                    "locked": False,
+                    "title": manifest.get("description", info["name"]).split("—")[0].strip(),
+                    "showInSidebar": False,
+                    "collapsible": True,
+                    "settingsUI": "plugin" if has_web else None
+                })
+    except Exception:
+        pass
 
     return {"plugins": result, "locked": LOCKED_PLUGINS}
 
@@ -4159,7 +4201,14 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
         raise HTTPException(status_code=403, detail=f"Cannot disable locked plugin: {plugin_name}")
 
     merged = _get_merged_plugins()
-    if plugin_name not in merged.get("plugins", {}):
+    # Accept both static (plugins.json) and backend (plugin_loader) plugins
+    known = set(merged.get("plugins", {}).keys())
+    try:
+        from core.plugin_loader import plugin_loader
+        known.update(info["name"] for info in plugin_loader.get_all_plugin_info())
+    except Exception:
+        pass
+    if plugin_name not in known:
         raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
 
     enabled = list(merged.get("enabled", []))
