@@ -4181,7 +4181,7 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                 has_web = (Path(plugin_dir) / "web" / "index.js").exists() if plugin_dir else False
                 result.append({
                     "name": info["name"],
-                    "enabled": info["name"] in enabled_set,
+                    "enabled": info.get("enabled", info["name"] in enabled_set),
                     "locked": False,
                     "title": manifest.get("description", info["name"]).split("—")[0].strip(),
                     "showInSidebar": False,

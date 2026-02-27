@@ -177,7 +177,8 @@ class PluginLoader:
             try:
                 import config
                 allow_unsigned = config.ALLOW_UNSIGNED_PLUGINS
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[PLUGINS] Could not read ALLOW_UNSIGNED_PLUGINS: {e}")
                 allow_unsigned = False
 
             if verify_msg == "unsigned" and allow_unsigned:
@@ -425,17 +426,22 @@ class PluginLoader:
                 if not self._validate_manifest(name, manifest):
                     continue
 
+                verified, verify_msg = verify_plugin(child)
+                is_enabled = name in enabled_list or manifest.get("default_enabled", False)
+
                 with self._lock:
                     self._plugins[name] = {
                         "manifest": manifest,
                         "path": child,
-                        "enabled": name in enabled_list,
+                        "enabled": is_enabled,
                         "band": band,
                         "loaded": False,
+                        "verified": verified,
+                        "verify_msg": verify_msg,
                     }
                 new_found.append(name)
 
-                if name in enabled_list:
+                if is_enabled:
                     self._load_plugin(name)
                     logger.info(f"[PLUGINS] Rescan: loaded new plugin '{name}'")
 

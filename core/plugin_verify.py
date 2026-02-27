@@ -76,8 +76,12 @@ def verify_plugin(plugin_dir: Path) -> Tuple[bool, str]:
         return False, f"signature check error: {e}"
 
     # Verify each file hash
+    resolved_root = plugin_dir.resolve()
     for rel_path, expected_hash in files_manifest.items():
         file_path = plugin_dir / rel_path
+        # Block path traversal (../ escaping plugin directory)
+        if not str(file_path.resolve()).startswith(str(resolved_root) + "/") and file_path.resolve() != resolved_root:
+            return False, f"path traversal attempt: {rel_path}"
         if not file_path.exists():
             return False, f"missing file: {rel_path}"
         actual_hash = _hash_file(file_path)
