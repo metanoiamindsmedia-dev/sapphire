@@ -46,7 +46,7 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 - **Email** - Inbox, send to whitelisted contacts. AI resolves recipients server-side.
 - **Cloud** (optional) - Claude, GPT, Fireworks. Only active when you enable them. Local-first by default.
 - **Privacy** - One toggle blocks all cloud connections. Fully local, nothing leaves your machine.
-- **Plugins** - [PLUGINS.md](docs/PLUGINS.md) Keyword-triggered AI extensions and JavaScript [WEB-PLUGINS.md](docs/WEB-PLUGINS.md).
+- **Plugins** - [PLUGINS.md](docs/PLUGINS.md) Hooks, tools, voice commands, scheduling, web settings — all in one system.
 - **Desktop/Mobile/Voice** - Run on your local browser, open the same chat to your phone, then finish it on your mic.
 - **65+ Tools** - [TOOLS.md](docs/TOOLS.md) Web search, Wikipedia, notes, and more. Mix and match via [TOOLSETS.md](docs/TOOLSETS.md).
 

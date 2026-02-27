@@ -198,7 +198,7 @@ AI-callable functions. Simpler than plugins—they are one file in `user/functio
 Drop ONNX models in `user/wakeword/models/`. I trained "Hey Sapphire" in ~2 hours with synthetic data. [Community wakewords](https://github.com/fwartner/home-assistant-wakewords-collection) available.
 
 ### Custom Web UI Plugins
-Extensible JavaScript plugins for the interface. See [WEB-PLUGINS.md](WEB-PLUGINS.md).
+Extensible plugins for the interface. See [PLUGINS.md](PLUGINS.md) (Web Settings UI section).
 
 ---
 

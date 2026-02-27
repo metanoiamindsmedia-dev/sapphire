@@ -1,25 +1,35 @@
-# Plugin Author Guide
+# Plugins
 
-Sapphire's plugin system is manifest-driven, priority-ordered, and error-isolated. Plugins can hook into the chat pipeline, register tools, declare voice commands, schedule cron tasks, and serve web settings — all without touching core code.
+Sapphire plugins are self-contained extensions that add capabilities without touching core code. A plugin is a folder with a `plugin.json` manifest and optional Python/JavaScript files.
+
+Plugins can:
+- **Hook** into the chat pipeline (filter input, inject context, log responses)
+- **Register tools** the AI can call (same format as built-in tools)
+- **Declare voice commands** for instant actions ("stop", "reset")
+- **Schedule cron tasks** that run on a timer
+- **Provide a web settings UI** in the browser
+
+Everything loads and unloads live — no restart needed.
+
+---
 
 ## Quick Start
 
 Minimal plugin in 2 files:
 
 ```
-plugins/my_plugin/
-  plugin.json         # Manifest (required)
-  hooks/greet.py      # Handler
+plugins/my-plugin/
+  plugin.json
+  hooks/greet.py
 ```
 
 **plugin.json**:
 ```json
 {
-  "name": "my_plugin",
+  "name": "my-plugin",
   "version": "1.0.0",
-  "description": "Logs every chat response",
+  "description": "Logs every chat",
   "author": "you",
-  "priority": 50,
   "capabilities": {
     "hooks": {
       "post_chat": "hooks/greet.py"
@@ -34,41 +44,52 @@ import logging
 logger = logging.getLogger(__name__)
 
 def post_chat(event):
-    logger.info(f"User said: {event.input}")
-    logger.info(f"AI replied: {event.response}")
+    logger.info(f"User: {event.input}")
+    logger.info(f"AI: {event.response}")
 ```
 
-Enable in Settings > Plugins. No restart needed.
+Enable in Settings > Plugins. It loads immediately.
+
+---
+
+## Where Plugins Live
+
+| Path | Band | Priority Range | Tracked |
+|------|------|----------------|---------|
+| `plugins/` | System | 0-99 | Yes |
+| `user/plugins/` | User | 100-199 | No (gitignored) |
+
+User plugin priorities are automatically offset into the 100-199 range.
 
 ---
 
 ## Manifest Reference
 
-Every plugin must have a `plugin.json` in its root directory.
+Every plugin needs a `plugin.json` in its root.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique plugin identifier |
-| `version` | string | No | Semver version |
-| `description` | string | No | One-line summary |
-| `author` | string | No | Author name |
-| `priority` | int | No | Execution order within band (default: 50) |
-| `capabilities` | object | No | What the plugin provides (see below) |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | string | Yes | — | Unique identifier (folder name) |
+| `version` | string | No | — | Semver (`1.0.0`) |
+| `description` | string | No | — | One-line summary |
+| `author` | string | No | — | Author name |
+| `url` | string | No | — | Project URL (shown in Settings) |
+| `priority` | int | No | 50 | Execution order within band (lower = first) |
+| `default_enabled` | bool | No | false | Auto-enable on fresh install |
+| `capabilities` | object | No | — | What the plugin provides |
 
 ### Priority Bands
 
-| Band | Range | Source |
-|------|-------|--------|
-| System | 0-99 | `plugins/` directory |
-| User | 100-199 | `user/plugins/` directory (auto-offset) |
+Lower fires first. Within each band:
 
-Within each band:
-- **0-19**: Critical intercepts (stop, security)
-- **20-49**: Input modification (translation, formatting)
-- **50-79**: Context enrichment (prompt injection, state)
-- **80-99**: Observation (logging, analytics)
+| Range | Purpose |
+|-------|---------|
+| 0-19 | Critical intercepts (stop, security) |
+| 20-49 | Input modification (translation, formatting) |
+| 50-79 | Context enrichment (prompt injection, state) |
+| 80-99 | Observation (logging, analytics) |
 
-Lower priority fires first.
+User plugins use the same ranges but shifted to 100-199.
 
 ---
 
@@ -76,119 +97,120 @@ Lower priority fires first.
 
 ### hooks
 
-Map hook names to handler file paths:
+Map hook names to handler files:
 
 ```json
-{
-  "capabilities": {
-    "hooks": {
-      "pre_chat": "hooks/filter.py",
-      "prompt_inject": "hooks/context.py",
-      "post_chat": "hooks/log.py",
-      "pre_execute": "hooks/guard.py",
-      "post_execute": "hooks/audit.py",
-      "pre_tts": "hooks/tts_filter.py"
-    }
+"capabilities": {
+  "hooks": {
+    "pre_chat": "hooks/filter.py",
+    "prompt_inject": "hooks/context.py",
+    "post_chat": "hooks/log.py",
+    "pre_execute": "hooks/guard.py",
+    "post_execute": "hooks/audit.py",
+    "pre_tts": "hooks/tts_filter.py"
   }
 }
 ```
 
-Each handler file must export a function matching the hook name (e.g., `def pre_chat(event):`), or a generic `def handle(event):` as fallback.
+Each handler exports a function matching the hook name (e.g. `def pre_chat(event):`), or `def handle(event):` as fallback.
 
 ### voice_commands
 
-Voice commands are auto-wired `pre_chat` hooks with trigger pattern matching:
+Voice commands are pre_chat hooks with trigger pattern matching:
 
 ```json
-{
-  "capabilities": {
-    "voice_commands": [
-      {
-        "triggers": ["stop", "halt", "be quiet"],
-        "match": "exact",
-        "bypass_llm": true,
-        "handler": "hooks/stop.py",
-        "description": "Stop TTS and cancel generation"
-      }
-    ]
-  }
+"capabilities": {
+  "voice_commands": [
+    {
+      "triggers": ["stop", "halt", "be quiet"],
+      "match": "exact",
+      "bypass_llm": true,
+      "handler": "hooks/stop.py",
+      "description": "Stop TTS and cancel generation"
+    }
+  ]
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `triggers` | Array of trigger phrases (case-insensitive) |
+| `triggers` | Phrases to match (case-insensitive) |
 | `match` | `exact`, `starts_with`, `contains`, or `regex` |
-| `bypass_llm` | If true, gets highest priority in band |
-| `handler` | Path to handler file (same contract as hooks) |
+| `bypass_llm` | If true, gets highest priority (0-19) |
+| `handler` | Path to handler file |
+
+Multiple voice commands per plugin is fine — they're an array.
 
 ### tools
 
-Array of Python tool files to register with the function manager:
+Python tool files registered with the function manager:
 
 ```json
-{
-  "capabilities": {
-    "tools": ["tools/my_tool.py"]
-  }
+"capabilities": {
+  "tools": ["tools/my_tool.py"]
 }
 ```
 
-Tool files follow the same format as `functions/*.py` — define tool schemas and executors.
+Tool files use the same format as `functions/*.py`. See [Tool File Format](#tool-file-format) below.
 
 ### schedule
 
-Cron-scheduled tasks that run a Python handler:
+Cron tasks that run a Python handler:
 
 ```json
-{
-  "capabilities": {
-    "schedule": [
-      {
-        "name": "Daily Digest",
-        "cron": "0 9 * * *",
-        "handler": "schedule/digest.py",
-        "description": "Morning email summary",
-        "enabled": true,
-        "chance": 100
-      }
-    ]
-  }
-}
-```
-
-See [Schedule Tasks](#schedule-tasks) section below for the handler contract.
-
-### web
-
-Declares that the plugin has a web settings interface:
-
-```json
-{
-  "capabilities": {
-    "web": {
-      "settingsUI": "plugin"
+"capabilities": {
+  "schedule": [
+    {
+      "name": "Daily Digest",
+      "cron": "0 9 * * *",
+      "handler": "schedule/digest.py",
+      "description": "Morning email summary",
+      "enabled": true,
+      "chance": 100
     }
+  ]
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | Required | Display name |
+| `cron` | string | `0 9 * * *` | Standard 5-field cron |
+| `handler` | string | Required | Path to handler file |
+| `description` | string | — | What the task does |
+| `enabled` | bool | true | Whether it runs |
+| `chance` | int | 100 | Percent chance to fire (1-100) |
+
+Tasks appear in the Schedule UI and are removed when the plugin is disabled.
+
+### web (Settings UI)
+
+Plugins with a `web/` subdirectory can provide a settings tab:
+
+```json
+"capabilities": {
+  "web": {
+    "settingsUI": "plugin"
   }
 }
 ```
 
-Web assets are served from `web/` subdirectory via `/plugin-web/{name}/`.
+Assets are served at `/plugin-web/{name}/`. See [Web Settings UI](#web-settings-ui) below.
 
 ---
 
 ## Hook Points
 
-All hooks receive a mutable `HookEvent` object. Changes persist across handlers in priority order.
+All hooks receive a mutable `HookEvent`. Changes persist across handlers in priority order.
 
-| Hook | When | Key Fields | Mutable |
-|------|------|-----------|---------|
-| `pre_chat` | Before LLM call | `input`, `skip_llm`, `response` | Yes — modify input, bypass LLM |
-| `prompt_inject` | During system prompt build | `context_parts` | Yes — append context strings |
-| `post_chat` | After final response saved | `input`, `response` | Read-only by convention |
-| `pre_execute` | Before tool execution | `function_name`, `arguments`, `skip_llm` | Yes — modify args, skip execution |
-| `post_execute` | After tool execution | `function_name`, `arguments`, `result` | Read-only by convention |
-| `pre_tts` | Before text-to-speech | `tts_text`, `skip_tts` | Yes — modify text, cancel TTS |
+| Hook | When | Key Fields | Use |
+|------|------|-----------|-----|
+| `pre_chat` | Before LLM | `input`, `skip_llm`, `response` | Filter input, bypass LLM |
+| `prompt_inject` | System prompt build | `context_parts` | Append context strings |
+| `post_chat` | After response saved | `input`, `response` | Logging, analytics |
+| `pre_execute` | Before tool call | `function_name`, `arguments` | Modify args, block tools |
+| `post_execute` | After tool call | `function_name`, `result` | Audit, react to results |
+| `pre_tts` | Before speech | `tts_text`, `skip_tts` | Modify text, cancel TTS |
 
 ### HookEvent Fields
 
@@ -196,22 +218,27 @@ All hooks receive a mutable `HookEvent` object. Changes persist across handlers 
 @dataclass
 class HookEvent:
     input: str = ""                          # User message
-    skip_llm: bool = False                   # Bypass LLM / skip tool execution
-    response: Optional[str] = None           # Direct response / final response
+    skip_llm: bool = False                   # Bypass LLM / skip execution
+    response: Optional[str] = None           # Direct response (with skip_llm)
+    ephemeral: bool = False                  # Don't save to history (with skip_llm)
     context_parts: List[str] = []            # System prompt injections
-    stop_propagation: bool = False           # Stop lower-priority hooks
+    stop_propagation: bool = False           # Halt lower-priority hooks
     config: Any = None                       # System config (read-only)
-    metadata: Dict[str, Any] = {}            # Arbitrary plugin data
+    metadata: Dict[str, Any] = {}            # Free-form data (system, etc.)
     function_name: Optional[str] = None      # Tool name (execute hooks)
-    arguments: Optional[dict] = None         # Tool args (pre_execute, mutable)
+    arguments: Optional[dict] = None         # Tool args (mutable in pre_execute)
     result: Optional[str] = None             # Tool result (post_execute)
-    tts_text: Optional[str] = None           # TTS text (pre_tts, mutable)
-    skip_tts: bool = False                   # Cancel TTS (pre_tts)
+    tts_text: Optional[str] = None           # TTS text (mutable in pre_tts)
+    skip_tts: bool = False                   # Cancel TTS
 ```
 
-### Hook Handler Examples
+### System Access
 
-**pre_chat** — input filter:
+Handlers get the `VoiceChatSystem` instance via `event.metadata.get("system")`. This gives access to TTS, STT, LLM, function manager, session manager, and all core components.
+
+### Hook Examples
+
+**pre_chat — block input:**
 ```python
 def pre_chat(event):
     if "password" in event.input.lower():
@@ -220,222 +247,332 @@ def pre_chat(event):
         event.stop_propagation = True
 ```
 
-**prompt_inject** — add context:
+**prompt_inject — add context:**
 ```python
 def prompt_inject(event):
     event.context_parts.append("The user's timezone is UTC+3.")
 ```
 
-**pre_execute** — block a tool:
+**pre_execute — block a tool:**
 ```python
 def pre_execute(event):
-    if event.function_name == "delete_memory" and not is_confirmed():
+    if event.function_name == "delete_memory":
         event.skip_llm = True
-        event.result = "Deletion requires confirmation."
+        event.result = "Deletion blocked by plugin."
 ```
 
-**pre_tts** — text replacement:
+**pre_tts — fix pronunciation:**
 ```python
 def pre_tts(event):
     event.tts_text = event.tts_text.replace("API", "A.P.I.")
+```
+
+**voice command handler:**
+```python
+def pre_chat(event):
+    system = event.metadata.get("system")
+    if system and hasattr(system, "tts") and system.tts:
+        system.tts.stop()
+    event.skip_llm = True
+    event.ephemeral = True
+    event.response = "Stopped."
+    event.stop_propagation = True
+```
+
+---
+
+## Tool File Format
+
+Plugin tools use the same format as `functions/*.py`:
+
+```python
+ENABLED = True
+EMOJI = '🔧'
+AVAILABLE_FUNCTIONS = ['my_tool_do_thing']
+
+TOOLS = [
+    {
+        "type": "function",
+        "is_local": True,
+        "function": {
+            "name": "my_tool_do_thing",
+            "description": "Does the thing",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "description": "What to do it to"
+                    }
+                },
+                "required": ["target"]
+            }
+        }
+    }
+]
+
+def execute(function_name, arguments, config):
+    """Called by function manager.
+
+    Args:
+        function_name: Which function was called
+        arguments: Dict of parameters
+        config: System config
+
+    Returns:
+        (message: str, success: bool) tuple
+    """
+    if function_name == "my_tool_do_thing":
+        target = arguments.get("target", "")
+        return f"Did the thing to {target}", True
+    return "Unknown function", False
+```
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `ENABLED` | bool | Whether tool is active |
+| `EMOJI` | str | Display icon |
+| `AVAILABLE_FUNCTIONS` | list | Function names this file provides |
+| `TOOLS` | list | OpenAI-compatible function schemas |
+| `execute()` | function | Dispatcher — returns `(message, success)` |
+
+Tools are added to toolsets and the AI calls them contextually. See [TOOLS.md](TOOLS.md) for the full tools guide.
+
+### Reading Plugin Settings from Tools
+
+Tools can load their own settings:
+
+```python
+import json
+from pathlib import Path
+
+def _load_settings():
+    path = Path("user/webui/plugins/my-plugin.json")
+    if path.exists():
+        return json.loads(path.read_text())
+    return {}  # defaults
 ```
 
 ---
 
 ## Plugin State
 
-Each plugin gets a persistent JSON key-value store at `user/plugin_state/{name}.json`.
+Each plugin gets a persistent JSON key-value store at `user/plugin_state/{name}.json`:
 
-Access via handler:
 ```python
-def post_chat(event):
-    # Get state from plugin loader
-    from core.plugin_loader import plugin_loader
-    state = plugin_loader.get_plugin_state("my_plugin")
+from core.plugin_loader import plugin_loader
 
-    count = state.get("chat_count", 0)
-    state.save("chat_count", count + 1)
+state = plugin_loader.get_plugin_state("my-plugin")
+state.get("counter", 0)        # read
+state.save("counter", 42)      # write (auto-persists)
+state.delete("counter")        # remove key
+state.all()                    # entire dict
+state.clear()                  # wipe everything
 ```
 
-**PluginState API**:
-- `state.get(key, default=None)` — read a value
-- `state.save(key, value)` — write a value (auto-persists)
-- `state.delete(key)` — remove a key
-- `state.all()` — get all data as dict
-- `state.clear()` — wipe all data
+For heavier storage, plugins can create their own SQLite database.
 
 ---
 
-## Schedule Tasks
-
-Plugins can register cron tasks that run Python handlers on a schedule.
-
-### Handler Contract
-
-Handler file must export a `run(event)` function:
+## Schedule Handler Contract
 
 ```python
-# schedule/digest.py
-
 def run(event):
     """Called by continuity scheduler on cron match.
 
-    event dict keys:
-        system: VoiceChatSystem instance
-        config: System config module
-        task: The task definition dict
-        plugin_state: PluginState instance for this plugin
+    event dict:
+        system:       VoiceChatSystem instance
+        config:       System config module
+        task:         Task definition dict
+        plugin_state: PluginState instance
     """
     system = event["system"]
     state = event["plugin_state"]
 
     # Do work...
-    result = "Digest sent"
-
-    state.save("last_run", str(datetime.now()))
-    return result  # Optional — logged to activity
+    state.save("last_run", "2025-01-01")
+    return "Done"  # Optional — logged to activity
 ```
-
-### Cron Syntax
-
-Standard 5-field cron: `minute hour day month weekday`
-
-| Expression | Meaning |
-|-----------|---------|
-| `0 9 * * *` | Every day at 9:00 AM |
-| `*/15 * * * *` | Every 15 minutes |
-| `0 0 * * 1` | Every Monday at midnight |
-| `0 9,18 * * *` | 9 AM and 6 PM daily |
-
-### Schedule Fields
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | Required | Display name for the task |
-| `cron` | string | `0 9 * * *` | Cron expression |
-| `handler` | string | Required | Path to handler file (relative to plugin dir) |
-| `description` | string | `""` | What the task does |
-| `enabled` | bool | `true` | Whether task runs on schedule |
-| `chance` | int | `100` | Percent chance to fire on each match (1-100) |
-
-Plugin schedule tasks appear in the Schedule UI with their plugin name. They are automatically removed when the plugin is disabled or unloaded.
 
 ---
 
-## Web Settings
+## Web Settings UI
 
-Plugins can provide a settings tab in the Settings view.
+Plugins can provide a settings tab in Settings > Plugins.
 
-1. Set `"web": {"settingsUI": "plugin"}` in manifest
-2. Create `web/settings.html` in your plugin directory
-3. Assets served at `/plugin-web/{name}/`
+### Structure
 
-For core infrastructure plugins (setup-wizard, backup, etc.), use `"settingsUI": "core"` — these load from `interfaces/web/static/core-ui/`.
+```
+plugins/my-plugin/
+  plugin.json              # "web": {"settingsUI": "plugin"}
+  web/
+    index.js               # Entry point (required)
+    style.css              # Optional
+```
+
+Assets served at `/plugin-web/my-plugin/index.js`.
+
+### index.js Contract
+
+```javascript
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
+import pluginsAPI from '/static/shared/plugins-api.js';
+
+export default {
+  name: 'my-plugin',
+
+  init(container) {
+    registerPluginSettings({
+      id: 'my-plugin',
+      name: 'My Plugin',
+      icon: '⚙️',
+      helpText: 'Configure my plugin',
+
+      render(container, settings) {
+        // Build form HTML
+        container.innerHTML = `
+          <input type="text" id="mp-url" value="${settings.url || ''}">
+        `;
+      },
+
+      load: () => pluginsAPI.getSettings('my-plugin'),
+      save: (settings) => pluginsAPI.saveSettings('my-plugin', settings),
+
+      getSettings(container) {
+        // Extract form values
+        return { url: container.querySelector('#mp-url').value };
+      }
+    });
+  },
+
+  destroy() { }
+};
+```
+
+### Settings API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/webui/plugins/{name}/settings` | Read settings |
+| PUT | `/api/webui/plugins/{name}/settings` | Save settings |
+| DELETE | `/api/webui/plugins/{name}/settings` | Reset to defaults |
+
+Settings are stored at `user/webui/plugins/{name}.json`.
+
+### Available Imports
+
+```javascript
+import { showToast } from '/static/shared/toast.js';
+import { showHelpModal } from '/static/shared/modal.js';
+import { registerPluginSettings } from '/static/shared/plugin-registry.js';
+import pluginsAPI from '/static/shared/plugins-api.js';
+```
+
+Use CSS variables for theme compatibility: `var(--bg-secondary)`, `var(--text)`, `var(--border)`, `var(--bg-hover)`.
+
+---
+
+## Plugin Signing & Verification
+
+Sapphire uses ed25519 signatures to verify plugin integrity.
+
+### Verification States
+
+| State | Badge | Behavior |
+|-------|-------|----------|
+| **Signed** | Green "Signed" | Always loads |
+| **Unsigned** | Yellow "Unsigned" | Blocked unless "Allow Unsigned Plugins" is on |
+| **Tampered** | Red "Tampered" | Always blocked — no override |
+
+### How It Works
+
+Each signed plugin has a `plugin.sig` file containing:
+- SHA256 hashes of every signable file (`.py`, `.json`, `.js`, `.css`, `.html`, `.md`)
+- An ed25519 signature over the hash manifest
+
+On scan, the loader verifies:
+1. Signature matches the baked-in public key
+2. Every file's hash matches the manifest
+3. No unrecognized files were added after signing
+
+### Sideloading (Unsigned Plugins)
+
+`ALLOW_UNSIGNED_PLUGINS` defaults to **off**. Enable it in Settings > Plugins with the toggle. A danger dialog warns about the risks.
+
+When enabled, unsigned plugins load with a warning. Tampered plugins are always blocked regardless of this setting.
+
+### Signing Your Own Plugins
+
+For plugin developers distributing through channels other than the official store:
+
+1. Generate an ed25519 keypair
+2. Hash all signable files in your plugin
+3. Sign the hash manifest with your private key
+4. Ship the `plugin.sig` alongside your plugin
+
+Users install your public key to verify. The official Sapphire public key is baked into `core/plugin_verify.py`.
 
 ---
 
 ## Lifecycle
 
-### Discovery & Loading
+### Startup
 
-1. **Scan**: `plugin_loader.scan()` reads `plugins/` and `user/plugins/`
-2. **Validate**: Each `plugin.json` must have a `name` field
-3. **Enable check**: Compared against `user/webui/plugins.json` enabled list
-4. **Load**: Enabled plugins get hooks, voice commands, tools, and schedules registered
+1. `plugin_loader.scan()` reads `plugins/` and `user/plugins/`
+2. Each `plugin.json` is validated and signature-checked
+3. Enabled plugins get hooks, tools, voice commands, and schedules registered
+4. Scheduler tasks are deferred if the scheduler hasn't initialized yet
 
 ### Live Toggle
 
-Enabling/disabling via Settings > Plugins calls `PUT /api/webui/plugins/toggle/{name}`:
-- **Enable**: `_load_plugin()` — registers all capabilities immediately
-- **Disable**: `unload_plugin()` — deregisters hooks, tools, schedule tasks
+Settings > Plugins calls `PUT /api/webui/plugins/toggle/{name}`:
+- **Enable**: Loads immediately — all capabilities register
+- **Disable**: Unloads immediately — hooks, tools, schedules removed
 
-No restart needed for backend plugins.
+Unsigned/tampered plugins return 403 and the toggle reverts.
 
-### Hot Reload
+### Hot Reload (Dev)
 
-For development, use `POST /api/plugins/{name}/reload` to unload and reload a plugin.
+`POST /api/plugins/{name}/reload` unloads and reloads a single plugin.
 
-Set `SAPPHIRE_DEV=1` environment variable to enable automatic file watching — plugins reload when any `.py` or `.json` file changes (2-second polling).
+Set `SAPPHIRE_DEV=1` to enable file watching — plugins auto-reload when `.py` or `.json` files change (2s polling).
 
-If reload fails, the plugin stays unloaded (no half-loaded state). A `plugin_reloaded` event is published on success.
+If reload fails, the plugin stays unloaded. No half-loaded state.
+
+### Rescan
+
+`POST /api/plugins/rescan` discovers new or removed plugin folders without restart. Returns `{"added": [...], "removed": [...]}`.
 
 ---
 
-## Examples
+## Error Isolation
 
-### Stop Plugin (Voice Command)
+A buggy plugin never crashes the system. If a hook handler throws an exception, it's logged and skipped — the next handler fires normally. Tool execution errors are caught and returned as error messages to the AI.
 
-Intercepts "stop" / "halt" / "shut up" to immediately halt TTS and cancel generation:
+---
+
+## Complete Example
+
+A plugin that combines multiple capabilities:
 
 ```
-plugins/stop/
+plugins/smart-home/
   plugin.json
-  hooks/stop.py
+  hooks/context.py
+  hooks/quick_lights.py
+  tools/devices.py
+  schedule/lock_check.py
+  web/
+    index.js
 ```
-
-```python
-# hooks/stop.py
-def pre_chat(event):
-    system = event.metadata.get("system")
-    if system:
-        if hasattr(system, "tts") and system.tts:
-            system.tts.stop()
-        if hasattr(system, "llm_chat") and system.llm_chat:
-            streaming = getattr(system.llm_chat, "streaming_chat", None)
-            if streaming:
-                streaming.cancel_flag = True
-    event.skip_llm = True
-    event.response = "Stopped."
-    event.stop_propagation = True
-```
-
-### Home Assistant (Tools)
-
-Registers tools for light/switch/scene control:
 
 ```json
 {
-  "name": "homeassistant",
-  "version": "1.0.0",
-  "description": "Home Assistant integration",
-  "priority": 50,
-  "capabilities": {
-    "tools": ["tools/homeassistant.py"]
-  }
-}
-```
-
-### Scheduled Digest (Schedule)
-
-Plugin that sends a daily summary:
-
-```json
-{
-  "name": "daily_digest",
-  "version": "1.0.0",
-  "description": "Morning digest via email",
-  "capabilities": {
-    "schedule": [
-      {
-        "name": "Morning Digest",
-        "cron": "0 8 * * 1-5",
-        "handler": "schedule/digest.py",
-        "description": "Weekday morning summary"
-      }
-    ]
-  }
-}
-```
-
-### Multi-Capability Plugin
-
-A plugin can combine hooks, tools, voice commands, schedule, and web:
-
-```json
-{
-  "name": "smart_home",
+  "name": "smart-home",
   "version": "2.0.0",
   "description": "Full smart home integration",
+  "author": "you",
+  "url": "https://example.com",
   "priority": 50,
   "capabilities": {
     "hooks": {
@@ -457,38 +594,101 @@ A plugin can combine hooks, tools, voice commands, schedule, and web:
         "handler": "schedule/lock_check.py"
       }
     ],
-    "web": {
-      "settingsUI": "plugin"
-    }
+    "web": { "settingsUI": "plugin" }
   }
 }
 ```
 
 ---
 
-## Plugin Locations
+## API Reference
 
-| Path | Band | Git Tracked |
-|------|------|-------------|
-| `plugins/` | System (0-99) | Yes |
-| `user/plugins/` | User (100-199) | No |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/webui/plugins` | List all plugins with metadata |
+| PUT | `/api/webui/plugins/toggle/{name}` | Enable/disable (live) |
+| POST | `/api/plugins/rescan` | Discover new/removed plugins |
+| POST | `/api/plugins/{name}/reload` | Hot-reload (dev) |
+| GET | `/api/webui/plugins/{name}/settings` | Read plugin settings |
+| PUT | `/api/webui/plugins/{name}/settings` | Save plugin settings |
+| DELETE | `/api/webui/plugins/{name}/settings` | Reset plugin settings |
+| GET | `/plugin-web/{name}/{path}` | Serve plugin web assets |
 
-## Error Isolation
+### Plugin List Response
 
-A buggy plugin never crashes the pipeline. If a hook handler throws an exception, it's logged and skipped — the next handler in priority order fires normally.
+```json
+{
+  "plugins": [
+    {
+      "name": "ssh",
+      "enabled": true,
+      "locked": false,
+      "title": "SSH",
+      "settingsUI": "plugin",
+      "verified": true,
+      "verify_msg": "verified",
+      "version": "1.0.0",
+      "author": "sapphire",
+      "url": "https://sapphireblue.dev"
+    }
+  ],
+  "locked": ["setup-wizard", "backup", "continuity"]
+}
+```
 
-## System Access
+---
 
-Handlers can access the `VoiceChatSystem` via `event.metadata.get("system")` (available in `pre_chat` and `post_chat`). This gives access to TTS, STT, LLM, function manager, and all other system components.
+## Directory Structure
 
-## For AI Assistants
+```
+plugins/                          # System plugins (0-99)
+  voice-commands/
+    plugin.json
+    plugin.sig
+    hooks/stop.py
+    hooks/reset.py
+  ssh/
+    plugin.json
+    plugin.sig
+    tools/ssh_tool.py
+    web/index.js
+  email/
+  bitcoin/
+  homeassistant/
+  image-gen/
+  toolmaker/
 
-When creating plugins for Sapphire:
-- Plugin = manifest-driven extension in `plugins/{name}/`
-- Must have `plugin.json` with `name` field
-- Hooks = Python functions receiving `HookEvent` object
-- Tools = same format as `functions/*.py`
-- Voice commands = `pre_chat` hooks with trigger matching
-- Schedule = cron tasks calling `run(event)` handlers
-- Enable via Settings > Plugins (no restart)
-- All 6 hook points: `pre_chat`, `prompt_inject`, `post_chat`, `pre_execute`, `post_execute`, `pre_tts`
+user/
+  plugins/                        # User plugins (100-199)
+    my-plugin/
+      plugin.json
+      hooks/handler.py
+  plugin_state/                   # Per-plugin JSON state
+    ssh.json
+  webui/
+    plugins.json                  # Enabled list: {"enabled": [...]}
+    plugins/                      # Per-plugin settings
+      ssh.json
+      image-gen.json
+```
+
+---
+
+## For Sapphire (AI Self-Reference)
+
+When creating or modifying plugins:
+
+- Plugin = folder in `plugins/{name}/` with `plugin.json` manifest
+- `plugin.json` requires `name` field, everything else optional
+- Hooks = Python functions receiving mutable `HookEvent` object
+- Tools = `TOOLS` list + `execute(function_name, arguments, config)` returning `(str, bool)`
+- Voice commands = pre_chat hooks with trigger matching, `bypass_llm: true` for instant response
+- Schedule = cron tasks calling `run(event)` handler, event has `system`, `config`, `task`, `plugin_state`
+- Web settings = `web/index.js` using `registerPluginSettings()`, served at `/plugin-web/{name}/`
+- State = `plugin_loader.get_plugin_state(name)` for persistent key-value storage
+- System access = `event.metadata.get("system")` in hooks
+- Enable/disable live via `PUT /api/webui/plugins/toggle/{name}`
+- All 6 hooks: `pre_chat`, `prompt_inject`, `post_chat`, `pre_execute`, `post_execute`, `pre_tts`
+- Error isolation: exceptions logged and skipped, never crash pipeline
+- Signing: ed25519 signatures in `plugin.sig`, tampered = always blocked, unsigned = blocked unless sideloading enabled
+- Settings stored at `user/webui/plugins/{name}.json`, read via `GET /api/webui/plugins/{name}/settings`
