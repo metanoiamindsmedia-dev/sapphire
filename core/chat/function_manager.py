@@ -195,53 +195,54 @@ class FunctionManager:
                 emoji = namespace.get('EMOJI', '')
                 mode_filter = namespace.get('MODE_FILTER')
 
-                self.function_modules[module_name] = {
-                    'module': None,
-                    'tools': tools,
-                    'executor': executor,
-                    'available_functions': available_functions or [t['function']['name'] for t in tools],
-                    'emoji': emoji,
-                    '_plugin': plugin_name,
-                }
+                with self._tools_lock:
+                    self.function_modules[module_name] = {
+                        'module': None,
+                        'tools': tools,
+                        'executor': executor,
+                        'available_functions': available_functions or [t['function']['name'] for t in tools],
+                        'emoji': emoji,
+                        '_plugin': plugin_name,
+                    }
 
-                # Register tool-declared settings
-                tool_settings = namespace.get('SETTINGS')
-                if tool_settings and isinstance(tool_settings, dict):
-                    from core.settings_manager import settings as sm
-                    tool_help = namespace.get('SETTINGS_HELP')
-                    sm.register_tool_settings(module_name, tool_settings, tool_help)
+                    # Register tool-declared settings
+                    tool_settings = namespace.get('SETTINGS')
+                    if tool_settings and isinstance(tool_settings, dict):
+                        from core.settings_manager import settings as sm
+                        tool_help = namespace.get('SETTINGS_HELP')
+                        sm.register_tool_settings(module_name, tool_settings, tool_help)
 
-                # Track per-tool flags
-                for tool in tools:
-                    func_name = tool['function']['name']
-                    if tool.get('network', False):
-                        self._network_functions.add(func_name)
-                    if 'is_local' in tool:
-                        self._is_local_map[func_name] = tool['is_local']
-                    self._function_module_map[func_name] = module_name
-
-                if mode_filter:
-                    self._mode_filters[module_name] = mode_filter
-
-                # Dedup and add to all_possible_tools
-                existing_names = {t['function']['name'] for t in self.all_possible_tools}
-                for tool in tools:
-                    fname = tool['function']['name']
-                    if fname in existing_names:
-                        logger.warning(f"Duplicate tool '{fname}' from plugin '{plugin_name}' — skipping")
-                    else:
-                        self.all_possible_tools.append(tool)
-                        existing_names.add(fname)
-
-                for tool in tools:
-                    self.execution_map[tool['function']['name']] = executor
-
-                # If "all" toolset is active, add new tools to _enabled_tools too
-                if self.current_toolset_name == "all":
-                    enabled_names = {t['function']['name'] for t in self._enabled_tools}
+                    # Track per-tool flags
                     for tool in tools:
-                        if tool['function']['name'] not in enabled_names:
-                            self._enabled_tools.append(tool)
+                        func_name = tool['function']['name']
+                        if tool.get('network', False):
+                            self._network_functions.add(func_name)
+                        if 'is_local' in tool:
+                            self._is_local_map[func_name] = tool['is_local']
+                        self._function_module_map[func_name] = module_name
+
+                    if mode_filter:
+                        self._mode_filters[module_name] = mode_filter
+
+                    # Dedup and add to all_possible_tools
+                    existing_names = {t['function']['name'] for t in self.all_possible_tools}
+                    for tool in tools:
+                        fname = tool['function']['name']
+                        if fname in existing_names:
+                            logger.warning(f"Duplicate tool '{fname}' from plugin '{plugin_name}' — skipping")
+                        else:
+                            self.all_possible_tools.append(tool)
+                            existing_names.add(fname)
+
+                    for tool in tools:
+                        self.execution_map[tool['function']['name']] = executor
+
+                    # If "all" toolset is active, add new tools to _enabled_tools too
+                    if self.current_toolset_name == "all":
+                        enabled_names = {t['function']['name'] for t in self._enabled_tools}
+                        for tool in tools:
+                            if tool['function']['name'] not in enabled_names:
+                                self._enabled_tools.append(tool)
 
                 logger.info(f"Plugin '{plugin_name}' tool '{module_name}': {len(tools)} tools registered")
 
@@ -250,27 +251,28 @@ class FunctionManager:
 
     def unregister_plugin_tools(self, plugin_name: str):
         """Remove all tools belonging to a plugin."""
-        to_remove = [name for name, info in self.function_modules.items()
-                     if info.get('_plugin') == plugin_name]
+        with self._tools_lock:
+            to_remove = [name for name, info in self.function_modules.items()
+                         if info.get('_plugin') == plugin_name]
 
-        for module_name in to_remove:
-            info = self.function_modules.pop(module_name, None)
-            if not info:
-                continue
+            for module_name in to_remove:
+                info = self.function_modules.pop(module_name, None)
+                if not info:
+                    continue
 
-            func_names = set(info['available_functions'])
+                func_names = set(info['available_functions'])
 
-            for fname in func_names:
-                self.execution_map.pop(fname, None)
-                self._network_functions.discard(fname)
-                self._is_local_map.pop(fname, None)
-                self._function_module_map.pop(fname, None)
+                for fname in func_names:
+                    self.execution_map.pop(fname, None)
+                    self._network_functions.discard(fname)
+                    self._is_local_map.pop(fname, None)
+                    self._function_module_map.pop(fname, None)
 
-            self.all_possible_tools = [t for t in self.all_possible_tools
+                self.all_possible_tools = [t for t in self.all_possible_tools
+                                           if t['function']['name'] not in func_names]
+                self._enabled_tools = [t for t in self._enabled_tools
                                        if t['function']['name'] not in func_names]
-            self._enabled_tools = [t for t in self._enabled_tools
-                                   if t['function']['name'] not in func_names]
-            self._mode_filters.pop(module_name, None)
+                self._mode_filters.pop(module_name, None)
 
         if to_remove:
             logger.info(f"Plugin '{plugin_name}' tools unregistered: {to_remove}")

@@ -18,6 +18,13 @@ from core.hooks import HookRunner, HookEvent
 from core.plugin_loader import PluginLoader, PluginState
 
 
+@pytest.fixture(autouse=True)
+def _allow_unsigned():
+    """Tests use unsigned plugins — ensure sideloading is always on regardless of user settings."""
+    with patch("config.ALLOW_UNSIGNED_PLUGINS", True):
+        yield
+
+
 @pytest.fixture
 def temp_dirs():
     """Create temporary plugin and state directories."""
@@ -483,8 +490,10 @@ def _make_tool_file(plugin_dir, rel_path, tools_list, execute_code="return 'ok',
 
 def _make_mock_fm():
     """Create a FunctionManager-like object with real register/unregister methods."""
+    import threading
     from core.chat.function_manager import FunctionManager
     fm = object.__new__(FunctionManager)
+    fm._tools_lock = threading.Lock()
     fm.function_modules = {}
     fm.all_possible_tools = []
     fm.execution_map = {}

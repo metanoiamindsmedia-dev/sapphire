@@ -1670,6 +1670,14 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
                 await asyncio.to_thread(get_system().toggle_stt, value)
             if key == 'TTS_ENABLED':
                 await asyncio.to_thread(get_system().toggle_tts, value)
+            if key == 'ALLOW_UNSIGNED_PLUGINS' and not value:
+                try:
+                    from core.plugin_loader import plugin_loader
+                    disabled = plugin_loader.enforce_unsigned_policy()
+                    if disabled:
+                        logger.info(f"Unsigned policy enforced, disabled: {disabled}")
+                except Exception as e:
+                    logger.warning(f"Failed to enforce unsigned policy: {e}")
             publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
         except Exception as e:
             results.append({"key": key, "status": "error", "error": str(e)})

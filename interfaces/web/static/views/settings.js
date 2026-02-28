@@ -81,9 +81,10 @@ async function loadPluginList() {
 
 async function loadPluginTab(name, source) {
     try {
+        const _v = window.__v ? `?v=${window.__v}` : '';
         const url = source === 'plugin'
-            ? `/plugin-web/${name}/index.js`
-            : `/static/core-ui/${name}/index.js`;
+            ? `/plugin-web/${name}/index.js${_v}`
+            : `/static/core-ui/${name}/index.js${_v}`;
         const mod = await import(url);
         const plugin = mod.default;
         if (plugin?.init) {
