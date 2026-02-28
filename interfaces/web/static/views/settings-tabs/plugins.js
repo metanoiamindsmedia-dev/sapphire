@@ -181,6 +181,7 @@ export default {
                     if (!res.ok) throw new Error('Failed to save');
                     ctx.settings.ALLOW_UNSIGNED_PLUGINS = enabling;
                     ui.showToast(`Unsigned plugins ${enabling ? 'allowed' : 'blocked'}`, enabling ? 'warning' : 'success');
+                    if (!enabling) await ctx.refreshTab();
                 } catch (err) {
                     e.target.checked = !enabling;
                     ui.showToast(`Setting failed: ${err.message}`, 'error');
@@ -215,9 +216,18 @@ export default {
             });
         }
 
+        // Store ctx on el so the handler always uses the latest after refreshTab()
+        el._pluginCtx = ctx;
+
+        // Bind toggle handler once — prevents stacking on repeated renderTabContent() calls
+        if (el._pluginsBound) return;
+        el._pluginsBound = true;
+
         el.addEventListener('change', async e => {
             const name = e.target.dataset.pluginToggle;
             if (!name) return;
+
+            const ctx = el._pluginCtx;
 
             // Guard against rapid double-clicks
             if (toggling.has(name)) {
@@ -279,7 +289,13 @@ export default {
                     if (navBtn) navBtn.style.display = data.enabled ? '' : 'none';
                 }
 
-                ctx.refreshSidebar();
+                // Update DOM in-place (no full re-render flash)
+                if (item) item.classList.toggle('enabled', data.enabled);
+                if (span) span.textContent = data.enabled ? 'Enabled' : 'Disabled';
+
+                // Only full re-render if tab list changed (plugin with settings UI)
+                if (cached?.settingsUI) ctx.refreshSidebar();
+
                 window.dispatchEvent(new CustomEvent('functions-changed'));
                 ui.showToast(`${cached?.title || name} ${data.enabled ? 'enabled' : 'disabled'}`, 'success');
             } catch (err) {
@@ -291,7 +307,6 @@ export default {
                 ui.showToast(msg, 'error', 5000);
             } finally {
                 toggling.delete(name);
-                // checkbox may be on detached DOM after refreshSidebar, that's fine
                 e.target.disabled = false;
             }
         });

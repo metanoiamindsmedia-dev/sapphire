@@ -11,7 +11,7 @@ main.py (runner with restart loop)
 └── sapphire.py (VoiceChatSystem)
     ├── LLMChat (core/chat/)
     │   ├── llm_providers → Claude, OpenAI, Fireworks, LM Studio, Responses
-    │   ├── module_loader → plugins/*, core/modules/*
+    │   ├── plugin_loader → plugins/*, user/plugins/*
     │   ├── function_manager → functions/*, scopes, story tools
     │   └── session_manager → chat history (SQLite)
     ├── Continuity (core/modules/continuity/)

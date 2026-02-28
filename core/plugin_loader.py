@@ -98,10 +98,20 @@ class PluginLoader:
 
         # Load enabled plugins
         loaded = 0
+        blocked_unsigned = []
         for name, info in self._plugins.items():
             if info["enabled"]:
-                self._load_plugin(name)
-                loaded += 1
+                if self._load_plugin(name):
+                    loaded += 1
+                elif info.get("verify_msg") == "unsigned":
+                    # Unsigned plugin blocked — mark disabled so UI reflects reality
+                    info["enabled"] = False
+                    blocked_unsigned.append(name)
+
+        # Clean up enabled list on disk for blocked unsigned plugins
+        if blocked_unsigned:
+            self._remove_from_enabled_list(blocked_unsigned)
+            logger.info(f"[PLUGINS] Unsigned plugins disabled (sideloading off): {blocked_unsigned}")
 
         logger.info(f"[PLUGINS] Scan complete: {len(self._plugins)} found, {loaded} loaded")
 
@@ -326,6 +336,41 @@ class PluginLoader:
                 self._plugins[name]["loaded"] = False
         logger.info(f"[PLUGINS] Unloaded: {name}")
 
+    def enforce_unsigned_policy(self) -> list:
+        """Unload and disable any enabled unsigned plugins. Returns list of names affected."""
+        affected = []
+        with self._lock:
+            candidates = [
+                (name, info) for name, info in self._plugins.items()
+                if info.get("enabled") and not info.get("verified")
+                and info.get("verify_msg") == "unsigned"
+            ]
+        for name, info in candidates:
+            if info.get("loaded"):
+                self.unload_plugin(name)
+            with self._lock:
+                info["enabled"] = False
+            affected.append(name)
+            logger.info(f"[PLUGINS] Unsigned policy: disabled '{name}'")
+
+        # Remove from enabled list on disk
+        if affected:
+            self._remove_from_enabled_list(affected)
+
+        return affected
+
+    def _remove_from_enabled_list(self, names: list):
+        """Remove plugin names from the persisted enabled list."""
+        if not USER_PLUGINS_JSON.exists():
+            return
+        try:
+            data = json.loads(USER_PLUGINS_JSON.read_text(encoding="utf-8"))
+            enabled = data.get("enabled", [])
+            data["enabled"] = [n for n in enabled if n not in names]
+            USER_PLUGINS_JSON.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"[PLUGINS] Failed to update enabled list: {e}")
+
     def reload_plugin(self, name: str):
         """Unload and reload a plugin. Safe — if reload fails, plugin stays unloaded.
 
@@ -423,13 +468,12 @@ class PluginLoader:
                     if name in self._plugins:
                         continue
 
-                if not self._validate_manifest(name, manifest):
-                    continue
+                    if not self._validate_manifest(name, manifest):
+                        continue
 
-                verified, verify_msg = verify_plugin(child)
-                is_enabled = name in enabled_list or manifest.get("default_enabled", False)
+                    verified, verify_msg = verify_plugin(child)
+                    is_enabled = name in enabled_list or manifest.get("default_enabled", False)
 
-                with self._lock:
                     self._plugins[name] = {
                         "manifest": manifest,
                         "path": child,
