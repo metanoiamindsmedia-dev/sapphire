@@ -1,4 +1,10 @@
-# 2.0.0 - Complete Refactor
+# 2.1.0 - Unified plugin system
+- Combined plugins, web ui plugins, toolsets
+- Added hooks in application to tap into
+- Signature system enforces authenticity of plugins
+- Sideloading of plugins is a checkbox
+- Default plugins: Bitcoin, Email, Home Assistant, Image Gen, SSH, toolmaker, voice stop/reset
+# 2.0.0 - Personhood update
 ## February 21, 2026
 - Knowledge base system — people, knowledge tabs, scoped entries with embeddings
 - Mind view — unified memories, people, knowledge, AI notes
