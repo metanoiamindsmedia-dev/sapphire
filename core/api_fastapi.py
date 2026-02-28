@@ -89,7 +89,7 @@ USER_PLUGINS_DIR_WEB = PROJECT_ROOT / "user" / "plugins"
 
 import mimetypes
 @app.get("/plugin-web/{plugin_name}/{path:path}")
-async def serve_plugin_web(plugin_name: str, path: str):
+async def serve_plugin_web(plugin_name: str, path: str, _=Depends(require_login)):
     """Serve web assets from plugin web/ directories."""
     for base_dir in [SYSTEM_PLUGINS_DIR, USER_PLUGINS_DIR_WEB]:
         web_dir = (base_dir / plugin_name / "web").resolve()
@@ -4272,6 +4272,16 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
                 plugin_loader.unload_plugin(plugin_name)
                 plugin_loader._plugins[plugin_name]["enabled"] = False
             reload_required = False
+
+            # Re-sync toolset so enabled functions reflect the plugin change
+            try:
+                system = get_system()
+                if system and hasattr(system, 'llm_chat'):
+                    toolset_info = system.llm_chat.function_manager.get_current_toolset_info()
+                    toolset_name = toolset_info.get("name", "custom")
+                    system.llm_chat.function_manager.update_enabled_functions([toolset_name])
+            except Exception:
+                pass  # Best-effort; tools will sync on next chat
     except HTTPException:
         raise
     except Exception as e:

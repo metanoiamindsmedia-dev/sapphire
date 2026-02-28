@@ -409,7 +409,9 @@ class PluginLoader:
         """Register schedule tasks for loaded plugins that missed registration during scan()."""
         if not self._scheduler:
             return
-        for name, info in self._plugins.items():
+        with self._lock:
+            snapshot = list(self._plugins.items())
+        for name, info in snapshot:
             if not info.get("loaded"):
                 continue
             if info.get("schedule_task_ids"):

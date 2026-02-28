@@ -789,5 +789,119 @@ class TestPluginToolIntegration:
             assert "no-fm" in loader.get_loaded_plugins()
 
 
+# =============================================================================
+# Unsigned Policy Enforcement Tests
+# =============================================================================
+
+class TestEnforceUnsignedPolicy:
+    def test_enforce_disables_unsigned_plugins(self, temp_dirs, runner):
+        """enforce_unsigned_policy() should unload and disable unsigned plugins."""
+        _make_plugin(temp_dirs["plugins"], "unsigned-plug", {
+            "name": "unsigned-plug", "version": "1.0.0",
+            "capabilities": {"hooks": {"pre_chat": "hooks/h.py"}}
+        }, hooks_code={
+            "h.py": "def pre_chat(event): event.metadata['alive'] = True"
+        })
+        temp_dirs["plugins_json"].write_text(
+            json.dumps({"enabled": ["unsigned-plug"]}), encoding="utf-8"
+        )
+        loader = PluginLoader()
+        with patch("core.plugin_loader.SYSTEM_PLUGINS_DIR", temp_dirs["plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_DIR", temp_dirs["user_plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]), \
+             patch("core.plugin_loader.hook_runner", runner):
+            loader.scan()
+            assert "unsigned-plug" in loader.get_loaded_plugins()
+
+            affected = loader.enforce_unsigned_policy()
+            assert "unsigned-plug" in affected
+            assert "unsigned-plug" not in loader.get_loaded_plugins()
+            info = loader.get_plugin_info("unsigned-plug")
+            assert info["enabled"] is False
+
+    def test_enforce_leaves_signed_plugins(self, temp_dirs, runner):
+        """enforce_unsigned_policy() should not touch signed (verified) plugins."""
+        _make_plugin(temp_dirs["plugins"], "signed-plug", {
+            "name": "signed-plug", "version": "1.0.0"
+        })
+        temp_dirs["plugins_json"].write_text(
+            json.dumps({"enabled": ["signed-plug"]}), encoding="utf-8"
+        )
+        loader = PluginLoader()
+        with patch("core.plugin_loader.SYSTEM_PLUGINS_DIR", temp_dirs["plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_DIR", temp_dirs["user_plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]), \
+             patch("core.plugin_loader.hook_runner", runner):
+            loader.scan()
+            # Mark as verified to simulate a signed plugin
+            loader._plugins["signed-plug"]["verified"] = True
+            loader._plugins["signed-plug"]["verify_msg"] = "ok"
+
+            affected = loader.enforce_unsigned_policy()
+            assert "signed-plug" not in affected
+            assert loader._plugins["signed-plug"]["enabled"] is True
+
+    def test_enforce_updates_disk(self, temp_dirs, runner):
+        """enforce_unsigned_policy() should remove disabled plugins from the JSON enabled list."""
+        _make_plugin(temp_dirs["plugins"], "disk-test", {
+            "name": "disk-test", "version": "1.0.0"
+        })
+        temp_dirs["plugins_json"].write_text(
+            json.dumps({"enabled": ["disk-test", "other"]}), encoding="utf-8"
+        )
+        loader = PluginLoader()
+        with patch("core.plugin_loader.SYSTEM_PLUGINS_DIR", temp_dirs["plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_DIR", temp_dirs["user_plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]), \
+             patch("core.plugin_loader.hook_runner", runner):
+            loader.scan()
+
+            loader.enforce_unsigned_policy()
+            data = json.loads(temp_dirs["plugins_json"].read_text())
+            assert "disk-test" not in data["enabled"]
+            assert "other" in data["enabled"]  # Unrelated entry preserved
+
+    def test_enforce_noop_when_none_unsigned(self, temp_dirs, runner):
+        """enforce_unsigned_policy() returns empty list when no unsigned plugins exist."""
+        loader = PluginLoader()
+        with patch("core.plugin_loader.SYSTEM_PLUGINS_DIR", temp_dirs["plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_DIR", temp_dirs["user_plugins"]), \
+             patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]), \
+             patch("core.plugin_loader.hook_runner", runner):
+            loader.scan()
+            affected = loader.enforce_unsigned_policy()
+            assert affected == []
+
+
+class TestRemoveFromEnabledList:
+    def test_removes_names_from_json(self, temp_dirs, runner):
+        temp_dirs["plugins_json"].write_text(
+            json.dumps({"enabled": ["a", "b", "c"]}), encoding="utf-8"
+        )
+        loader = PluginLoader()
+        with patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]):
+            loader._remove_from_enabled_list(["a", "c"])
+            data = json.loads(temp_dirs["plugins_json"].read_text())
+            assert data["enabled"] == ["b"]
+
+    def test_noop_when_no_json(self, temp_dirs, runner):
+        """Should not crash when plugins.json doesn't exist."""
+        missing = temp_dirs["base"] / "nonexistent.json"
+        loader = PluginLoader()
+        with patch("core.plugin_loader.USER_PLUGINS_JSON", missing):
+            loader._remove_from_enabled_list(["x"])  # should not raise
+
+    def test_preserves_other_json_keys(self, temp_dirs, runner):
+        temp_dirs["plugins_json"].write_text(
+            json.dumps({"enabled": ["a", "b"], "custom_key": 42}), encoding="utf-8"
+        )
+        loader = PluginLoader()
+        with patch("core.plugin_loader.USER_PLUGINS_JSON", temp_dirs["plugins_json"]):
+            loader._remove_from_enabled_list(["a"])
+            data = json.loads(temp_dirs["plugins_json"].read_text())
+            assert data["enabled"] == ["b"]
+            assert data["custom_key"] == 42
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
