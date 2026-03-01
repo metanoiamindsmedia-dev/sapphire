@@ -4208,6 +4208,8 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                     "url": manifest.get("url"),
                     "version": manifest.get("version"),
                     "author": manifest.get("author"),
+                    "icon": manifest.get("icon"),
+                    "band": info.get("band"),
                 })
     except Exception:
         pass
@@ -4233,11 +4235,25 @@ async def toggle_plugin(plugin_name: str, request: Request, _=Depends(require_lo
         raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
 
     enabled = list(merged.get("enabled", []))
-    if plugin_name in enabled:
-        enabled.remove(plugin_name)
+
+    # Determine current state from plugin_loader (handles default_enabled plugins
+    # that aren't in the persisted enabled list)
+    currently_enabled = plugin_name in enabled
+    try:
+        from core.plugin_loader import plugin_loader as _pl
+        info = _pl.get_plugin_info(plugin_name)
+        if info:
+            currently_enabled = info["enabled"]
+    except Exception:
+        pass
+
+    if currently_enabled:
+        if plugin_name in enabled:
+            enabled.remove(plugin_name)
         new_state = False
     else:
-        enabled.append(plugin_name)
+        if plugin_name not in enabled:
+            enabled.append(plugin_name)
         new_state = True
 
     USER_WEBUI_DIR.mkdir(parents=True, exist_ok=True)
@@ -4323,6 +4339,259 @@ async def reload_plugin(plugin_name: str, _=Depends(require_login)):
         return {"status": "ok", "plugin": plugin_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/plugins/install")
+async def install_plugin(
+    request: Request,
+    url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    force: bool = Form(False),
+    _=Depends(require_login),
+):
+    """Install a plugin from GitHub URL or zip upload."""
+    import shutil
+    import zipfile
+    import re
+
+    MAX_ZIP_SIZE = 50 * 1024 * 1024  # 50MB
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB single file
+    MAX_EXTRACTED_SIZE = 100 * 1024 * 1024  # 100MB total
+
+    if not url and not file:
+        raise HTTPException(status_code=400, detail="Provide a GitHub URL or zip file")
+
+    from core.plugin_loader import plugin_loader, PluginState, USER_PLUGINS_DIR
+
+    tmp_zip = None
+    tmp_dir = None
+    try:
+        # ── Download or receive zip ──
+        if url:
+            import requests as req
+            # Parse GitHub URL → zip download
+            m = re.match(r'https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$', url.strip())
+            if not m:
+                raise HTTPException(status_code=400, detail="Invalid GitHub URL format")
+            owner, repo = m.group(1), m.group(2)
+            zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/main.zip"
+            r = req.get(zip_url, stream=True, timeout=30)
+            if r.status_code == 404:
+                zip_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/master.zip"
+                r = req.get(zip_url, stream=True, timeout=30)
+            if r.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Failed to download from GitHub (HTTP {r.status_code})")
+            content_length = int(r.headers.get("Content-Length", 0))
+            if content_length > MAX_ZIP_SIZE:
+                raise HTTPException(status_code=400, detail=f"Zip too large ({content_length // 1024 // 1024}MB, max 50MB)")
+            tmp_zip = Path(tempfile.mktemp(suffix=".zip"))
+            downloaded = 0
+            with open(tmp_zip, "wb") as f:
+                for chunk in r.iter_content(8192):
+                    downloaded += len(chunk)
+                    if downloaded > MAX_ZIP_SIZE:
+                        raise HTTPException(status_code=400, detail="Zip exceeds 50MB limit")
+                    f.write(chunk)
+        else:
+            # File upload
+            tmp_zip = Path(tempfile.mktemp(suffix=".zip"))
+            content = await file.read()
+            if len(content) > MAX_ZIP_SIZE:
+                raise HTTPException(status_code=400, detail=f"Zip too large ({len(content) // 1024 // 1024}MB, max 50MB)")
+            tmp_zip.write_bytes(content)
+
+        # ── Extract ──
+        if not zipfile.is_zipfile(tmp_zip):
+            raise HTTPException(status_code=400, detail="Not a valid zip file")
+
+        tmp_dir = Path(tempfile.mkdtemp())
+        with zipfile.ZipFile(tmp_zip, 'r') as zf:
+            zf.extractall(tmp_dir)
+
+        # ── Find plugin.json (root or one level deep) ──
+        plugin_root = None
+        if (tmp_dir / "plugin.json").exists():
+            plugin_root = tmp_dir
+        else:
+            for child in tmp_dir.iterdir():
+                if child.is_dir() and (child / "plugin.json").exists():
+                    plugin_root = child
+                    break
+
+        if not plugin_root:
+            raise HTTPException(status_code=400, detail="No plugin.json found in zip")
+
+        # ── Validate manifest ──
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid plugin.json: {e}")
+
+        name = manifest.get("name")
+        version = manifest.get("version")
+        description = manifest.get("description")
+        author = manifest.get("author", "unknown")
+        if not name or not version or not description:
+            raise HTTPException(status_code=400, detail="plugin.json must have name, version, and description")
+
+        # ── Name collision checks ──
+        # Block system plugins
+        if (PROJECT_ROOT / "plugins" / name).exists():
+            raise HTTPException(status_code=409, detail=f"'{name}' conflicts with a system plugin")
+        # Block core functions
+        if (PROJECT_ROOT / "functions" / f"{name}.py").exists():
+            raise HTTPException(status_code=409, detail=f"'{name}' conflicts with a core function")
+
+        # ── Size checks on extracted content ──
+        total_size = 0
+        for f in plugin_root.rglob("*"):
+            if f.is_file():
+                sz = f.stat().st_size
+                if sz > MAX_FILE_SIZE:
+                    raise HTTPException(status_code=400, detail=f"File too large: {f.name} ({sz // 1024 // 1024}MB, max 10MB)")
+                total_size += sz
+        if total_size > MAX_EXTRACTED_SIZE:
+            raise HTTPException(status_code=400, detail=f"Extracted content too large ({total_size // 1024 // 1024}MB, max 100MB)")
+
+        # ── Check for existing plugin (replace flow) ──
+        dest = USER_PLUGINS_DIR / name
+        is_update = dest.exists()
+        old_version = None
+        old_author = None
+
+        if is_update:
+            # Read existing manifest for comparison
+            existing_manifest_path = dest / "plugin.json"
+            if existing_manifest_path.exists():
+                try:
+                    existing = json.loads(existing_manifest_path.read_text(encoding="utf-8"))
+                    old_version = existing.get("version")
+                    old_author = existing.get("author")
+                except Exception:
+                    pass
+
+            if not force:
+                return JSONResponse(status_code=409, content={
+                    "detail": "Plugin already exists",
+                    "name": name,
+                    "version": version,
+                    "author": author,
+                    "existing_version": old_version,
+                    "existing_author": old_author,
+                })
+
+            # Unload before replacing
+            info = plugin_loader.get_plugin_info(name)
+            if info and info.get("loaded"):
+                plugin_loader.unload_plugin(name)
+
+            # Delete old plugin dir (state preserved separately)
+            shutil.rmtree(dest)
+
+        # ── Install ──
+        USER_PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(plugin_root, dest)
+
+        # ── Write install metadata to plugin state ──
+        from datetime import datetime
+        state = PluginState(name)
+        if url:
+            state.save("installed_from", url.strip())
+            state.save("install_method", "github_url")
+        else:
+            state.save("install_method", "zip_upload")
+        state.save("installed_at", datetime.utcnow().isoformat() + "Z")
+
+        # ── Rescan to discover the new plugin ──
+        plugin_loader.rescan()
+
+        return {
+            "status": "ok",
+            "plugin_name": name,
+            "version": version,
+            "author": author,
+            "is_update": is_update,
+            "old_version": old_version,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PLUGINS] Install failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Cleanup temp files
+        if tmp_zip and tmp_zip.exists():
+            tmp_zip.unlink(missing_ok=True)
+        if tmp_dir and tmp_dir.exists():
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@app.delete("/api/plugins/{plugin_name}/uninstall")
+async def uninstall_plugin_endpoint(plugin_name: str, _=Depends(require_login)):
+    """Uninstall a user plugin — remove all files, settings, and state."""
+    from core.plugin_loader import plugin_loader
+    info = plugin_loader.get_plugin_info(plugin_name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
+    if info.get("band") != "user":
+        raise HTTPException(status_code=403, detail="Cannot uninstall system plugins")
+    try:
+        plugin_loader.uninstall_plugin(plugin_name)
+        return {"status": "ok", "plugin": plugin_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/plugins/{plugin_name}/check-update")
+async def check_plugin_update(plugin_name: str, _=Depends(require_login)):
+    """Check if a newer version is available on GitHub."""
+    import re
+    from core.plugin_loader import plugin_loader, PluginState
+
+    info = plugin_loader.get_plugin_info(plugin_name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Unknown plugin: {plugin_name}")
+
+    state = PluginState(plugin_name)
+    source_url = state.get("installed_from")
+    if not source_url or "github.com" not in source_url:
+        return {"update_available": False, "reason": "no_source"}
+
+    m = re.match(r'https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$', source_url.strip())
+    if not m:
+        return {"update_available": False, "reason": "invalid_url"}
+
+    owner, repo = m.group(1), m.group(2)
+    current_version = info.get("manifest", {}).get("version", "0.0.0")
+
+    import requests as req
+    remote_manifest = None
+    for branch in ("main", "master"):
+        try:
+            r = req.get(
+                f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/plugin.json",
+                timeout=10,
+            )
+            if r.status_code == 200:
+                remote_manifest = r.json()
+                break
+        except Exception:
+            continue
+
+    if not remote_manifest:
+        return {"update_available": False, "reason": "fetch_failed"}
+
+    remote_version = remote_manifest.get("version", "0.0.0")
+    remote_author = remote_manifest.get("author", "unknown")
+
+    return {
+        "update_available": remote_version != current_version,
+        "current_version": current_version,
+        "remote_version": remote_version,
+        "remote_author": remote_author,
+        "source_url": source_url,
+    }
 
 
 def _require_known_plugin(plugin_name: str):

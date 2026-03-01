@@ -5,6 +5,7 @@
 
 import json
 import logging
+import shutil
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -418,6 +419,40 @@ class PluginLoader:
                 with self._lock:
                     if name in self._plugins:
                         self._plugins[name]["loaded"] = False
+
+    def uninstall_plugin(self, name: str):
+        """Fully remove a user plugin — unload, delete files, settings, and state."""
+        info = self._plugins.get(name)
+        if not info:
+            raise ValueError(f"Unknown plugin: {name}")
+        if info["band"] != "user":
+            raise ValueError(f"Cannot uninstall system plugin: {name}")
+
+        # Unload if loaded
+        if info.get("loaded"):
+            self.unload_plugin(name)
+
+        # Remove from internal dict
+        with self._lock:
+            self._plugins.pop(name, None)
+
+        # Remove from enabled list on disk
+        self._remove_from_enabled_list([name])
+
+        # Delete plugin directory
+        plugin_dir = USER_PLUGINS_DIR / name
+        if plugin_dir.exists():
+            shutil.rmtree(plugin_dir)
+
+        # Delete settings
+        settings_file = PROJECT_ROOT / "user" / "webui" / "plugins" / f"{name}.json"
+        settings_file.unlink(missing_ok=True)
+
+        # Delete state
+        state_file = PLUGIN_STATE_DIR / f"{name}.json"
+        state_file.unlink(missing_ok=True)
+
+        logger.info(f"[PLUGINS] Uninstalled: {name}")
 
     def set_scheduler(self, scheduler):
         """Set the continuity scheduler for plugin schedule tasks.

@@ -1,6 +1,7 @@
 // settings-tabs/plugins.js - Plugin toggles tab
 import * as ui from '../../ui.js';
 import { showDangerConfirm } from '../../shared/danger-confirm.js';
+import pluginsAPI from '../../shared/plugins-api.js';
 
 // Infrastructure plugins hidden from toggle list
 const HIDDEN = new Set([
@@ -108,6 +109,17 @@ export default {
                     <span>Allow Unsigned Plugins</span>
                 </label>
             </div>
+            <div class="plugin-install-section" style="margin-bottom:16px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border);">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                    <input type="text" id="plugin-install-url" placeholder="GitHub URL (e.g. https://github.com/user/plugin)"
+                           style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-light);font-size:0.9em;">
+                    <button class="btn btn-sm" id="plugin-install-url-btn">Install</button>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="file" id="plugin-install-file" accept=".zip" style="flex:1;font-size:0.85em;color:var(--text-muted);">
+                    <button class="btn btn-sm" id="plugin-install-file-btn">Upload</button>
+                </div>
+            </div>
             <div class="plugin-toggles-list">
                 ${visible.map(p => {
                     const locked = ctx.lockedPlugins.includes(p.name);
@@ -125,6 +137,16 @@ export default {
                     const metaStr = meta.length ? `<span class="plugin-toggle-meta">${meta.join(' · ')}</span>` : '';
                     const urlLink = p.url ? `<a href="${p.url}" target="_blank" rel="noopener" class="plugin-toggle-link">View</a>` : '';
 
+                    const isUser = p.band === 'user';
+                    const userActions = isUser ? `
+                        <div class="plugin-user-actions" style="display:flex;gap:4px;margin-left:8px;">
+                            <button class="btn btn-sm plugin-update-btn" data-plugin="${p.name}"
+                                    style="font-size:0.75em;padding:2px 8px;">Check Update</button>
+                            <button class="btn btn-sm btn-danger plugin-uninstall-btn" data-plugin="${p.name}"
+                                    style="font-size:0.75em;padding:2px 8px;">Uninstall</button>
+                        </div>
+                    ` : '';
+
                     return `
                         <div class="plugin-toggle-item${p.enabled ? ' enabled' : ''}" data-plugin="${p.name}">
                             <div class="plugin-toggle-info">
@@ -136,11 +158,14 @@ export default {
                                 </div>
                                 ${metaStr}
                             </div>
-                            <label class="setting-toggle">
-                                <input type="checkbox" data-plugin-toggle="${p.name}"
-                                       ${p.enabled ? 'checked' : ''} ${locked ? 'disabled' : ''}>
-                                <span>${p.enabled ? 'Enabled' : 'Disabled'}</span>
-                            </label>
+                            <div style="display:flex;align-items:center;">
+                                <label class="setting-toggle">
+                                    <input type="checkbox" data-plugin-toggle="${p.name}"
+                                           ${p.enabled ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                                    <span>${p.enabled ? 'Enabled' : 'Disabled'}</span>
+                                </label>
+                                ${userActions}
+                            </div>
                         </div>
                     `;
                 }).join('')}
@@ -223,12 +248,174 @@ export default {
             });
         }
 
+        // ── Install from URL ──
+        const installUrlBtn = el.querySelector('#plugin-install-url-btn');
+        if (installUrlBtn) {
+            installUrlBtn.addEventListener('click', async () => {
+                const urlInput = el.querySelector('#plugin-install-url');
+                const url = urlInput?.value?.trim();
+                if (!url) { ui.showToast('Enter a GitHub URL', 'warning'); return; }
+                installUrlBtn.disabled = true;
+                installUrlBtn.textContent = 'Installing...';
+                try {
+                    const result = await pluginsAPI.installPlugin({ url });
+                    if (result.conflict) {
+                        // Plugin exists — ask to replace
+                        const confirmed = await showDangerConfirm({
+                            title: `Replace Plugin: ${result.name}`,
+                            warnings: [
+                                `Installed: v${result.existing_version || '?'} by ${result.existing_author || 'unknown'}`,
+                                `New: v${result.version || '?'} by ${result.author || 'unknown'}`,
+                                'The existing plugin and its settings will be replaced',
+                                'Plugin state data will be preserved',
+                            ],
+                            buttonLabel: 'Replace',
+                        });
+                        if (!confirmed) return;
+                        const forced = await pluginsAPI.installPlugin({ url, force: true });
+                        ui.showToast(`Updated ${forced.plugin_name} → v${forced.version}`, 'success');
+                    } else {
+                        ui.showToast(`Installed ${result.plugin_name} v${result.version}`, 'success');
+                    }
+                    urlInput.value = '';
+                    await ctx.refreshTab();
+                } catch (err) {
+                    ui.showToast(`Install failed: ${err.message}`, 'error', 5000);
+                } finally {
+                    installUrlBtn.disabled = false;
+                    installUrlBtn.textContent = 'Install';
+                }
+            });
+        }
+
+        // ── Install from zip upload ──
+        const installFileBtn = el.querySelector('#plugin-install-file-btn');
+        if (installFileBtn) {
+            installFileBtn.addEventListener('click', async () => {
+                const fileInput = el.querySelector('#plugin-install-file');
+                const file = fileInput?.files?.[0];
+                if (!file) { ui.showToast('Select a zip file', 'warning'); return; }
+                installFileBtn.disabled = true;
+                installFileBtn.textContent = 'Uploading...';
+                try {
+                    const result = await pluginsAPI.installPlugin({ file });
+                    if (result.conflict) {
+                        const confirmed = await showDangerConfirm({
+                            title: `Replace Plugin: ${result.name}`,
+                            warnings: [
+                                `Installed: v${result.existing_version || '?'} by ${result.existing_author || 'unknown'}`,
+                                `New: v${result.version || '?'} by ${result.author || 'unknown'}`,
+                                'The existing plugin and its settings will be replaced',
+                                'Plugin state data will be preserved',
+                            ],
+                            buttonLabel: 'Replace',
+                        });
+                        if (!confirmed) return;
+                        const forced = await pluginsAPI.installPlugin({ file, force: true });
+                        ui.showToast(`Updated ${forced.plugin_name} → v${forced.version}`, 'success');
+                    } else {
+                        ui.showToast(`Installed ${result.plugin_name} v${result.version}`, 'success');
+                    }
+                    fileInput.value = '';
+                    await ctx.refreshTab();
+                } catch (err) {
+                    ui.showToast(`Install failed: ${err.message}`, 'error', 5000);
+                } finally {
+                    installFileBtn.disabled = false;
+                    installFileBtn.textContent = 'Upload';
+                }
+            });
+        }
+
         // Store ctx on el so the handler always uses the latest after refreshTab()
         el._pluginCtx = ctx;
 
         // Bind toggle handler once — prevents stacking on repeated renderTabContent() calls
         if (el._pluginsBound) return;
         el._pluginsBound = true;
+
+        // ── Uninstall (delegated) ──
+        el.addEventListener('click', async e => {
+            const btn = e.target.closest('.plugin-uninstall-btn');
+            if (!btn) return;
+            const name = btn.dataset.plugin;
+            const ctx = el._pluginCtx;
+            const plugin = ctx.pluginList?.find(p => p.name === name);
+
+            const confirmed = await showDangerConfirm({
+                title: `Uninstall Plugin: ${plugin?.title || name}`,
+                warnings: [
+                    'The plugin and all its settings will be permanently deleted',
+                    'Plugin state data will also be removed',
+                    'This cannot be undone',
+                ],
+                buttonLabel: 'Uninstall',
+            });
+            if (!confirmed) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Removing...';
+            try {
+                await pluginsAPI.uninstallPlugin(name);
+                // Unregister settings tab if any
+                try {
+                    const { unregisterPluginSettings } = await import('../../shared/plugin-registry.js');
+                    unregisterPluginSettings(name);
+                    ctx.syncDynamicTabs();
+                } catch (_) {}
+                ui.showToast(`Uninstalled ${plugin?.title || name}`, 'success');
+                window.dispatchEvent(new CustomEvent('functions-changed'));
+                await ctx.refreshTab();
+            } catch (err) {
+                ui.showToast(`Uninstall failed: ${err.message}`, 'error', 5000);
+                btn.disabled = false;
+                btn.textContent = 'Uninstall';
+            }
+        });
+
+        // ── Check update (delegated) ──
+        el.addEventListener('click', async e => {
+            const btn = e.target.closest('.plugin-update-btn');
+            if (!btn) return;
+            const name = btn.dataset.plugin;
+            const ctx = el._pluginCtx;
+
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            try {
+                const result = await pluginsAPI.checkUpdate(name);
+                if (result.update_available) {
+                    btn.textContent = `Update to v${result.remote_version}`;
+                    btn.disabled = false;
+                    btn.classList.add('btn-primary');
+                    // Replace click handler to trigger install
+                    btn.classList.remove('plugin-update-btn');
+                    btn.addEventListener('click', async () => {
+                        btn.disabled = true;
+                        btn.textContent = 'Updating...';
+                        try {
+                            await pluginsAPI.installPlugin({ url: result.source_url, force: true });
+                            ui.showToast(`Updated ${name} → v${result.remote_version}`, 'success');
+                            await ctx.refreshTab();
+                        } catch (err) {
+                            ui.showToast(`Update failed: ${err.message}`, 'error', 5000);
+                            btn.disabled = false;
+                            btn.textContent = `Update to v${result.remote_version}`;
+                        }
+                    }, { once: true });
+                } else {
+                    btn.textContent = 'Up to date';
+                    setTimeout(() => {
+                        btn.textContent = 'Check Update';
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (err) {
+                ui.showToast(`Update check failed: ${err.message}`, 'error');
+                btn.textContent = 'Check Update';
+                btn.disabled = false;
+            }
+        });
 
         el.addEventListener('change', async e => {
             const name = e.target.dataset.pluginToggle;

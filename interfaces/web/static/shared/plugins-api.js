@@ -75,7 +75,54 @@ const pluginsAPI = {
     });
     if (!res.ok) throw new Error(`Failed to reset: ${res.status}`);
     return res.json();
-  }
+  },
+
+  /**
+   * Install a plugin from GitHub URL or zip file.
+   * Returns 409 with existing info if plugin exists and force=false.
+   */
+  async installPlugin({ url, file, force = false }) {
+    const form = new FormData();
+    if (url) form.append('url', url);
+    if (file) form.append('file', file);
+    if (force) form.append('force', 'true');
+    const res = await fetch('/api/plugins/install', {
+      method: 'POST',
+      headers: csrfHeaders(),
+      body: form,
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      // 409 = plugin exists, return the body for replace confirmation
+      if (res.status === 409 && e.name) return { conflict: true, ...e };
+      throw new Error(e.detail || `Install failed: ${res.status}`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Uninstall a user plugin (remove files, settings, state)
+   */
+  async uninstallPlugin(name) {
+    const res = await fetch(`/api/plugins/${name}/uninstall`, {
+      method: 'DELETE',
+      headers: csrfHeaders(),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `Uninstall failed: ${res.status}`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Check if a plugin has an update available on GitHub
+   */
+  async checkUpdate(name) {
+    const res = await fetch(`/api/plugins/${name}/check-update`);
+    if (!res.ok) throw new Error(`Check failed: ${res.status}`);
+    return res.json();
+  },
 };
 
 export default pluginsAPI;
