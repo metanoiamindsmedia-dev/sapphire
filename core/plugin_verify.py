@@ -80,7 +80,9 @@ def verify_plugin(plugin_dir: Path) -> Tuple[bool, str]:
     for rel_path, expected_hash in files_manifest.items():
         file_path = plugin_dir / rel_path
         # Block path traversal (../ escaping plugin directory)
-        if not str(file_path.resolve()).startswith(str(resolved_root) + "/") and file_path.resolve() != resolved_root:
+        try:
+            file_path.resolve().relative_to(resolved_root)
+        except ValueError:
             return False, f"path traversal attempt: {rel_path}"
         if not file_path.exists():
             return False, f"missing file: {rel_path}"
@@ -99,7 +101,7 @@ def verify_plugin(plugin_dir: Path) -> Tuple[bool, str]:
         # Skip __pycache__
         if "__pycache__" in f.parts:
             continue
-        rel = str(f.relative_to(plugin_dir))
+        rel = f.relative_to(plugin_dir).as_posix()
         if rel not in files_manifest:
             return False, f"unrecognized file not in manifest: {rel}"
 
