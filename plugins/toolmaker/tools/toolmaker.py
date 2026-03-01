@@ -1,38 +1,46 @@
 # Toolmaker — plugin tool
 """
 Tool creation tools — lets Sapphire create, read, and activate custom tools.
-Custom tools are saved to user/functions/ and loaded on next restart.
+Custom tools are saved as proper plugins in user/plugins/ and loaded live via rescan.
 """
 
 import ast
 import importlib.util
+import json
 import logging
+import shutil
 import sys
-import threading
-import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 ENABLED = True
-EMOJI = '🛠️'
+EMOJI = '\U0001f6e0\ufe0f'
 _PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-_USER_FUNCTIONS = _PROJECT_ROOT / "user" / "functions"
-_PLUGIN_SETTINGS = _PROJECT_ROOT / "user" / "webui" / "plugins" / "toolmaker.json"
+_USER_PLUGINS = _PROJECT_ROOT / "user" / "plugins"
+
+# Names that cannot be used for AI-created tools
+_RESERVED_NAMES = {
+    # Core function modules
+    'ai', 'docs', 'goals', 'knowledge', 'memory', 'meta', 'network', 'notepad', 'web',
+    # System plugins
+    'bitcoin', 'email', 'homeassistant', 'image_gen', 'ssh', 'toolmaker', 'voice_commands', 'stop', 'reset',
+    # Core-UI
+    'backup', 'continuity', 'setup_wizard',
+}
 
 
 def _get_validation_level():
     """Read validation level from plugin settings."""
     try:
-        if _PLUGIN_SETTINGS.exists():
-            import json
-            with open(_PLUGIN_SETTINGS) as f:
-                return json.load(f).get('validation', 'moderate')
+        from core.plugin_loader import plugin_loader
+        return plugin_loader.get_plugin_settings('toolmaker').get('validation', 'moderate')
     except Exception:
         pass
     return 'moderate'
 
-AVAILABLE_FUNCTIONS = ['tool_activate', 'tool_read', 'tool_save']
+
+AVAILABLE_FUNCTIONS = ['tool_load', 'tool_read', 'tool_save']
 
 # --- Validation config ---
 
@@ -57,7 +65,7 @@ _ALLOWED_STRICT = {
     'typing', 'enum', 'dataclasses', 'copy', 'os', 'io',
 }
 
-# Example tool for the AI's reference (embedded in tool description)
+# Minimal tool format — embedded in tool_save description so AI always has it
 _TOOL_FORMAT = """ENABLED = True
 AVAILABLE_FUNCTIONS = ['my_func']
 TOOLS = [
@@ -78,19 +86,6 @@ TOOLS = [
     }
 ]
 
-# Optional: settings that appear in the Settings page under Custom Tools tab.
-# Use unique prefixed keys (e.g. MYTOOL_API_KEY) to avoid collisions.
-# Types are inferred from defaults: str=text, int/float=number, bool=toggle.
-# Access in execute() via config.MYTOOL_API_KEY
-SETTINGS = {
-    'MYFUNC_ENABLED': True,
-    'MYFUNC_TIMEOUT': 30,
-}
-SETTINGS_HELP = {
-    'MYFUNC_ENABLED': 'Enable or disable this tool',
-    'MYFUNC_TIMEOUT': 'Request timeout in seconds',
-}
-
 def execute(function_name, arguments, config):
     if function_name == 'my_func':
         query = arguments.get('query', '')
@@ -102,8 +97,8 @@ TOOLS = [
         "type": "function",
         "is_local": True,
         "function": {
-            "name": "tool_activate",
-            "description": "Restart the app to load new/modified custom tools. This ends the current conversation — save progress to goals first.",
+            "name": "tool_load",
+            "description": "Activate newly saved tools. Discovers and loads the plugin live — no restart needed.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -116,13 +111,13 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "tool_read",
-            "description": "Read a custom tool's source code. Call without name to list all custom tools.",
+            "description": "Read a custom tool's source code. Call without name to list all AI-created plugins.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Tool module name (without .py). Omit to list all custom tools."
+                        "description": "Plugin name (without .py). Omit to list all AI-created plugins."
                     }
                 },
                 "required": []
@@ -134,13 +129,13 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "tool_save",
-            "description": f"Create or update a custom tool module. Validates code (AST + smoke test) before saving to user/functions/. Overwrites if exists. After saving, call tool_activate to load.\n\nBefore creating a tool, call search_help_docs(\"TOOLS\") for the full tool format reference and rules.\n\nRequired format:\n{_TOOL_FORMAT}",
+            "description": f"Create or update a custom tool plugin. Validates code (AST + smoke test) before saving as a plugin. Overwrites if exists. After saving, call tool_load to activate live.\n\nFor settings, multi-function tools, and advanced features: call search_help_docs(\"TOOLMAKER\")\n\nMinimal format:\n{_TOOL_FORMAT}",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Module name — alphanumeric and underscores only, no .py"
+                        "description": "Plugin name — alphanumeric and underscores only, no .py"
                     },
                     "code": {
                         "type": "string",
@@ -236,31 +231,105 @@ def _smoke_test(filepath):
     if not module.TOOLS:
         return False, "TOOLS list is empty"
 
-    return True, ""
+    return True, module
 
 
-def _list_custom_tools():
-    """List custom tools in user/functions/."""
-    _USER_FUNCTIONS.mkdir(parents=True, exist_ok=True)
-    tools = sorted(
-        f.stem for f in _USER_FUNCTIONS.glob("*.py")
-        if not f.name.startswith("_")
-    )
-    if not tools:
-        return "No custom tools found."
-    return "Custom tools: " + ", ".join(tools)
+def _settings_to_schema(settings_dict, help_dict=None):
+    """Convert SETTINGS dict to manifest settings schema."""
+    schema = []
+    for key, default in settings_dict.items():
+        field = {"key": key, "label": key.replace("_", " ").title(), "default": default}
+        if isinstance(default, bool):
+            field["type"] = "boolean"
+        elif isinstance(default, (int, float)):
+            field["type"] = "number"
+        else:
+            field["type"] = "string"
+        if help_dict and key in help_dict:
+            field["help"] = help_dict[key]
+        schema.append(field)
+    return schema
+
+
+def _generate_manifest(name, module, code):
+    """Generate plugin.json manifest from validated module."""
+    # Title from plugin name: weather_lookup → Weather Lookup
+    title = name.replace('_', ' ').title()
+
+    # Description from first tool's description (first sentence, capped)
+    tool_desc = ''
+    if module.TOOLS:
+        func = module.TOOLS[0].get('function', {})
+        tool_desc = func.get('description', '').split('.')[0].strip()[:80]
+
+    # Convention: "Title — short description" (API splits on — for display title)
+    description = f"{title} — {tool_desc}" if tool_desc else title
+
+    manifest = {
+        "name": name,
+        "version": "1.0.0",
+        "description": description,
+        "author": "ai-toolmaker",
+        "default_enabled": True,
+        "capabilities": {
+            "tools": [f"tools/{name}.py"]
+        }
+    }
+
+    # Convert SETTINGS dict to manifest schema
+    settings_dict = getattr(module, 'SETTINGS', None)
+    if isinstance(settings_dict, dict) and settings_dict:
+        help_dict = getattr(module, 'SETTINGS_HELP', None)
+        manifest["capabilities"]["settings"] = _settings_to_schema(
+            settings_dict, help_dict if isinstance(help_dict, dict) else None
+        )
+
+    return manifest
+
+
+def _list_user_plugins():
+    """List AI-created plugins in user/plugins/."""
+    if not _USER_PLUGINS.exists():
+        return "No AI-created plugins found."
+    plugins = []
+    for child in sorted(_USER_PLUGINS.iterdir()):
+        if not child.is_dir():
+            continue
+        manifest_path = child / "plugin.json"
+        if not manifest_path.exists():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+            tool_names = []
+            tools_dir = child / "tools"
+            if tools_dir.exists():
+                for py in tools_dir.glob("*.py"):
+                    if not py.name.startswith("_"):
+                        tool_names.append(py.stem)
+            plugins.append(f"  {child.name} ({', '.join(tool_names) or 'no tools'})")
+        except Exception:
+            plugins.append(f"  {child.name} (broken manifest)")
+    if not plugins:
+        return "No AI-created plugins found."
+    return "AI-created plugins:\n" + "\n".join(plugins)
 
 
 def _sanitize_name(name):
-    """Sanitize module name. Returns None if invalid."""
-    name = name.strip().lower().replace('.py', '')
+    """Sanitize plugin name. Returns None if invalid."""
+    name = name.strip().lower().replace('.py', '').replace('-', '_')
     if not name or not all(c.isalnum() or c == '_' for c in name):
         return None
     if name.startswith('_'):
         return None
+    # Block reserved names
+    if name in _RESERVED_NAMES:
+        return None
     # Block overwriting core tools
     core_dir = _PROJECT_ROOT / "functions"
     if (core_dir / f"{name}.py").exists():
+        return None
+    # Block overwriting system plugins
+    if ((_PROJECT_ROOT / "plugins" / name)).exists():
         return None
     return name
 
@@ -270,7 +339,7 @@ def execute(function_name, arguments, config):
         if function_name == 'tool_save':
             name = _sanitize_name(arguments.get('name', ''))
             if not name:
-                return "Invalid or reserved name. Use alphanumeric/underscores, cannot match core tool names.", False
+                return "Invalid or reserved name. Use alphanumeric/underscores, cannot match core tools or system plugins.", False
 
             code = arguments.get('code', '')
             if not code.strip():
@@ -282,43 +351,87 @@ def execute(function_name, arguments, config):
             if not ok:
                 return f"Validation failed ({strictness} mode): {err}", False
 
-            # Write file
-            _USER_FUNCTIONS.mkdir(parents=True, exist_ok=True)
-            filepath = _USER_FUNCTIONS / f"{name}.py"
+            # Create plugin directory structure
+            plugin_dir = _USER_PLUGINS / name
+            tools_dir = plugin_dir / "tools"
+            tools_dir.mkdir(parents=True, exist_ok=True)
+            filepath = tools_dir / f"{name}.py"
             filepath.write_text(code, encoding='utf-8')
 
             # Smoke test
-            ok, err = _smoke_test(filepath)
+            ok, result = _smoke_test(filepath)
             if not ok:
-                filepath.unlink(missing_ok=True)
-                return f"Smoke test failed: {err}\nFile removed — fix and retry.", False
+                shutil.rmtree(plugin_dir, ignore_errors=True)
+                return f"Smoke test failed: {result}\nPlugin directory removed — fix and retry.", False
 
-            tool_list = _list_custom_tools()
-            return f"Tool '{name}' saved and validated.\n{tool_list}\nNow call tool_activate to reload tools.", True
+            # Generate and write manifest
+            manifest = _generate_manifest(name, result, code)
+            manifest_path = plugin_dir / "plugin.json"
+            manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+
+            plugin_list = _list_user_plugins()
+            return f"Plugin '{name}' saved and validated.\n{plugin_list}\nNow call tool_load to activate.", True
 
         elif function_name == 'tool_read':
             name = arguments.get('name')
             if not name:
-                return _list_custom_tools(), True
+                return _list_user_plugins(), True
 
-            clean = name.strip().lower().replace('.py', '')
-            filepath = _USER_FUNCTIONS / f"{clean}.py"
-            if not filepath.exists():
-                return f"Tool '{clean}' not found.\n{_list_custom_tools()}", False
+            clean = name.strip().lower().replace('.py', '').replace('-', '_')
+            # Check user plugins first
+            plugin_tool = _USER_PLUGINS / clean / "tools" / f"{clean}.py"
+            if plugin_tool.exists():
+                code = plugin_tool.read_text(encoding='utf-8')
+                return f"=== {clean} (user plugin) ===\n{code}", True
 
-            code = filepath.read_text(encoding='utf-8')
-            return f"=== {clean}.py ===\n{code}", True
+            # Check legacy user/functions/ for backward compat
+            legacy = _PROJECT_ROOT / "user" / "functions" / f"{clean}.py"
+            if legacy.exists():
+                code = legacy.read_text(encoding='utf-8')
+                return f"=== {clean} (legacy user/functions/) ===\n{code}", True
 
-        elif function_name == 'tool_activate':
-            def _delayed_restart():
-                time.sleep(5)
-                from core.api_fastapi import _restart_callback
-                if _restart_callback:
-                    _restart_callback()
+            return f"Tool '{clean}' not found.\n{_list_user_plugins()}", False
+
+        elif function_name == 'tool_load':
+            try:
+                from core.plugin_loader import plugin_loader
+                result = plugin_loader.rescan()
+                added = result.get("added", [])
+
+                # Reload any already-loaded user plugins (handles tool updates)
+                reloaded = []
+                if _USER_PLUGINS.exists():
+                    for child in _USER_PLUGINS.iterdir():
+                        if not child.is_dir():
+                            continue
+                        name = child.name
+                        info = plugin_loader.get_plugin_info(name)
+                        if info and info.get("loaded") and name not in added:
+                            plugin_loader.reload_plugin(name)
+                            reloaded.append(name)
+
+                # Re-sync toolset so new/updated tools are available
+                try:
+                    from core.api_fastapi import get_system
+                    system = get_system()
+                    if system and hasattr(system, 'llm_chat'):
+                        toolset_info = system.llm_chat.function_manager.get_current_toolset_info()
+                        toolset_name = toolset_info.get("name", "custom")
+                        system.llm_chat.function_manager.update_enabled_functions([toolset_name])
+                except Exception:
+                    pass
+
+                parts = []
+                if added:
+                    parts.append(f"Loaded {len(added)} new: {', '.join(added)}")
+                if reloaded:
+                    parts.append(f"Reloaded {len(reloaded)} updated: {', '.join(reloaded)}")
+                if parts:
+                    return f"{'. '.join(parts)}. Tools are now available.", True
                 else:
-                    logger.error("No restart callback available")
-            threading.Thread(target=_delayed_restart, daemon=True).start()
-            return "Restart will trigger in ~5 seconds — tools reload on startup.", True
+                    return "Rescan complete — no changes detected.", True
+            except Exception as e:
+                return f"Load failed: {e}", False
 
         return f"Unknown function: {function_name}", False
 

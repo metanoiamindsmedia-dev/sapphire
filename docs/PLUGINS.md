@@ -187,9 +187,54 @@ Cron tasks that run a Python handler:
 
 Tasks appear in the Schedule UI and are removed when the plugin is disabled.
 
-### web (Settings UI)
+### settings (Manifest-Declared)
 
-Plugins with a `web/` subdirectory can provide a settings tab:
+Declare settings in the manifest and they auto-render in the web UI — no JavaScript needed:
+
+```json
+"capabilities": {
+  "settings": [
+    {"key": "api_key", "type": "string", "label": "API Key", "default": "", "widget": "password", "help": "Your API key"},
+    {"key": "units", "type": "string", "label": "Units", "default": "metric", "options": [{"label": "Metric", "value": "metric"}, {"label": "Imperial", "value": "imperial"}]},
+    {"key": "cache_min", "type": "number", "label": "Cache (min)", "default": 15},
+    {"key": "enabled", "type": "boolean", "label": "Enabled", "default": true}
+  ]
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `key` | yes | Setting key (unique within plugin) |
+| `type` | yes | `"string"`, `"number"`, `"boolean"` |
+| `label` | yes | Display name |
+| `default` | yes | Default value |
+| `help` | no | Description text |
+| `widget` | no | Override: `"textarea"`, `"password"`, `"select"`, `"radio"` |
+| `options` | no | `[{label, value}]` for select/radio |
+| `placeholder` | no | Input hint text |
+| `confirm` | no | Danger confirm gate (see below) |
+
+Widget inference when omitted: `string` → text, `string` + `options` → select, `number` → number spinner, `boolean` → toggle.
+
+**Danger confirm on field values:** Any field can have a `confirm` object that shows a danger dialog when a specific value is selected:
+
+```json
+{
+    "key": "validation", "type": "string", "label": "Validation", "default": "moderate",
+    "confirm": {
+        "values": ["trust"],
+        "title": "Trust Mode",
+        "warnings": ["Warning 1", "Warning 2"],
+        "buttonLabel": "Enable Trust Mode"
+    }
+}
+```
+
+Settings are stored at `user/webui/plugins/{name}.json` and read via `plugin_loader.get_plugin_settings(name)` (merges stored values with manifest defaults).
+
+### web (Custom Settings UI)
+
+For settings that need custom JavaScript beyond what manifest settings provide, plugins can ship a `web/` subdirectory:
 
 ```json
 "capabilities": {
@@ -200,6 +245,8 @@ Plugins with a `web/` subdirectory can provide a settings tab:
 ```
 
 Assets are served at `/plugin-web/{name}/`. See [Web Settings UI](#web-settings-ui) below.
+
+**Note:** Most plugins should use manifest `settings` instead — it's simpler and requires no JavaScript. Use `web` only for complex interactive UIs.
 
 ---
 
@@ -1158,6 +1205,8 @@ Use CSS variables for theme compatibility. Key variables:
 ---
 
 ## For Sapphire (AI Self-Reference)
+
+For simple tool creation (tool_save/tool_load), see TOOLMAKER doc — this section covers full plugin development.
 
 When creating or modifying plugins:
 

@@ -274,6 +274,18 @@ class PluginLoader:
             info["schedule_task_ids"] = task_ids
 
         info["loaded"] = True
+
+        # Seed default settings if manifest declares schema and no settings file exists
+        settings_schema = capabilities.get("settings", [])
+        if settings_schema:
+            settings_file = PROJECT_ROOT / "user" / "webui" / "plugins" / f"{name}.json"
+            if not settings_file.exists():
+                defaults = {f["key"]: f["default"] for f in settings_schema if "key" in f and "default" in f}
+                if defaults:
+                    settings_file.parent.mkdir(parents=True, exist_ok=True)
+                    settings_file.write_text(json.dumps(defaults, indent=2), encoding="utf-8")
+                    logger.debug(f"[PLUGINS] Seeded default settings for {name}")
+
         logger.info(f"[PLUGINS] Loaded: {name} (priority {base_priority}, {band})")
         return True
 
@@ -374,11 +386,22 @@ class PluginLoader:
     def reload_plugin(self, name: str):
         """Unload and reload a plugin. Safe — if reload fails, plugin stays unloaded.
 
+        Re-reads manifest from disk so code/settings changes take effect.
         Also re-enables plugin tools in the active toolset.
         """
         self.unload_plugin(name)
         with self._lock:
             should_load = name in self._plugins and self._plugins[name]["enabled"]
+            # Re-read manifest from disk (tool code or settings may have changed)
+            if name in self._plugins:
+                manifest_path = self._plugins[name]["path"] / "plugin.json"
+                if manifest_path.exists():
+                    try:
+                        self._plugins[name]["manifest"] = json.loads(
+                            manifest_path.read_text(encoding="utf-8")
+                        )
+                    except Exception as e:
+                        logger.warning(f"[PLUGINS] Failed to re-read manifest for {name}: {e}")
         if should_load:
             try:
                 self._load_plugin(name)
@@ -506,6 +529,24 @@ class PluginLoader:
         if new_found or removed:
             logger.info(f"[PLUGINS] Rescan: {len(new_found)} added, {len(removed)} removed")
         return {"added": new_found, "removed": removed}
+
+    # ── Settings helpers ──
+
+    def get_plugin_settings(self, name: str) -> dict:
+        """Read plugin settings, merged with manifest defaults."""
+        defaults = {}
+        info = self._plugins.get(name)
+        if info:
+            schema = info["manifest"].get("capabilities", {}).get("settings", [])
+            defaults = {f["key"]: f["default"] for f in schema if "key" in f and "default" in f}
+        path = PROJECT_ROOT / "user" / "webui" / "plugins" / f"{name}.json"
+        stored = {}
+        if path.exists():
+            try:
+                stored = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return {**defaults, **stored}
 
     # ── Query methods ──
 

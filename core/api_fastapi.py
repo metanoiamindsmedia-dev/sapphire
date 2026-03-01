@@ -4187,6 +4187,13 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                 manifest = info.get("manifest", {})
                 plugin_dir = info.get("path", "")
                 has_web = (Path(plugin_dir) / "web" / "index.js").exists() if plugin_dir else False
+                settings_schema = manifest.get("capabilities", {}).get("settings")
+                if has_web:
+                    settings_ui = "plugin"
+                elif settings_schema:
+                    settings_ui = "manifest"
+                else:
+                    settings_ui = None
                 result.append({
                     "name": info["name"],
                     "enabled": info.get("enabled", info["name"] in enabled_set),
@@ -4194,7 +4201,8 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                     "title": manifest.get("description", info["name"]).split("—")[0].strip(),
                     "showInSidebar": False,
                     "collapsible": True,
-                    "settingsUI": "plugin" if has_web else None,
+                    "settingsUI": settings_ui,
+                    "settings_schema": settings_schema,
                     "verified": info.get("verified"),
                     "verify_msg": info.get("verify_msg"),
                     "url": manifest.get("url"),
@@ -4333,17 +4341,22 @@ def _require_known_plugin(plugin_name: str):
 
 @app.get("/api/webui/plugins/{plugin_name}/settings")
 async def get_plugin_settings(plugin_name: str, request: Request, _=Depends(require_login)):
-    """Get plugin settings."""
+    """Get plugin settings, merged with manifest defaults."""
     _require_known_plugin(plugin_name)
-    settings_file = USER_PLUGIN_SETTINGS_DIR / f"{plugin_name}.json"
-    if not settings_file.exists():
-        return {"plugin": plugin_name, "settings": {}}
     try:
-        with open(settings_file, encoding='utf-8') as f:
-            settings = json.load(f)
-        return {"plugin": plugin_name, "settings": settings}
+        from core.plugin_loader import plugin_loader
+        settings = plugin_loader.get_plugin_settings(plugin_name)
     except Exception:
-        return {"plugin": plugin_name, "settings": {}}
+        # Fallback: read file directly
+        settings_file = USER_PLUGIN_SETTINGS_DIR / f"{plugin_name}.json"
+        settings = {}
+        if settings_file.exists():
+            try:
+                with open(settings_file, encoding='utf-8') as f:
+                    settings = json.load(f)
+            except Exception:
+                pass
+    return {"plugin": plugin_name, "settings": settings}
 
 
 @app.put("/api/webui/plugins/{plugin_name}/settings")
@@ -4369,28 +4382,6 @@ async def reset_plugin_settings(plugin_name: str, request: Request, _=Depends(re
     if settings_file.exists():
         settings_file.unlink()
     return {"status": "success", "plugin": plugin_name, "message": "Settings reset"}
-
-
-@app.get("/api/webui/plugins/toolmaker/tools")
-async def list_toolmaker_tools(request: Request, _=Depends(require_login)):
-    """List custom tools installed by Tool Maker."""
-    user_functions = PROJECT_ROOT / 'user' / 'functions'
-    tools = []
-    if user_functions.exists():
-        for py_file in sorted(user_functions.glob("*.py")):
-            if py_file.name.startswith("_"):
-                continue
-            # Extract function names from TOOLS list
-            funcs = []
-            try:
-                content = py_file.read_text()
-                import re
-                for m in re.finditer(r"'name':\s*'(\w+)'", content):
-                    funcs.append(m.group(1))
-            except Exception:
-                pass
-            tools.append({"module": py_file.stem, "functions": funcs})
-    return {"tools": tools}
 
 
 @app.get("/api/webui/plugins/config")

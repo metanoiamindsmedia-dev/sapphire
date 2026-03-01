@@ -81,6 +81,25 @@ async function loadPluginList() {
 
 async function loadPluginTab(name, source) {
     try {
+        if (source === 'manifest') {
+            const plugin = pluginList.find(p => p.name === name);
+            if (!plugin?.settings_schema) return;
+            const { renderSettingsForm, readSettingsForm } = await import('/static/shared/plugin-settings-renderer.js');
+            const { registerPluginSettings } = await import('/static/shared/plugin-registry.js');
+            const pluginsAPI = (await import('/static/shared/plugins-api.js')).default;
+            registerPluginSettings({
+                id: name,
+                name: plugin.title || name,
+                icon: '\u2699\uFE0F',
+                helpText: `${plugin.title || name} settings`,
+                render: (box, settings) => renderSettingsForm(box, plugin.settings_schema, settings),
+                load: () => pluginsAPI.getSettings(name),
+                save: (s) => pluginsAPI.saveSettings(name, s),
+                getSettings: (box) => readSettingsForm(box, plugin.settings_schema),
+            });
+            syncDynamicTabs();
+            return;
+        }
         const _v = window.__v ? `?v=${window.__v}` : '';
         const url = source === 'plugin'
             ? `/plugin-web/${name}/index.js${_v}`

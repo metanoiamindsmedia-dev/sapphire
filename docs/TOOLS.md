@@ -1,16 +1,16 @@
 # Tools
 
-Tools are functions the AI can call to interact with the world - search the web, save memories, control devices, etc. Unlike plugins (which YOU trigger with keywords), the AI decides when to use tools based on context.
+Tools are functions the AI can call to interact with the world — search the web, save memories, control devices, etc. The AI decides when to use tools based on context.
 
-**Terminology:** In Sapphire, "tools", "functions", and "abilities" are used interchangeably. They all mean the same thing: capabilities the AI can invoke.
+**Terminology:** In Sapphire, "tools", "functions", and "abilities" are used interchangeably.
 
 ## What Are Tools?
 
-When you ask the AI something like "search for news about SpaceX", the AI recognizes it needs the `web_search` tool and calls it automatically. You don't say a magic keyword - the AI figures it out from your request.
+When you ask the AI something like "search for news about SpaceX", the AI recognizes it needs the `web_search` tool and calls it automatically. You don't say a magic keyword — the AI figures it out from your request.
 
-**Tools vs Plugins:**
+**Tools vs Voice Commands:**
 - **Tools**: The AI decides to call them. Contextual, flexible.
-- **Plugins**: YOU trigger them with keywords. Deterministic, predictable.
+- **Voice Commands**: YOU trigger them with keywords. Deterministic, predictable. Declared via plugins.
 
 ## Using Tools
 
@@ -19,7 +19,7 @@ When you ask the AI something like "search for news about SpaceX", the AI recogn
 
 ### Toolsets
 
-Tools are grouped into **toolsets** - named collections you can switch between. Each persona can have its own custom set of tools you choose. See [TOOLSETS.md](TOOLSETS.md).
+Tools are grouped into **toolsets** — named collections you can switch between. Each persona can have its own custom set of tools you choose. See [TOOLSETS.md](TOOLSETS.md).
 
 ---
 
@@ -81,9 +81,9 @@ Sapphire ships with 15 tool modules containing 65+ functions:
 
 | Tool | Module | What it does |
 |------|--------|--------------|
-| `tool_save` | toolmaker.py | Create/update custom tool (validated) |
+| `tool_save` | toolmaker.py | Create/update custom tool plugin (validated) |
 | `tool_read` | toolmaker.py | Read custom tool source code |
-| `tool_activate` | toolmaker.py | Restart app to load new tools |
+| `tool_load` | toolmaker.py | Activate new tools live (no restart) |
 
 ### Integrations
 
@@ -126,235 +126,58 @@ Sapphire ships with 15 tool modules containing 65+ functions:
 
 ## Managing Tools
 
-### Locations
+### Where Tools Live
+
+Tools are provided by **plugins**. Core tools live in `functions/`, plugin tools in `plugins/*/tools/`, and AI-created tools in `user/plugins/*/tools/`.
 
 | Path | Purpose | Git Tracked |
 |------|---------|-------------|
 | `functions/` | Core tools | Yes |
-| `user/functions/` | Your custom tools | No |
+| `plugins/*/tools/` | Plugin tools (HA, SSH, email, bitcoin, toolmaker) | Yes |
+| `user/plugins/*/tools/` | AI-created tool plugins | No |
+| `user/functions/` | Legacy custom tools (deprecated) | No |
 
 ### Enable/Disable
 
-Each tool file has `ENABLED = True/False` at the top. Set to `False` to disable without deleting.
+Tools are managed through **toolsets** and **plugins**:
+- **Toolsets**: Choose which tools are available per chat/persona. See [TOOLSETS.md](TOOLSETS.md).
+- **Plugins**: Enable/disable entire plugins (and their tools) in Settings > Plugins. Changes are live.
 
-## Custom Toolsets
+---
 
-Use the **Toolset Manager** in the web UI. See [TOOLSETS.md](TOOLSETS.md).
+## AI Tool Creation (Tool Maker)
 
-## AI Self-Creating Tools (Tool Maker)
+Sapphire can create her own tools using the **Tool Maker** plugin. The AI writes a tool, validates it, saves it as a plugin, and loads it live — no restart needed.
 
-Sapphire can create her own tools using the **Tool Maker** (`tool_save`, `tool_read`, `tool_activate`). The AI writes a tool module, validates it, saves to `user/functions/`, and restarts to load it. No manual file editing needed.
+Tools: `tool_save`, `tool_read`, `tool_load`
 
-<img width="50%" alt="sapphire-settings-custom-tools" src="https://github.com/user-attachments/assets/7418ab5f-a855-4649-833e-9f497b03085c" />
+For the full Tool Maker guide (format, settings, examples): see [TOOLMAKER.md](TOOLMAKER.md).
 
-
-**Validation strictness** is a user setting (`TOOL_MAKER_VALIDATION`):
+**Validation strictness** (configurable in Settings > Tool Maker):
 - `strict` — Only allowlisted imports (json, re, datetime, math, requests, etc.)
 - `moderate` — Blocks dangerous operations (subprocess, shutil, eval, os.system, etc.)
 - `trust` — Syntax check only
 
-New tools appear in the **All** toolset automatically. Add them to other toolsets via the Toolset Manager.
+AI-created tools appear as plugins and can be enabled/disabled like any plugin.
 
-## Creating Tools Manually
+---
 
-You can also create tools by hand or with an external AI:
+## Creating Plugins Manually
 
-> Create a Sapphire tool that [describe what you want].
->
-> **Tool file requirements:**
-> - Location: `functions/{name}.py` or `user/functions/{name}.py`
-> - Must export: `ENABLED`, `AVAILABLE_FUNCTIONS`, `TOOLS`, and `execute()` function
-> - `execute()` returns tuple: `(result_string, success_bool)`
-> - Tool definitions use OpenAI function calling schema
->
-> **Example tool file:**
-> ```python
-> import logging
->
-> logger = logging.getLogger(__name__)
->
-> ENABLED = True
->
-> AVAILABLE_FUNCTIONS = ['my_tool']
->
-> TOOLS = [
->     {
->         "type": "function",
->         "function": {
->             "name": "my_tool",
->             "description": "What this does and WHEN to use it",
->             "parameters": {
->                 "type": "object",
->                 "properties": {
->                     "query": {
->                         "type": "string",
->                         "description": "The search query"
->                     }
->                 },
->                 "required": ["query"]
->             }
->         }
->     }
-> ]
->
-> def execute(function_name, arguments, config):
->     try:
->         if function_name == "my_tool":
->             query = arguments.get('query')
->             if not query:
->                 return "I need a query.", False
->
->             # Do the work here
->             result = f"Processed: {query}"
->             return result, True
->
->         return f"Unknown function: {function_name}", False
->     except Exception as e:
->         logger.error(f"{function_name} error: {e}")
->         return f"Error: {str(e)}", False
-> ```
->
-> Give me the complete file, ready to drop in.
+For full plugin development (tools + hooks + voice commands + schedules + web UI), see [PLUGINS.md](PLUGINS.md).
 
-After the AI gives you the file:
-1. Save to `user/functions/your_tool.py`
-2. Add to a toolset (UI or JSON)
-3. Restart Sapphire
+---
 
-## Technical Reference
+## Troubleshooting
 
-Condensed reference for developers and AI assistants.
-
-### File Structure
-
-```python
-# functions/example.py
-
-import logging
-
-logger = logging.getLogger(__name__)
-
-ENABLED = True                          # Set False to disable
-
-AVAILABLE_FUNCTIONS = ['func_name']     # List of function names
-
-TOOLS = [...]                           # OpenAI schema (see below)
-
-def execute(function_name, arguments, config):
-    """Returns (result_string, success_bool)"""
-    ...
-```
-
-### Tool Definition (OpenAI Schema)
-
-```python
-{
-    "type": "function",
-    "network": True,  # Optional: marks tool as using network (highlighted in UI)
-    "function": {
-        "name": "function_name",
-        "description": "What it does and WHEN to use it",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "param_name": {
-                    "type": "string",       # string, integer, number, boolean, array, object
-                    "description": "What this is for"
-                }
-            },
-            "required": ["param_name"]
-        }
-    }
-}
-```
-
-### Network Flag
-
-Add `"network": True` to tool definitions that access external services (web, APIs, cloud). These tools are highlighted orange in the UI so users know data may leave the machine. SOCKS proxy routing also uses this flag.
-
-**No parameters:**
-```python
-"parameters": {"type": "object", "properties": {}, "required": []}
-```
-
-### execute() Function
-
-```python
-def execute(function_name, arguments, config):
-    """
-    Args:
-        function_name: Which tool was called
-        arguments: Dict of arguments from the AI
-        config: Sapphire config module
-
-    Returns:
-        (result_string, success_bool)
-    """
-    if function_name == "my_tool":
-        query = arguments.get('query')
-        if not query:
-            return "I need a query.", False
-        return f"Result: {query}", True
-
-    return f"Unknown: {function_name}", False
-```
-
-**Return values:**
-- `return "Success message", True` - Worked
-- `return "Error message", False` - Failed (AI sees this)
-- `return "No results for X", True` - Empty result (not an error)
-
-### Tool Settings (Optional)
-
-Tools can declare settings that appear in the Settings page under Custom Tools:
-
-```python
-SETTINGS = {
-    'MYTOOL_API_KEY': '',          # string -> text input
-    'MYTOOL_TIMEOUT': 30,          # number -> number input
-    'MYTOOL_ENABLED': True,        # bool -> toggle
-}
-SETTINGS_HELP = {
-    'MYTOOL_API_KEY': 'API key for the external service',
-    'MYTOOL_TIMEOUT': 'Request timeout in seconds',
-}
-```
-
-- Prefix keys with tool name (e.g. `MYTOOL_`) to avoid collisions
-- Access in `execute()` via `config.MYTOOL_API_KEY`
-- Types inferred from default values
-
-### Best Practices
-
-**Descriptions matter:** The AI uses descriptions to decide WHEN to call tools.
-```python
-# Good - tells AI when to use it
-"description": "Search the web for URLs. Use get_website to read content."
-
-# Bad - doesn't help AI decide
-"description": "Searches the web"
-```
-
-**Lazy imports:** For heavy dependencies, import inside execute():
-```python
-def execute(function_name, arguments, config):
-    if function_name == "heavy_tool":
-        import heavy_library  # Only loaded when called
-```
-
-### Files Reference
-
-| Path | Purpose |
-|------|---------|
-| `functions/` | Core tools |
-| `user/functions/` | Your custom tools |
-| `core/modules/system/toolsets/toolsets.json` | Default toolsets |
-| `user/toolsets/toolsets.json` | Your toolset overrides |
-| `core/chat/function_manager.py` | Tool loading system |
+- **Tool not working**: Check it's in the active toolset (Settings > Toolsets or chat sidebar)
+- **"No executor"**: Tool file missing or has import errors — check logs
+- **Network tools failing**: Check SOCKS proxy settings if enabled
+- **AI-created tool not loading**: Call `tool_load()` after `tool_save()`, or use Rescan in Settings > Plugins
 
 ## Reference for AI
 
-Tools are functions the AI calls to interact with systems - web search, memory, device control.
+Tools are functions the AI calls to interact with systems — web search, memory, device control.
 
 TOOL MODULES (15 total, 65+ functions):
 - memory.py: save_memory, search_memory, get_recent_memories, delete_memory
@@ -363,7 +186,7 @@ TOOL MODULES (15 total, 65+ functions):
 - web.py: web_search, get_website, get_wikipedia, research_topic, get_site_links, get_images
 - ai.py: ask_claude
 - meta.py: view_prompt, switch_prompt, edit_prompt, set_piece, remove_piece, create_piece, list_pieces, reset_chat, change_username, set_tts_voice, list_tools, get_time
-- toolmaker.py: tool_save, tool_read, tool_activate
+- toolmaker.py: tool_save, tool_read, tool_load
 - homeassistant.py: 12 HA control functions
 - image.py: generate_scene_image
 - email_tool.py: get_inbox, read_email, archive_emails, get_recipients, send_email
@@ -373,31 +196,7 @@ TOOL MODULES (15 total, 65+ functions):
 - notepad.py: notepad_read, notepad_append_lines, notepad_delete_lines, notepad_insert_line
 - docs.py: search_help_docs
 
-TOOL FILE FORMAT:
-```python
-ENABLED = True
-AVAILABLE_FUNCTIONS = ['my_func']
-TOOLS = [{"type": "function", "function": {"name": "my_func", "description": "...", "parameters": {...}}}]
-def execute(function_name, arguments, config):
-    return "result", True  # (string, bool) tuple
-```
-
-TOOL FORMAT RULES:
-- function.description: critical — this is how AI decides WHEN to call
-- execute() returns (result_string, success_bool) tuple
-- "is_local": True = offline, False = network, "endpoint" = conditional
-- "network": True = highlighted in UI, routed through SOCKS
-- Optional: EMOJI, MODE_FILTER, SETTINGS, SETTINGS_HELP
-
-TOOL SETTINGS:
-- SETTINGS dict: str=text, int/float=number, bool=toggle
-- SETTINGS_HELP dict: descriptions shown under fields
-- Access via config.SETTING_NAME in execute()
-
-VALIDATION (tool_save):
-- strict: allowlisted imports only
-- moderate: blocks dangerous ops
-- trust: syntax check only
+TOOL CREATION: Use tool_save + tool_load. For format and rules, see TOOLMAKER doc.
 
 TROUBLESHOOTING:
 - Tool not working: Check it's in active toolset

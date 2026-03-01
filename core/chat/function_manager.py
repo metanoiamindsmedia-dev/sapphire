@@ -67,11 +67,15 @@ class FunctionManager:
         base_functions_dir = Path(__file__).parent.parent.parent / "functions"
         base_dir = Path(__file__).parent.parent.parent 
 
+        user_functions = base_dir / "user/functions"
+        if user_functions.exists() and any(user_functions.glob("*.py")):
+            logger.warning("Deprecated: user/functions/ detected. Migrate to user/plugins/ format (use toolmaker).")
+
         search_paths = [
             base_functions_dir,
-            base_dir / "user/functions",
+            user_functions,
         ]
-        
+
         for search_dir in search_paths:
             if not search_dir.exists():
                 continue

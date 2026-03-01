@@ -76,7 +76,7 @@ const DANGER_PLUGINS = {
         stage2Title: '\u26A0 Final Confirmation — Code Execution',
         stage2Warnings: [
             'Custom tools persist across restarts',
-            'Review tools in user/functions/ periodically',
+            'Review AI-created plugins in user/plugins/ periodically',
             'Consider keeping Tool Maker out of public-facing chats',
         ],
     },
@@ -165,6 +165,13 @@ export default {
                             'Only enable this if you trust the source of your plugins',
                         ],
                         buttonLabel: 'Allow Unsigned',
+                        doubleConfirm: true,
+                        stage2Title: 'Final Confirmation — Unsigned Plugins',
+                        stage2Warnings: [
+                            'You are disabling signature verification for all non-system plugins',
+                            'This cannot be undone automatically — you must manually disable plugins if compromised',
+                            'Sapphire cannot guarantee the safety of unsigned code',
+                        ],
                     });
                     if (!confirmed) {
                         e.target.checked = false;
@@ -234,6 +241,28 @@ export default {
                 e.preventDefault();
                 e.target.checked = !e.target.checked;  // revert browser toggle
                 return;
+            }
+
+            // Per-plugin unsigned gate
+            if (e.target.checked) {
+                const plugin = ctx.pluginList.find(p => p.name === name);
+                if (plugin?.verify_msg === 'unsigned') {
+                    toggling.add(name);
+                    const unsignedOk = await showDangerConfirm({
+                        title: `Enable Unsigned Plugin: ${plugin.title || plugin.name}`,
+                        warnings: [
+                            'This plugin has no verified signature',
+                            'It will execute code with access to your system',
+                            'Review the plugin source before enabling',
+                        ],
+                        buttonLabel: 'Enable Plugin',
+                    });
+                    toggling.delete(name);
+                    if (!unsignedOk) {
+                        e.target.checked = false;
+                        return;
+                    }
+                }
             }
 
             // Danger gate for risky plugins on enable

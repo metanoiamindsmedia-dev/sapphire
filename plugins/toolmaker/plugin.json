@@ -1,11 +1,37 @@
 {
   "name": "toolmaker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Tool Maker — create, read, and activate custom tools",
   "author": "sapphire",
   "url": "https://sapphireblue.dev",
   "priority": 50,
   "capabilities": {
-    "tools": ["tools/toolmaker.py"]
+    "tools": ["tools/toolmaker.py"],
+    "settings": [
+      {
+        "key": "validation",
+        "type": "string",
+        "label": "Validation Level",
+        "default": "moderate",
+        "widget": "select",
+        "options": [
+          {"label": "Strict — allowlisted imports only", "value": "strict"},
+          {"label": "Moderate — blocks dangerous ops", "value": "moderate"},
+          {"label": "Trust — syntax check only", "value": "trust"}
+        ],
+        "help": "How strictly to validate AI-written tool code before installation",
+        "confirm": {
+          "values": ["trust"],
+          "title": "Trust Mode — No Validation",
+          "warnings": [
+            "Trust mode only checks for syntax errors",
+            "The AI can use ANY Python import including subprocess, socket, ctypes",
+            "This is equivalent to giving the AI unrestricted code execution",
+            "Only use this if you fully trust your LLM and prompt setup"
+          ],
+          "buttonLabel": "Enable Trust Mode"
+        }
+      }
+    ]
   }
 }
