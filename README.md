@@ -27,7 +27,7 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 - **Prompts** - [PROMPTS.md](docs/PROMPTS.md) Assembled prompts let you swap one section like location or emotions for dynamic feels.
 - **Spice** - [SPICE.md](docs/SPICE.md) Random prompt snippets injected each reply to keep things unpredictable.
 - **Self-Modification** - The AI edits its own prompt and swaps personality pieces and emotions mid-conversation.
-- **Tool Maker** - [TOOLS.md](docs/TOOLS.md) The AI writes, validates, and installs new tools with their own settings page at runtime.
+- **Tool Maker** - [TOOLMAKER.md](docs/TOOLMAKER.md) The AI writes, validates, and installs new tools with their own settings page at runtime.
 - **Stories** - [STORY-ENGINE.md](docs/STORY-ENGINE.md) Interactive stories, the AI is your dungeon master and partner, can't see the next room.
 - **Images** - [IMAGE-GEN.md](docs/IMAGE-GEN.md) SDXL with character replacement for visual consistency across scenes.
 
@@ -154,7 +154,9 @@ This removes the Python environment. Delete the `sapphire/` folder to remove eve
 
 ## Contributions
 
-I am a solo dev with a burning passion, and Sapphire has a specific vision I am working towards. Rapid development makes it hard for contributions right now, as the architecture is changing while I create the final plugin format. If you want you can reach me at ddxfish@gmail.com. 
+**Plugins are the way in.** Sapphire's [plugin system](docs/PLUGINS.md) supports tools, hooks, voice commands, scheduled tasks, settings UI, and web interfaces — all without touching core. Write a plugin, publish it to GitHub, and anyone can install it from Settings in one click. See the [plugin author guide](docs/PLUGINS.md) to get started.
+
+For core contributions or ideas, reach me at ddxfish@gmail.com.
 
 ## Licenses
 
