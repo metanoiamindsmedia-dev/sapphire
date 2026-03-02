@@ -179,7 +179,13 @@ class VoiceChatSystem:
             settings = self.llm_chat.session_manager.get_chat_settings()
             
             if "voice" in settings:
-                self.tts.set_voice(settings["voice"])
+                voice = settings["voice"]
+                provider = getattr(config, 'TTS_PROVIDER', 'none')
+                if voice and provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
+                    voice = 'af_heart'
+                elif voice and provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
+                    voice = getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
+                self.tts.set_voice(voice)
             if "pitch" in settings:
                 self.tts.set_pitch(settings["pitch"])
             if "speed" in settings:

@@ -74,6 +74,14 @@ def get_user_defaults() -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"Failed to load default persona '{default_persona}': {e}")
 
+    # Ensure voice matches active TTS provider
+    provider = getattr(config, 'TTS_PROVIDER', 'none')
+    voice = merged.get('voice', '')
+    if provider == 'elevenlabs' and voice and not (len(voice) >= 20 and voice.isalnum()):
+        merged['voice'] = getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
+    elif provider == 'kokoro' and voice and len(voice) >= 20 and voice.isalnum():
+        merged['voice'] = 'af_heart'
+
     return merged
 
 _tokenizer = None

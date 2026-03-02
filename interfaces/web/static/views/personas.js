@@ -8,6 +8,7 @@ import * as ui from '../ui.js';
 import { updateScene } from '../features/scene.js';
 import { applyTrimColor } from '../features/chat-settings.js';
 import { switchView } from '../core/router.js';
+import * as eventBus from '../core/event-bus.js';
 
 let container = null;
 let personas = [];
@@ -28,12 +29,26 @@ let initData = null;
 let llmProviders = [];
 let llmMetadata = {};
 let scopeData = { memory: [], goals: [], knowledge: [], people: [] };
+let voicesData = null;
 
 export default {
     init(el) {
         container = el;
         window.addEventListener('persona-select', e => {
             if (e.detail?.name) selectedName = e.detail.name;
+        });
+        eventBus.on('settings_changed', async (data) => {
+            if (data?.key !== 'TTS_PROVIDER') return;
+            try {
+                const resp = await fetch('/api/tts/voices');
+                if (resp.ok) voicesData = await resp.json();
+            } catch (e) { /* ignore */ }
+            // Re-render voice select if persona editor is visible
+            const voiceSel = container?.querySelector('#pa-s-voice');
+            if (voiceSel && voicesData) {
+                const current = voiceSel.value;
+                voiceSel.innerHTML = renderVoiceOptions(current);
+            }
         });
     },
     async show() {
@@ -55,14 +70,15 @@ export default {
 
 async function loadData() {
     try {
-        const [pRes, init, llmResp, memS, goalS, knowS, pplS] = await Promise.allSettled([
+        const [pRes, init, llmResp, memS, goalS, knowS, pplS, ttsResp] = await Promise.allSettled([
             listPersonas(),
             getInitData(),
             fetch('/api/llm/providers').then(r => r.ok ? r.json() : null),
             fetch('/api/memory/scopes').then(r => r.ok ? r.json() : null),
             fetch('/api/goals/scopes').then(r => r.ok ? r.json() : null),
             fetch('/api/knowledge/scopes').then(r => r.ok ? r.json() : null),
-            fetch('/api/knowledge/people/scopes').then(r => r.ok ? r.json() : null)
+            fetch('/api/knowledge/people/scopes').then(r => r.ok ? r.json() : null),
+            fetch('/api/tts/voices').then(r => r.ok ? r.json() : null)
         ]);
 
         personas = pRes.status === 'fulfilled' ? (pRes.value?.personas || []) : [];
@@ -80,6 +96,7 @@ async function loadData() {
             knowledge: knowS.status === 'fulfilled' ? (knowS.value?.scopes || []) : [],
             people: pplS.status === 'fulfilled' ? (pplS.value?.scopes || []) : []
         };
+        voicesData = ttsResp.status === 'fulfilled' ? ttsResp.value : null;
 
         if (!selectedName && personas.length) selectedName = personas[0].name;
         if (selectedName) {
@@ -317,18 +334,13 @@ function renderSpiceSetOptions(current) {
 }
 
 function renderVoiceOptions(current) {
-    const flag = v => v.startsWith('a') ? '\u{1F1FA}\u{1F1F8}' : '\u{1F1EC}\u{1F1E7}';
-    const gender = v => v[1] === 'm' ? '\u{1F468}' : '\u{1F469}';
-    const voices = [
-        ['am_adam', 'Adam'], ['am_eric', 'Eric'], ['am_liam', 'Liam'], ['am_michael', 'Michael'],
-        ['am_onyx', 'Onyx'], ['am_puck', 'Puck'],
-        ['af_bella', 'Bella'], ['af_nicole', 'Nicole'], ['af_heart', 'Heart'], ['af_jessica', 'Jessica'],
-        ['af_sarah', 'Sarah'], ['af_river', 'River'], ['af_sky', 'Sky'],
-        ['bf_emma', 'Emma'], ['bf_isabella', 'Isabella'], ['bf_alice', 'Alice'], ['bf_lily', 'Lily'],
-        ['bm_george', 'George'], ['bm_daniel', 'Daniel'], ['bm_lewis', 'Lewis'], ['bm_fable', 'Fable']
-    ];
-    return voices.map(([val, label]) =>
-        `<option value="${val}"${val === current ? ' selected' : ''}>${flag(val)}${gender(val)} ${label}</option>`
+    const voices = voicesData?.voices || [];
+    if (!voices.length) {
+        // Fallback: show current saved voice as placeholder
+        return current ? `<option value="${current}" selected>${current}</option>` : '<option value="">No TTS active</option>';
+    }
+    return voices.map(v =>
+        `<option value="${v.voice_id}"${v.voice_id === current ? ' selected' : ''}>${v.name}${v.category ? ' (' + v.category + ')' : ''}</option>`
     ).join('');
 }
 

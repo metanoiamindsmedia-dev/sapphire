@@ -1,6 +1,7 @@
 // views/chat.js - Chat view module with settings sidebar
 import * as api from '../api.js';
 import * as ui from '../ui.js';
+import * as eventBus from '../core/event-bus.js';
 import { getElements } from '../core/state.js';
 import { updateScene, updateSendButtonLLM } from '../features/scene.js';
 import { applyTrimColor } from '../features/chat-settings.js';
@@ -59,6 +60,11 @@ export default {
             chatSelect.addEventListener('change', () => loadSidebar());
             chatSelect.addEventListener('chat-list-ready', () => loadSidebar());
         }
+
+        // Refresh voice dropdown when TTS provider changes
+        eventBus.on('settings_changed', (data) => {
+            if (data?.key === 'TTS_PROVIDER') refreshVoiceDropdown();
+        });
 
         // Accordion headers in sidebar
         container.querySelectorAll('.sidebar-accordion-header').forEach(header => {
@@ -538,8 +544,12 @@ async function loadSidebar() {
             for (const v of voices) _voiceNames[v.voice_id] = v.name;
         }
 
-        // Set remaining form values
-        setVal(container, '#sb-voice', settings.voice || (ttsProvider === 'kokoro' ? 'af_heart' : ''));
+        // Set remaining form values — fall back to provider default if stored voice isn't in list
+        const desiredVoice = settings.voice || (ttsProvider === 'kokoro' ? 'af_heart' : '');
+        setVal(container, '#sb-voice', desiredVoice);
+        if (voiceSel && desiredVoice && voiceSel.value !== desiredVoice && ttsVoicesData?.default_voice) {
+            setVal(container, '#sb-voice', ttsVoicesData.default_voice);
+        }
         setVal(container, '#sb-pitch', settings.pitch || 0.94);
         setVal(container, '#sb-speed', settings.speed || 1.3);
         setVal(container, '#sb-spice-turns', settings.spice_turns || 3);
@@ -849,6 +859,44 @@ function setSidebarMode(container, mode) {
 
 // Dynamic voice name map — populated from /api/tts/voices in loadSidebar()
 let _voiceNames = {};
+
+async function refreshVoiceDropdown() {
+    const container = document.getElementById('view-chat');
+    if (!container) return;
+    const voiceSel = container.querySelector('#sb-voice');
+    if (!voiceSel) return;
+    try {
+        const resp = await fetch('/api/tts/voices');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const voices = data.voices || [];
+        const currentVoice = voiceSel.value;
+        if (voices.length) {
+            voiceSel.innerHTML = voices.map(v =>
+                `<option value="${v.voice_id}">${v.name}${v.category ? ' (' + v.category + ')' : ''}</option>`
+            ).join('');
+        } else {
+            voiceSel.innerHTML = '<option value="">No TTS active</option>';
+        }
+        _voiceNames = {};
+        for (const v of voices) _voiceNames[v.voice_id] = v.name;
+        // Keep current voice if it exists in new list, otherwise use provider default
+        let voiceChanged = false;
+        if (voices.some(v => v.voice_id === currentVoice)) {
+            voiceSel.value = currentVoice;
+        } else if (data.default_voice) {
+            voiceSel.value = data.default_voice;
+            voiceChanged = true;
+        }
+        // Save the new voice to chat so backend TTS uses it immediately
+        if (voiceChanged) {
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => saveSettings(container), 100);
+        }
+    } catch (e) {
+        console.warn('[chat] Failed to refresh voice dropdown:', e);
+    }
+}
 
 function updateEasyMode(container, settings, init) {
     const gridEl = container.querySelector('#sb-persona-grid');

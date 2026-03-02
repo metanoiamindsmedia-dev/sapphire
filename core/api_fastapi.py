@@ -453,11 +453,27 @@ def format_messages_for_display(messages):
     return display_messages
 
 
+def _tts_default_voice(provider_name: str) -> str:
+    """Return the default voice for a TTS provider."""
+    if provider_name == 'kokoro':
+        return 'af_heart'
+    if provider_name == 'elevenlabs':
+        return getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
+    return ''
+
+
 def _apply_chat_settings(system, settings: dict):
     """Apply chat settings to the system (TTS, prompt, ability, state engine)."""
     try:
         if "voice" in settings:
-            system.tts.set_voice(settings["voice"])
+            voice = settings["voice"]
+            provider = getattr(config, 'TTS_PROVIDER', 'none')
+            # Cross-provider voice mismatch detection
+            if voice and provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
+                voice = _tts_default_voice('kokoro')
+            elif voice and provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
+                voice = _tts_default_voice('elevenlabs')
+            system.tts.set_voice(voice)
         if "pitch" in settings:
             system.tts.set_pitch(settings["pitch"])
         if "speed" in settings:
@@ -1449,11 +1465,12 @@ async def tts_stop(request: Request, _=Depends(require_login), system=Depends(ge
 @app.get("/api/tts/voices")
 async def tts_voices_get(_=Depends(require_login), system=Depends(get_system)):
     """List voices for the active TTS provider."""
+    prov_name = getattr(config, 'TTS_PROVIDER', 'none')
     provider = getattr(system.tts, '_provider', None)
     if provider and hasattr(provider, 'list_voices'):
         voices = await asyncio.to_thread(provider.list_voices)
-        return {"voices": voices, "provider": getattr(config, 'TTS_PROVIDER', 'none')}
-    return {"voices": [], "provider": getattr(config, 'TTS_PROVIDER', 'none')}
+        return {"voices": voices, "provider": prov_name, "default_voice": _tts_default_voice(prov_name)}
+    return {"voices": [], "provider": prov_name, "default_voice": _tts_default_voice(prov_name)}
 
 
 @app.post("/api/tts/voices")
@@ -1698,6 +1715,7 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
     # Defer provider switches until after all settings are applied
     # (e.g. API key must be in config before provider init reads it)
     deferred_actions = []
+    deferred_keys = set()
     for key, value in settings_dict.items():
         try:
             tier = settings.validate_tier(key)
@@ -1706,13 +1724,17 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
             if key == 'WAKE_WORD_ENABLED':
                 get_system().toggle_wakeword(value)
             if key == 'STT_PROVIDER':
-                deferred_actions.append(('switch_stt_provider', value))
+                deferred_actions.append(('switch_stt_provider', value, key, tier))
+                deferred_keys.add(key)
             if key == 'STT_ENABLED':
-                deferred_actions.append(('toggle_stt', value))
+                deferred_actions.append(('toggle_stt', value, key, tier))
+                deferred_keys.add(key)
             if key == 'TTS_PROVIDER':
-                deferred_actions.append(('switch_tts_provider', value))
+                deferred_actions.append(('switch_tts_provider', value, key, tier))
+                deferred_keys.add(key)
             if key == 'TTS_ENABLED':
-                deferred_actions.append(('toggle_tts', value))
+                deferred_actions.append(('toggle_tts', value, key, tier))
+                deferred_keys.add(key)
             if key == 'ALLOW_UNSIGNED_PLUGINS' and not value:
                 try:
                     from core.plugin_loader import plugin_loader
@@ -1721,16 +1743,28 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
                         logger.info(f"Unsigned policy enforced, disabled: {disabled}")
                 except Exception as e:
                     logger.warning(f"Failed to enforce unsigned policy: {e}")
-            publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
+            # Defer SETTINGS_CHANGED for provider keys until after switch completes
+            if key not in deferred_keys:
+                publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
         except Exception as e:
             results.append({"key": key, "status": "error", "error": str(e)})
     # Execute deferred provider switches (config values are now set)
     system = get_system()
-    for action, value in deferred_actions:
+    for action, value, key, tier in deferred_actions:
         try:
             await asyncio.to_thread(getattr(system, action), value)
         except Exception as e:
             logger.error(f"Deferred action {action} failed: {e}")
+    # Re-apply chat settings so voice gets validated for new provider
+    if any(a[0].startswith('switch_tts') or a[0] == 'toggle_tts' for a in deferred_actions):
+        try:
+            chat_settings = system.llm_chat.session_manager.get_chat_settings()
+            _apply_chat_settings(system, chat_settings)
+        except Exception as e:
+            logger.warning(f"Failed to re-apply chat settings after TTS switch: {e}")
+    # Now publish SETTINGS_CHANGED for deferred keys (provider is ready)
+    for _, value, key, tier in deferred_actions:
+        publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
     return {"status": "success", "results": results}
 
 
@@ -1844,6 +1878,13 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
         await asyncio.to_thread(get_system().toggle_stt, value)
     if key == 'TTS_PROVIDER':
         await asyncio.to_thread(get_system().switch_tts_provider, value)
+        # Re-apply chat settings so voice gets validated for new provider
+        try:
+            system = get_system()
+            chat_settings = system.llm_chat.session_manager.get_chat_settings()
+            _apply_chat_settings(system, chat_settings)
+        except Exception as e:
+            logger.warning(f"Failed to re-apply chat settings after TTS switch: {e}")
     if key == 'TTS_ENABLED':
         await asyncio.to_thread(get_system().toggle_tts, value)
     publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
