@@ -193,9 +193,25 @@
     "long": "How long to wait after playing the start beep before beginning recording. 0.15 seconds allows the beep to finish and prevents it from being recorded. Too short may capture beep tail."
   },
   
+  "TTS_PROVIDER": {
+    "short": "Text-to-speech provider",
+    "long": "Which TTS engine to use for voice output. 'kokoro' runs locally (free, requires models). 'elevenlabs' uses the ElevenLabs cloud API (requires API key, per-character billing). 'none' disables TTS."
+  },
   "TTS_ENABLED": {
     "short": "Enable text-to-speech output",
     "long": "When enabled, AI responses will be spoken aloud using the configured TTS engine. Requires TTS server to be running on the specified endpoint. Disabling this will silence audio output but won't affect transcription or chat functionality."
+  },
+  "TTS_ELEVENLABS_API_KEY": {
+    "short": "ElevenLabs API key",
+    "long": "API key for ElevenLabs text-to-speech service. Get your key at elevenlabs.io. Also checks ELEVENLABS_API_KEY environment variable as fallback."
+  },
+  "TTS_ELEVENLABS_MODEL": {
+    "short": "ElevenLabs model",
+    "long": "Which ElevenLabs model to use. 'eleven_flash_v2_5' is cheapest and fastest (~75ms, 50% cheaper). 'eleven_multilingual_v2' is highest quality. 'eleven_turbo_v2_5' balances quality and speed."
+  },
+  "TTS_ELEVENLABS_VOICE_ID": {
+    "short": "ElevenLabs voice ID",
+    "long": "The voice to use for ElevenLabs TTS. Select from your available voices or paste a voice ID directly. Leave empty to use the default voice."
   },
   "TTS_SERVER_HOST": {
     "short": "TTS server bind address",

@@ -95,12 +95,15 @@
   },
   
   "tts": {
-    "TTS_ENABLED": false,
+    "TTS_PROVIDER": "none",
     "TTS_SERVER_HOST": "0.0.0.0",
     "TTS_SERVER_PORT": 5012,
     "TTS_PRIMARY_SERVER": "http://localhost:5012",
     "TTS_FALLBACK_SERVER": "http://127.0.0.1:5012",
-    "TTS_FALLBACK_TIMEOUT": 0.2
+    "TTS_FALLBACK_TIMEOUT": 0.2,
+    "TTS_ELEVENLABS_API_KEY": "",
+    "TTS_ELEVENLABS_MODEL": "eleven_flash_v2_5",
+    "TTS_ELEVENLABS_VOICE_ID": ""
   },
   
   "server": {

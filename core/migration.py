@@ -13,6 +13,7 @@ def run_all():
     """Run all pending migrations."""
     migrate_persona_to_character()
     migrate_stt_to_provider()
+    migrate_tts_to_provider()
 
 
 def migrate_persona_to_character():
@@ -149,3 +150,50 @@ def migrate_stt_to_provider():
         logger.info(f"Migrated STT settings: enabled={was_enabled} engine={engine} → provider={stt['STT_PROVIDER']}")
     except Exception as e:
         logger.error(f"STT settings migration failed: {e}")
+
+
+def migrate_tts_to_provider():
+    """Migrate TTS_ENABLED → TTS_PROVIDER.
+
+    If user has TTS_ENABLED but no TTS_PROVIDER,
+    convert: enabled=true → provider='kokoro', enabled=false → provider='none'.
+    Removes old TTS_ENABLED key from user settings.
+    """
+    settings_path = USER_DIR / "settings.json"
+    if not settings_path.exists():
+        return
+
+    try:
+        with open(settings_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        tts = data.get('tts', {})
+        if not isinstance(tts, dict):
+            tts = {}
+
+        # Already migrated?
+        if 'TTS_PROVIDER' in tts:
+            # Clean up root-level TTS_ENABLED if present
+            if 'TTS_ENABLED' in data:
+                data.pop('TTS_ENABLED', None)
+            else:
+                return
+
+        # Check both nested and root-level
+        was_enabled = tts.get('TTS_ENABLED', data.get('TTS_ENABLED', False))
+
+        # Nothing to migrate?
+        if 'TTS_ENABLED' not in tts and 'TTS_ENABLED' not in data:
+            return
+
+        if 'TTS_PROVIDER' not in tts:
+            tts['TTS_PROVIDER'] = 'kokoro' if was_enabled else 'none'
+        tts.pop('TTS_ENABLED', None)
+        data.pop('TTS_ENABLED', None)
+        data['tts'] = tts
+
+        with open(settings_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        logger.info(f"Migrated TTS settings: enabled={was_enabled} → provider={tts['TTS_PROVIDER']}")
+    except Exception as e:
+        logger.error(f"TTS settings migration failed: {e}")

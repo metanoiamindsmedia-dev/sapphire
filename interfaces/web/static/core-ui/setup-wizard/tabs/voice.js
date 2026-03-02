@@ -5,11 +5,22 @@ import { updateScene } from '../../../features/scene.js';
 
 let packageStatus = {};
 
-// Provider definitions — reusable for STT and TTS
+// Provider definitions
 const STT_PROVIDERS = {
   none:              { label: 'Disabled', needsPackage: false },
   faster_whisper:    { label: 'Local (Faster Whisper)', needsPackage: 'stt', downloadLabel: 'STT' },
   fireworks_whisper: { label: 'Fireworks Whisper (Cloud)', needsPackage: false, needsKey: true, keyField: 'STT_FIREWORKS_API_KEY', keyPlaceholder: 'Fireworks API key (fireworks.ai)' },
+};
+
+const TTS_PROVIDERS = {
+  none:       { label: 'Disabled', needsPackage: false },
+  kokoro:     { label: 'Local (Kokoro)', needsPackage: 'tts', downloadLabel: 'Kokoro TTS' },
+  elevenlabs: { label: 'ElevenLabs (Cloud)', needsPackage: false, needsKey: true, keyField: 'TTS_ELEVENLABS_API_KEY', keyPlaceholder: 'ElevenLabs API key (elevenlabs.io)' },
+};
+
+const PROVIDER_MAP = {
+  STT_PROVIDER: STT_PROVIDERS,
+  TTS_PROVIDER: TTS_PROVIDERS,
 };
 
 function renderProviderCard(icon, title, desc, settingKey, currentValue, providers) {
@@ -27,10 +38,9 @@ function renderProviderCard(icon, title, desc, settingKey, currentValue, provide
     </div>`;
   }
   if (providerDef.needsKey) {
-    const keyVal = '';  // Don't pre-fill keys in wizard
     body = `<div class="provider-key-row">
       <input type="password" class="provider-key-input" data-key-setting="${providerDef.keyField}"
-        placeholder="${providerDef.keyPlaceholder}" value="${keyVal}" autocomplete="off">
+        placeholder="${providerDef.keyPlaceholder}" value="" autocomplete="off">
       <span class="key-status" data-key-status="${providerDef.keyField}"></span>
     </div>`;
   }
@@ -57,29 +67,13 @@ export default {
 
   async render(settings) {
     const sttProvider = settings.STT_PROVIDER || 'none';
-    const ttsEnabled = settings.TTS_ENABLED || false;
+    const ttsProvider = settings.TTS_PROVIDER || 'none';
     const wakewordEnabled = settings.WAKE_WORD_ENABLED || false;
 
     return `
       ${renderProviderCard('\uD83C\uDFA4', 'Speech Recognition', 'Talk to Sapphire using your voice', 'STT_PROVIDER', sttProvider, STT_PROVIDERS)}
 
-      <!-- Voice Responses (TTS) — will become provider dropdown when ElevenLabs lands -->
-      <div class="feature-card ${ttsEnabled ? 'enabled' : ''}" data-feature="tts">
-        <div class="feature-card-header">
-          <span class="feature-icon">\uD83D\uDD0A</span>
-          <div class="feature-info">
-            <h4>Voice Responses</h4>
-            <p>Sapphire speaks back to you</p>
-          </div>
-          <label class="feature-toggle">
-            <input type="checkbox" data-setting="TTS_ENABLED" ${ttsEnabled ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="package-status checking" data-package="tts">
-          <span class="spinner">&midcir;</span> Checking Kokoro TTS...
-        </div>
-      </div>
+      ${renderProviderCard('\uD83D\uDD0A', 'Voice Responses', 'Sapphire speaks back to you', 'TTS_PROVIDER', ttsProvider, TTS_PROVIDERS)}
 
       <!-- Wake Word -->
       <div class="feature-card ${wakewordEnabled ? 'enabled' : ''}" data-feature="wakeword">
@@ -104,13 +98,13 @@ export default {
   attachListeners(container, settings, updateSettings) {
     this.loadPackageStatus(container);
 
-    // Provider dropdowns (STT, future TTS)
+    // Provider dropdowns (STT + TTS)
     container.querySelectorAll('.provider-select').forEach(select => {
       select.addEventListener('change', async (e) => {
         const settingKey = e.target.dataset.provider;
         const value = e.target.value;
         const card = e.target.closest('.feature-card');
-        const providers = settingKey === 'STT_PROVIDER' ? STT_PROVIDERS : {};
+        const providers = PROVIDER_MAP[settingKey] || {};
         const providerDef = providers[value] || {};
 
         // Show download status for local providers
@@ -168,7 +162,7 @@ export default {
       }
     });
 
-    // Legacy toggle checkboxes (TTS, Wakeword — still checkbox for now)
+    // Toggle checkboxes (Wakeword)
     container.querySelectorAll('.feature-toggle input').forEach(toggle => {
       toggle.addEventListener('change', async (e) => {
         const settingKey = e.target.dataset.setting;
@@ -238,9 +232,6 @@ export default {
             placeholder="${providerDef.keyPlaceholder}" autocomplete="off">
           <span class="key-status" data-key-status="${providerDef.keyField}"></span>
         </div>`);
-    }
-    if (value === 'none') {
-      // Nothing to show
     }
   },
 

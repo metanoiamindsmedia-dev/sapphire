@@ -156,8 +156,12 @@ class SettingsManager:
             self._config['PRIVACY_MODE'] = self._config.get('START_IN_PRIVACY_MODE', False)
 
         # Derive STT_ENABLED from STT_PROVIDER for backwards compatibility
-        provider = self._config.get('STT_PROVIDER', 'none')
-        self._config['STT_ENABLED'] = bool(provider and provider != 'none')
+        stt_provider = self._config.get('STT_PROVIDER', 'none')
+        self._config['STT_ENABLED'] = bool(stt_provider and stt_provider != 'none')
+
+        # Derive TTS_ENABLED from TTS_PROVIDER for backwards compatibility
+        tts_provider = self._config.get('TTS_PROVIDER', 'none')
+        self._config['TTS_ENABLED'] = bool(tts_provider and tts_provider != 'none')
 
         # Restore runtime-only overrides (set with persist=False, must survive reload)
         if self._runtime:

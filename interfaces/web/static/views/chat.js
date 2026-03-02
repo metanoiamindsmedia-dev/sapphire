@@ -359,7 +359,7 @@ async function loadSidebar() {
     if (!chatName) return;
 
     try {
-        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, presetsResp, spiceSetsResp, personasResp] = await Promise.allSettled([
+        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, presetsResp, spiceSetsResp, personasResp, ttsVoicesResp] = await Promise.allSettled([
             api.getChatSettings(chatName),
             getInitData(),
             fetch('/api/llm/providers').then(r => r.ok ? r.json() : null),
@@ -371,7 +371,8 @@ async function loadSidebar() {
             fetch('/api/bitcoin/wallets').then(r => r.ok ? r.json() : null),
             fetch('/api/story/presets').then(r => r.ok ? r.json() : null),
             fetch('/api/spice-sets').then(r => r.ok ? r.json() : null),
-            fetch('/api/personas').then(r => r.ok ? r.json() : null)
+            fetch('/api/personas').then(r => r.ok ? r.json() : null),
+            fetch('/api/tts/voices').then(r => r.ok ? r.json() : null)
         ]);
 
         // Guard: if chat changed while fetching, discard stale results
@@ -394,6 +395,7 @@ async function loadSidebar() {
         const presetsData = presetsResp.status === 'fulfilled' ? presetsResp.value : null;
         const spiceSetsData = spiceSetsResp.status === 'fulfilled' ? spiceSetsResp.value : null;
         const personasData = personasResp.status === 'fulfilled' ? personasResp.value : null;
+        const ttsVoicesData = ttsVoicesResp.status === 'fulfilled' ? ttsVoicesResp.value : null;
         personasList = personasData?.personas || [];
         defaultPersonaName = personasData?.default || init?.personas?.default || '';
 
@@ -519,8 +521,25 @@ async function loadSidebar() {
             setSelect(presetSel, settings.story_preset ?? '');
         }
 
+        // Populate voice dropdown from active TTS provider
+        const voiceSel = container.querySelector('#sb-voice');
+        const voices = ttsVoicesData?.voices || [];
+        const ttsProvider = ttsVoicesData?.provider || 'none';
+        if (voiceSel) {
+            if (voices.length) {
+                voiceSel.innerHTML = voices.map(v =>
+                    `<option value="${v.voice_id}">${v.name}${v.category ? ' (' + v.category + ')' : ''}</option>`
+                ).join('');
+            } else {
+                voiceSel.innerHTML = '<option value="">No TTS active</option>';
+            }
+            // Build dynamic name map for easy mode
+            _voiceNames = {};
+            for (const v of voices) _voiceNames[v.voice_id] = v.name;
+        }
+
         // Set remaining form values
-        setVal(container, '#sb-voice', settings.voice || 'af_heart');
+        setVal(container, '#sb-voice', settings.voice || (ttsProvider === 'kokoro' ? 'af_heart' : ''));
         setVal(container, '#sb-pitch', settings.pitch || 0.94);
         setVal(container, '#sb-speed', settings.speed || 1.3);
         setVal(container, '#sb-spice-turns', settings.spice_turns || 3);
@@ -828,14 +847,8 @@ function setSidebarMode(container, mode) {
     });
 }
 
-const VOICE_NAMES = {
-    am_adam: 'Adam', am_eric: 'Eric', am_liam: 'Liam', am_michael: 'Michael',
-    am_onyx: 'Onyx', am_puck: 'Puck',
-    af_bella: 'Bella', af_nicole: 'Nicole', af_heart: 'Heart', af_jessica: 'Jessica',
-    af_sarah: 'Sarah', af_river: 'River', af_sky: 'Sky',
-    bf_emma: 'Emma', bf_isabella: 'Isabella', bf_alice: 'Alice', bf_lily: 'Lily',
-    bm_george: 'George', bm_daniel: 'Daniel', bm_lewis: 'Lewis', bm_fable: 'Fable'
-};
+// Dynamic voice name map — populated from /api/tts/voices in loadSidebar()
+let _voiceNames = {};
 
 function updateEasyMode(container, settings, init) {
     const gridEl = container.querySelector('#sb-persona-grid');
@@ -924,7 +937,7 @@ function updateEasyMode(container, settings, init) {
             <div class="sb-pdetail-row"><span>turns</span><span>${settings.spice_turns || 3}</span></div>
         `, { desc: 'Style & flavor', view: 'spices' })}
         ${easyAccordion('TTS', `
-            <div class="sb-pdetail-row"><span>voice</span><span>${VOICE_NAMES[settings.voice] || settings.voice || 'Heart'}</span></div>
+            <div class="sb-pdetail-row"><span>voice</span><span>${_voiceNames[settings.voice] || settings.voice || 'Heart'}</span></div>
             <div class="sb-pdetail-row"><span>pitch</span><span>${settings.pitch || 0.98}</span></div>
             <div class="sb-pdetail-row"><span>speed</span><span>${settings.speed || 1.3}</span></div>
         `, { desc: 'Voice synthesis' })}

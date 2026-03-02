@@ -83,42 +83,13 @@ class VoiceChatSystem:
 
         base_dir = Path(__file__).parent.resolve()
 
-        # Start TTS server if enabled
+        # Initialize TTS via provider system
         self.tts_server_manager = None
-        if config.TTS_ENABLED:
-            tts_script = base_dir / "core" / "tts" / "tts_server.py"
-            if tts_script.exists():
-                # Kill any orphaned TTS process from previous crash
-                tts_port = getattr(config, 'TTS_SERVER_PORT', 5012)
-                if kill_process_on_port(tts_port):
-                    logger.info(f"Cleaned up orphaned TTS process on port {tts_port}")
-
-                logger.info("Starting Kokoro TTS server...")
-                self.tts_server_manager = ProcessManager(
-                    script_path=tts_script,
-                    log_name="kokoro",
-                    base_dir=base_dir
-                )
-                self.tts_server_manager.start()
-                self.tts_server_manager.monitor_and_restart(check_interval=10)
-                time.sleep(3)  # Let model load
-            else:
-                logger.warning(f"TTS enabled but server.py not found at {tts_script}")
-
-        # Initialize TTS client
-        logger.info("Initializing TTS client")
-        if config.TTS_ENABLED:
-            try:
-                from core.tts.tts_client import TTSClient
-                self.tts = TTSClient()
-                logger.info("TTS client initialized")
-            except ImportError as e:
-                from core.tts.tts_null import NullTTS
-                self.tts = NullTTS()
-                logger.error(f"TTS import failed, using NullTTS: {e}")
-        else:
-            from core.tts.tts_null import NullTTS
-            self.tts = NullTTS()
+        tts_provider = getattr(config, 'TTS_PROVIDER', 'none')
+        # Legacy compat: if TTS_PROVIDER missing but TTS_ENABLED is true, assume kokoro
+        if tts_provider == 'none' and getattr(config, 'TTS_ENABLED', False):
+            tts_provider = 'kokoro'
+        self._init_tts_provider(tts_provider, base_dir)
 
         self.llm_chat = LLMChat(self.history, system=self)
         self._prime_default_prompt()
@@ -340,52 +311,79 @@ class VoiceChatSystem:
         _settings.set('STT_PROVIDER', 'none', persist=True)
         return self.switch_stt_provider('none')
 
-    def toggle_tts(self, enabled: bool):
-        """Hot-swap TTS server + client at runtime."""
+    def _init_tts_provider(self, provider_name, base_dir=None):
+        """Initialize TTS with the given provider. Starts Kokoro subprocess if needed."""
         from core.tts.tts_null import NullTTS
-        base_dir = Path(__file__).parent.resolve()
+        if base_dir is None:
+            base_dir = Path(__file__).parent.resolve()
 
-        if enabled:
-            # Already running?
-            if self.tts_server_manager and self.tts_server_manager.is_running():
-                logger.info("TTS server already running")
-                return True
-
-            try:
-                tts_script = base_dir / "core" / "tts" / "tts_server.py"
-                tts_port = getattr(config, 'TTS_SERVER_PORT', 5012)
-
-                # Kill any orphaned process on the port
-                if kill_process_on_port(tts_port):
-                    logger.info(f"Cleaned up orphaned TTS process on port {tts_port}")
-
-                logger.info("Hot-starting TTS server...")
-                self.tts_server_manager = ProcessManager(
-                    script_path=tts_script,
-                    log_name="kokoro",
-                    base_dir=base_dir
-                )
-                self.tts_server_manager.start()
-                self.tts_server_manager.monitor_and_restart(check_interval=10)
-                time.sleep(3)  # Let model load
-
-                from core.tts.tts_client import TTSClient
-                self.tts = TTSClient()
-                logger.info("TTS hot-started successfully")
-                return True
-            except Exception as e:
-                logger.error(f"TTS hot-start failed: {e}")
-                self.tts = NullTTS()
-                return False
-        else:
-            # Stop server + swap to null
-            if self.tts_server_manager:
-                self.tts_server_manager.stop()
-                self.tts_server_manager = None
-                logger.info("TTS server stopped")
-            if not isinstance(self.tts, NullTTS):
-                self.tts = NullTTS()
+        if not provider_name or provider_name == 'none':
+            self._stop_kokoro_server()
+            self.tts = NullTTS()
+            logger.info("TTS disabled")
             return True
+
+        # Start Kokoro subprocess if needed
+        if provider_name == 'kokoro':
+            self._start_kokoro_server(base_dir)
+        else:
+            self._stop_kokoro_server()
+
+        try:
+            from core.tts.providers import get_tts_provider
+            from core.tts.tts_client import TTSClient
+            provider = get_tts_provider(provider_name)
+            self.tts = TTSClient(provider=provider)
+            logger.info(f"TTS provider active: {provider_name}")
+            return True
+        except Exception as e:
+            logger.error(f"TTS init failed for {provider_name}: {e}")
+            self.tts = NullTTS()
+            return False
+
+    def _start_kokoro_server(self, base_dir):
+        """Start Kokoro TTS subprocess if not already running."""
+        if self.tts_server_manager and self.tts_server_manager.is_running():
+            return
+        tts_script = base_dir / "core" / "tts" / "tts_server.py"
+        if not tts_script.exists():
+            logger.warning(f"Kokoro server script not found: {tts_script}")
+            return
+        tts_port = getattr(config, 'TTS_SERVER_PORT', 5012)
+        if kill_process_on_port(tts_port):
+            logger.info(f"Cleaned up orphaned TTS process on port {tts_port}")
+        logger.info("Starting Kokoro TTS server...")
+        self.tts_server_manager = ProcessManager(
+            script_path=tts_script, log_name="kokoro", base_dir=base_dir
+        )
+        self.tts_server_manager.start()
+        self.tts_server_manager.monitor_and_restart(check_interval=10)
+        time.sleep(3)  # Let model load
+
+    def _stop_kokoro_server(self):
+        """Stop Kokoro subprocess if running."""
+        if self.tts_server_manager:
+            self.tts_server_manager.stop()
+            self.tts_server_manager = None
+            logger.info("Kokoro TTS server stopped")
+
+    def switch_tts_provider(self, provider_name):
+        """Hot-swap TTS provider at runtime."""
+        logger.info(f"Switching TTS provider to: {provider_name}")
+        base_dir = Path(__file__).parent.resolve()
+        return self._init_tts_provider(provider_name, base_dir)
+
+    def toggle_tts(self, enabled: bool):
+        """Legacy compat — maps to switch_tts_provider. Persists TTS_PROVIDER."""
+        from core.settings_manager import settings as _settings
+        if enabled:
+            provider = getattr(config, 'TTS_PROVIDER', 'kokoro')
+            if provider == 'none':
+                provider = 'kokoro'
+            _settings.set('TTS_PROVIDER', provider, persist=True)
+            return self.switch_tts_provider(provider)
+        _settings.set('TTS_PROVIDER', 'none', persist=True)
+        return self.switch_tts_provider('none')
 
     def speak_error(self, error_type):
         error_messages = {

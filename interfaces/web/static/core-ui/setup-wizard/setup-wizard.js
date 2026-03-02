@@ -343,6 +343,7 @@ class SetupWizard {
     const labels = {
       'STT_PROVIDER': 'Speech Recognition',
       'STT_ENABLED': 'Speech Recognition',
+      'TTS_PROVIDER': 'Voice Responses',
       'TTS_ENABLED': 'Voice Responses',
       'WAKE_WORD_ENABLED': 'Wake Word',
       'WAKEWORD_MODEL': 'Wake Word Model',

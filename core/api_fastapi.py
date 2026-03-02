@@ -810,6 +810,7 @@ async def get_unified_status(request: Request, _=Depends(require_login), system=
             "state_tools": state_tools,
             "has_cloud_tools": has_cloud_tools,
             "tts_enabled": config.TTS_ENABLED,
+            "tts_provider": getattr(config, 'TTS_PROVIDER', 'none'),
             "stt_enabled": config.STT_ENABLED,
             "stt_provider": getattr(config, 'STT_PROVIDER', 'none'),
             "stt_ready": not isinstance(system.whisper_client, _NullWhisperClient),
@@ -1378,10 +1379,12 @@ async def handle_tts_speak(request: Request, _=Depends(require_login), system=De
     elif output_mode == 'file':
         audio_data = await asyncio.to_thread(system.tts.generate_audio_data, text)
         if audio_data:
+            content_type = getattr(system.tts, 'audio_content_type', 'audio/ogg')
+            ext = 'mp3' if 'mpeg' in content_type else 'ogg'
             return StreamingResponse(
                 io.BytesIO(audio_data),
-                media_type='audio/ogg',
-                headers={'Content-Disposition': 'attachment; filename="output.ogg"'}
+                media_type=content_type,
+                headers={'Content-Disposition': f'attachment; filename="output.{ext}"'}
             )
         else:
             raise HTTPException(status_code=503, detail="TTS generation failed")
@@ -1420,10 +1423,12 @@ async def tts_preview(request: Request, _=Depends(require_login), system=Depends
     if not audio_data:
         raise HTTPException(status_code=503, detail="TTS generation failed")
 
+    content_type = getattr(system.tts, 'audio_content_type', 'audio/ogg')
+    ext = 'mp3' if 'mpeg' in content_type else 'ogg'
     return StreamingResponse(
         io.BytesIO(audio_data),
-        media_type='audio/ogg',
-        headers={'Content-Disposition': 'inline; filename="preview.ogg"'}
+        media_type=content_type,
+        headers={'Content-Disposition': f'inline; filename="preview.{ext}"'}
     )
 
 
@@ -1439,6 +1444,36 @@ async def tts_stop(request: Request, _=Depends(require_login), system=Depends(ge
     """Stop TTS playback."""
     system.tts.stop()
     return {"status": "success"}
+
+
+@app.get("/api/tts/voices")
+async def tts_voices_get(_=Depends(require_login), system=Depends(get_system)):
+    """List voices for the active TTS provider."""
+    provider = getattr(system.tts, '_provider', None)
+    if provider and hasattr(provider, 'list_voices'):
+        voices = await asyncio.to_thread(provider.list_voices)
+        return {"voices": voices, "provider": getattr(config, 'TTS_PROVIDER', 'none')}
+    return {"voices": [], "provider": getattr(config, 'TTS_PROVIDER', 'none')}
+
+
+@app.post("/api/tts/voices")
+async def tts_voices_post(request: Request, _=Depends(require_login), system=Depends(get_system)):
+    """List voices with optional api_key for pre-save browsing."""
+    data = await request.json()
+    api_key = data.get('api_key', '').strip()
+
+    # If an API key is provided, fetch voices directly (pre-save browsing)
+    if api_key:
+        from core.tts.providers.elevenlabs import ElevenLabsTTSProvider
+        voices = await asyncio.to_thread(ElevenLabsTTSProvider.list_voices_with_key, api_key)
+        return {"voices": voices}
+
+    # Otherwise use the active provider
+    provider = getattr(system.tts, '_provider', None)
+    if provider and hasattr(provider, 'list_voices'):
+        voices = await asyncio.to_thread(provider.list_voices)
+        return {"voices": voices}
+    return {"voices": []}
 
 
 # =============================================================================
@@ -1660,6 +1695,9 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
     settings_dict = data['settings']
     persist = data.get('persist', True)
     results = []
+    # Defer provider switches until after all settings are applied
+    # (e.g. API key must be in config before provider init reads it)
+    deferred_actions = []
     for key, value in settings_dict.items():
         try:
             tier = settings.validate_tier(key)
@@ -1668,11 +1706,13 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
             if key == 'WAKE_WORD_ENABLED':
                 get_system().toggle_wakeword(value)
             if key == 'STT_PROVIDER':
-                await asyncio.to_thread(get_system().switch_stt_provider, value)
+                deferred_actions.append(('switch_stt_provider', value))
             if key == 'STT_ENABLED':
-                await asyncio.to_thread(get_system().toggle_stt, value)
+                deferred_actions.append(('toggle_stt', value))
+            if key == 'TTS_PROVIDER':
+                deferred_actions.append(('switch_tts_provider', value))
             if key == 'TTS_ENABLED':
-                await asyncio.to_thread(get_system().toggle_tts, value)
+                deferred_actions.append(('toggle_tts', value))
             if key == 'ALLOW_UNSIGNED_PLUGINS' and not value:
                 try:
                     from core.plugin_loader import plugin_loader
@@ -1684,6 +1724,13 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
             publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})
         except Exception as e:
             results.append({"key": key, "status": "error", "error": str(e)})
+    # Execute deferred provider switches (config values are now set)
+    system = get_system()
+    for action, value in deferred_actions:
+        try:
+            await asyncio.to_thread(getattr(system, action), value)
+        except Exception as e:
+            logger.error(f"Deferred action {action} failed: {e}")
     return {"status": "success", "results": results}
 
 
@@ -1795,6 +1842,8 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
         await asyncio.to_thread(get_system().switch_stt_provider, value)
     if key == 'STT_ENABLED':
         await asyncio.to_thread(get_system().toggle_stt, value)
+    if key == 'TTS_PROVIDER':
+        await asyncio.to_thread(get_system().switch_tts_provider, value)
     if key == 'TTS_ENABLED':
         await asyncio.to_thread(get_system().toggle_tts, value)
     publish(Events.SETTINGS_CHANGED, {"key": key, "value": value, "tier": tier})

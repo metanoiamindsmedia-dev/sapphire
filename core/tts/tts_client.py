@@ -1,4 +1,3 @@
-import requests
 import sys
 import os
 import tempfile
@@ -26,18 +25,21 @@ def get_temp_dir():
 
 
 class TTSClient:
-    """Generic HTTP-based TTS client with server fallback and cross-platform audio playback"""
-    
-    def __init__(self):
-        """Initialize TTS client with fallback capability"""
-        self.primary_server = config.TTS_PRIMARY_SERVER
-        self.fallback_server = config.TTS_FALLBACK_SERVER
-        self.fallback_timeout = config.TTS_FALLBACK_TIMEOUT
+    """TTS orchestrator — text processing, playback, hooks. Delegates audio generation to a provider."""
+
+    def __init__(self, provider=None):
+        """Initialize TTS client with an audio generation provider."""
         # Hardcoded fallbacks - chat settings override these on chat load
         self.pitch_shift = 0.98
         self.speed = 1.3
         self.voice_name = "af_heart"
         self.temp_dir = get_temp_dir()
+
+        # Provider handles audio generation (Kokoro, ElevenLabs, etc.)
+        if provider is None:
+            from core.tts.providers.kokoro import KokoroTTSProvider
+            provider = KokoroTTSProvider()
+        self._provider = provider
         
         self.lock = threading.Lock()
         self.should_stop = threading.Event()
@@ -49,7 +51,7 @@ class TTSClient:
         self.audio_available = False
         self._init_output_device()
         
-        logger.info(f"TTS client initialized: {self.primary_server}")
+        logger.info(f"TTS client initialized: {self._provider.__class__.__name__}")
         logger.info(f"Voice: {self.voice_name}, Speed: {self.speed}, Pitch: {self.pitch_shift}")
         logger.info(f"Temp directory: {self.temp_dir}")
         
@@ -176,20 +178,10 @@ class TTSClient:
         logger.info(f"Pitch set to: {self.pitch_shift}")
         return True
 
-    def check_server_health(self, server_url, timeout=None):
-        """Check if TTS server is available"""
-        try:
-            response = requests.get(f"{server_url}/health", timeout=timeout)
-            return response.status_code == 200
-        except Exception:
-            return False
-            
-    def get_server_url(self):
-        """Get available server URL with fallback logic"""
-        if self.check_server_health(self.primary_server, timeout=self.fallback_timeout):
-            return self.primary_server
-        logger.info(f"Primary unavailable, using fallback: {self.fallback_server}")
-        return self.fallback_server
+    @property
+    def audio_content_type(self):
+        """Content type of audio produced by the current provider."""
+        return self._provider.audio_content_type
 
     def _process_text_for_tts(self, text):
         """Strip markdown/tags and normalize text for speech."""
@@ -314,46 +306,36 @@ class TTSClient:
             return audio_data, samplerate
 
     def _fetch_audio(self, text):
-        """Fetch audio from server. Returns (audio_data, samplerate) or (None, None)."""
+        """Fetch audio from provider. Returns (audio_data, samplerate) or (None, None)."""
         temp_path = None
         try:
-            server_url = self.get_server_url()
-            tts_url = f"{server_url}/tts"
-            
-            response = requests.post(tts_url, json={
-                'text': text.replace("*", ""),
-                'voice': self.voice_name,
-                'speed': self.speed
-            })
-
-            if response.status_code != 200:
-                logger.error(f"TTS server error: {response.status_code}")
+            audio_bytes = self._provider.generate(text, self.voice_name, self.speed)
+            if not audio_bytes:
                 return None, None
 
-            # Save to temp file for soundfile to read
+            # Save to temp file for soundfile to read (all providers return OGG/Opus)
             fd, temp_path = tempfile.mkstemp(suffix='.ogg', dir=self.temp_dir)
             os.close(fd)
 
             with open(temp_path, 'wb') as f:
-                f.write(response.content)
+                f.write(audio_bytes)
 
             if self.should_stop.is_set():
                 return None, None
 
             # Load audio data
             audio_data, samplerate = sf.read(temp_path)
-            
-            # Apply pitch shift if needed
+
+            # Apply pitch shift if needed (Kokoro supports this; cloud providers may not benefit)
             if self.pitch_shift != 1.0:
                 audio_data, samplerate = self._apply_pitch_shift(audio_data, samplerate)
-            
+
             return audio_data, samplerate
-            
+
         except Exception as e:
             logger.error(f"Error fetching audio: {e}")
             return None, None
         finally:
-            # Clean up temp file
             if temp_path and os.path.exists(temp_path):
                 for _attempt in range(3):
                     try:
@@ -454,37 +436,30 @@ class TTSClient:
         return not self._is_playing
 
     def generate_audio_data(self, text):
-        """Generate audio and return raw bytes for file download"""
+        """Generate audio and return raw bytes for file download."""
         temp_path = None
         try:
-            server_url = self.get_server_url()
-            tts_url = f"{server_url}/tts"
-            
-            response = requests.post(tts_url, json={
-                'text': text.replace("*", ""),
-                'voice': self.voice_name,
-                'speed': self.speed
-            })
-
-            if response.status_code != 200:
+            audio_bytes = self._provider.generate(text, self.voice_name, self.speed)
+            if not audio_bytes:
                 return None
 
-            # Save to temp, apply pitch, return bytes
-            fd, temp_path = tempfile.mkstemp(suffix='.ogg', dir=self.temp_dir)
-            os.close(fd)
-
-            with open(temp_path, 'wb') as f:
-                f.write(response.content)
-
-            # Apply pitch shift if needed
+            # Apply pitch shift if needed (requires decode → re-encode)
             if self.pitch_shift != 1.0:
+                fd, temp_path = tempfile.mkstemp(suffix='.ogg', dir=self.temp_dir)
+                os.close(fd)
+
+                with open(temp_path, 'wb') as f:
+                    f.write(audio_bytes)
+
                 audio_data, samplerate = sf.read(temp_path)
                 audio_data, samplerate = self._apply_pitch_shift(audio_data, samplerate)
                 sf.write(temp_path, audio_data, samplerate, format='OGG', subtype='OPUS')
 
-            with open(temp_path, 'rb') as f:
-                return f.read()
-                
+                with open(temp_path, 'rb') as f:
+                    return f.read()
+
+            return audio_bytes
+
         except Exception as e:
             logger.error(f"Error generating audio data: {e}")
             return None

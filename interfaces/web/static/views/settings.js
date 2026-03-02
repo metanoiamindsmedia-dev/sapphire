@@ -319,6 +319,22 @@ function renderInput(key, value, type) {
             ${models.map(([v, l]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select>`;
     }
+    if (key === 'TTS_ELEVENLABS_MODEL') {
+        const models = [
+            ['eleven_flash_v2_5', 'Flash v2.5 (Fast, 50% cheaper)'],
+            ['eleven_multilingual_v2', 'Multilingual v2 (Highest quality)'],
+            ['eleven_turbo_v2_5', 'Turbo v2.5 (Balanced)']
+        ];
+        return `<select id="${id}" data-key="${key}">
+            ${models.map(([v, l]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>`;
+    }
+    if (key === 'TTS_ELEVENLABS_VOICE_ID') {
+        return `<div class="voice-selector-row">
+            <input type="text" id="${id}" data-key="${key}" value="${escapeAttr(String(value))}" placeholder="Click Browse to select a voice">
+            <button class="btn-small browse-voices-btn" data-target="${id}">Browse</button>
+        </div>`;
+    }
     if (key.endsWith('_API_KEY')) {
         return `<input type="password" id="${id}" data-key="${key}" value="${escapeAttr(String(value))}" autocomplete="off">`;
     }
@@ -473,6 +489,37 @@ function attachGenericListeners(el) {
 
         const helpBtn = e.target.closest('[data-help-key]');
         if (helpBtn) showHelpPopup(helpBtn.dataset.helpKey);
+
+        // Browse ElevenLabs voices
+        const browseBtn = e.target.closest('.browse-voices-btn');
+        if (browseBtn) {
+            browseBtn.disabled = true;
+            browseBtn.textContent = 'Loading...';
+            try {
+                // Pass API key from the input field (may not be saved yet)
+                const keyInput = el.querySelector('#setting-TTS_ELEVENLABS_API_KEY');
+                const apiKey = keyInput?.value?.trim() || pendingChanges['TTS_ELEVENLABS_API_KEY'] || '';
+                const res = await fetch('/api/tts/voices', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+                const data = await res.json();
+                const voices = data.voices || [];
+                if (!voices.length) {
+                    ui.showToast('No voices found. Check your ElevenLabs API key.', 'warning');
+                    return;
+                }
+                const targetId = browseBtn.dataset.target;
+                const input = el.querySelector(`#${targetId}`);
+                _showVoicePicker(voices, input, el);
+            } catch (err) {
+                ui.showToast('Failed to fetch voices', 'error');
+            } finally {
+                browseBtn.disabled = false;
+                browseBtn.textContent = 'Browse';
+            }
+        }
     });
 
     attachAccordionListeners(el);
@@ -574,6 +621,46 @@ function showHelpPopup(key) {
     document.body.appendChild(popup);
     popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
     popup.querySelector('#help-close')?.addEventListener('click', () => popup.remove());
+}
+
+// ── Voice Picker ──
+
+function _showVoicePicker(voices, targetInput, parentEl) {
+    const popup = document.createElement('div');
+    popup.className = 'sched-editor-overlay';
+    const rows = voices.map(v =>
+        `<div class="voice-option" data-voice-id="${v.voice_id}" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <strong>${v.name}</strong>
+                <span style="font-size:0.8em;color:var(--text-muted);margin-left:8px">${v.category || ''}</span>
+            </div>
+            <span style="font-size:0.75em;color:var(--text-muted);font-family:monospace">${v.voice_id.slice(0, 12)}...</span>
+        </div>`
+    ).join('');
+
+    popup.innerHTML = `
+        <div style="background:var(--bg-secondary);border-radius:var(--radius-lg);padding:20px;max-width:500px;width:90%;max-height:70vh;display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+                <h3 style="margin:0">Select Voice</h3>
+                <button class="btn-icon" id="voice-close">&times;</button>
+            </div>
+            <div style="overflow-y:auto;border:1px solid var(--border-subtle);border-radius:var(--radius-md)">${rows}</div>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    popup.addEventListener('click', e => {
+        if (e.target === popup) { popup.remove(); return; }
+        const opt = e.target.closest('.voice-option');
+        if (opt) {
+            const id = opt.dataset.voiceId;
+            if (targetInput) {
+                targetInput.value = id;
+                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            popup.remove();
+        }
+    });
+    popup.querySelector('#voice-close')?.addEventListener('click', () => popup.remove());
 }
 
 // ── Helpers ──

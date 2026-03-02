@@ -2398,6 +2398,27 @@ div.hb-response-summary {
     box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
+.voice-selector-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.voice-selector-row input {
+    flex: 1;
+}
+.btn-small {
+    padding: 6px 12px;
+    font-size: var(--font-xs);
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn-small:hover { opacity: 0.9; }
+.btn-small:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .setting-json {
     width: 100%;
     padding: 8px 10px;
