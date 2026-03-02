@@ -5,39 +5,68 @@ import { updateScene } from '../../../features/scene.js';
 
 let packageStatus = {};
 
+// Provider definitions — reusable for STT and TTS
+const STT_PROVIDERS = {
+  none:              { label: 'Disabled', needsPackage: false },
+  faster_whisper:    { label: 'Local (Faster Whisper)', needsPackage: 'stt', downloadLabel: 'STT' },
+  fireworks_whisper: { label: 'Fireworks Whisper (Cloud)', needsPackage: false, needsKey: true, keyField: 'STT_FIREWORKS_API_KEY', keyPlaceholder: 'Fireworks API key (fireworks.ai)' },
+};
+
+function renderProviderCard(icon, title, desc, settingKey, currentValue, providers) {
+  const isActive = currentValue && currentValue !== 'none';
+  const options = Object.entries(providers)
+    .map(([val, def]) => `<option value="${val}" ${val === currentValue ? 'selected' : ''}>${def.label}</option>`)
+    .join('');
+
+  const providerDef = providers[currentValue] || providers.none;
+
+  let body = '';
+  if (providerDef.needsPackage) {
+    body = `<div class="package-status checking" data-package="${providerDef.needsPackage}">
+      <span class="spinner">&midcir;</span> Checking ${providerDef.label}...
+    </div>`;
+  }
+  if (providerDef.needsKey) {
+    const keyVal = '';  // Don't pre-fill keys in wizard
+    body = `<div class="provider-key-row">
+      <input type="password" class="provider-key-input" data-key-setting="${providerDef.keyField}"
+        placeholder="${providerDef.keyPlaceholder}" value="${keyVal}" autocomplete="off">
+      <span class="key-status" data-key-status="${providerDef.keyField}"></span>
+    </div>`;
+  }
+
+  return `
+    <div class="feature-card ${isActive ? 'enabled' : ''}" data-feature="${settingKey}">
+      <div class="feature-card-header">
+        <span class="feature-icon">${icon}</span>
+        <div class="feature-info">
+          <h4>${title}</h4>
+          <p>${desc}</p>
+        </div>
+        <select class="provider-select" data-provider="${settingKey}">${options}</select>
+      </div>
+      ${body}
+    </div>
+  `;
+}
+
 export default {
   id: 'voice',
   name: 'Voice',
-  icon: '🗣️',
+  icon: '\uD83D\uDDE3\uFE0F',
 
   async render(settings) {
+    const sttProvider = settings.STT_PROVIDER || 'none';
     const ttsEnabled = settings.TTS_ENABLED || false;
-    const sttEnabled = settings.STT_ENABLED || false;
     const wakewordEnabled = settings.WAKE_WORD_ENABLED || false;
 
     return `
-      <!-- Speech Recognition (STT) -->
-      <div class="feature-card ${sttEnabled ? 'enabled' : ''}" data-feature="stt">
-        <div class="feature-card-header">
-          <span class="feature-icon">🎤</span>
-          <div class="feature-info">
-            <h4>Speech Recognition</h4>
-            <p>Talk to Sapphire using your voice</p>
-          </div>
-          <label class="feature-toggle">
-            <input type="checkbox" data-setting="STT_ENABLED" ${sttEnabled ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="package-status checking" data-package="stt">
-          <span class="spinner">⏳</span> Checking Faster Whisper...
-        </div>
-      </div>
+      ${renderProviderCard('\uD83C\uDFA4', 'Speech Recognition', 'Talk to Sapphire using your voice', 'STT_PROVIDER', sttProvider, STT_PROVIDERS)}
 
-      <!-- Voice Responses (TTS) -->
+      <!-- Voice Responses (TTS) — will become provider dropdown when ElevenLabs lands -->
       <div class="feature-card ${ttsEnabled ? 'enabled' : ''}" data-feature="tts">
         <div class="feature-card-header">
-          <span class="feature-icon">🔊</span>
+          <span class="feature-icon">\uD83D\uDD0A</span>
           <div class="feature-info">
             <h4>Voice Responses</h4>
             <p>Sapphire speaks back to you</p>
@@ -48,14 +77,14 @@ export default {
           </label>
         </div>
         <div class="package-status checking" data-package="tts">
-          <span class="spinner">⏳</span> Checking Kokoro TTS...
+          <span class="spinner">&midcir;</span> Checking Kokoro TTS...
         </div>
       </div>
 
       <!-- Wake Word -->
       <div class="feature-card ${wakewordEnabled ? 'enabled' : ''}" data-feature="wakeword">
         <div class="feature-card-header">
-          <span class="feature-icon">🎵</span>
+          <span class="feature-icon">\uD83C\uDFB5</span>
           <div class="feature-info">
             <h4>Wake Word</h4>
             <p>Say "Hey Sapphire" to start talking anytime</p>
@@ -66,51 +95,104 @@ export default {
           </label>
         </div>
         <div class="package-status checking" data-package="wakeword">
-          <span class="spinner">⏳</span> Checking OpenWakeWord...
+          <span class="spinner">&midcir;</span> Checking OpenWakeWord...
         </div>
       </div>
     `;
   },
 
   attachListeners(container, settings, updateSettings) {
-    // Start package check async - updates DOM when complete
     this.loadPackageStatus(container);
 
-    // Feature toggles
+    // Provider dropdowns (STT, future TTS)
+    container.querySelectorAll('.provider-select').forEach(select => {
+      select.addEventListener('change', async (e) => {
+        const settingKey = e.target.dataset.provider;
+        const value = e.target.value;
+        const card = e.target.closest('.feature-card');
+        const providers = settingKey === 'STT_PROVIDER' ? STT_PROVIDERS : {};
+        const providerDef = providers[value] || {};
+
+        // Show download status for local providers
+        if (providerDef.needsPackage) {
+          const pkgStatus = card.querySelector('.package-status');
+          if (pkgStatus) {
+            pkgStatus.className = 'package-status checking';
+            pkgStatus.dataset.downloading = 'true';
+            pkgStatus.innerHTML = `<span class="spinner">&midcir;</span> Loading ${providerDef.downloadLabel || 'models'}, please wait...`;
+          }
+        }
+
+        try {
+          await updateSetting(settingKey, value);
+          settings[settingKey] = value;
+
+          card.classList.toggle('enabled', value !== 'none');
+
+          // Re-render card body for new provider
+          this._updateCardBody(card, settingKey, value, providers);
+
+          // Refresh package status for local providers
+          if (providerDef.needsPackage) {
+            this.loadPackageStatus(container);
+          }
+
+          updateScene();
+        } catch (err) {
+          console.error('Failed to update provider:', err);
+          e.target.value = settings[settingKey] || 'none';
+        }
+      });
+    });
+
+    // API key inputs (delegated — cards get re-rendered)
+    container.addEventListener('change', async (e) => {
+      const keyInput = e.target.closest('.provider-key-input');
+      if (!keyInput) return;
+      const keySetting = keyInput.dataset.keySetting;
+      const value = keyInput.value.trim();
+      const status = container.querySelector(`[data-key-status="${keySetting}"]`);
+
+      try {
+        await updateSetting(keySetting, value);
+        settings[keySetting] = value;
+        if (status) {
+          status.textContent = value ? '\u2713 Saved' : '';
+          status.style.color = 'var(--accent-green, #5cb85c)';
+        }
+      } catch (err) {
+        if (status) {
+          status.textContent = '\u2717 Failed';
+          status.style.color = 'var(--error, #d9534f)';
+        }
+      }
+    });
+
+    // Legacy toggle checkboxes (TTS, Wakeword — still checkbox for now)
     container.querySelectorAll('.feature-toggle input').forEach(toggle => {
       toggle.addEventListener('change', async (e) => {
         const settingKey = e.target.dataset.setting;
         const enabled = e.target.checked;
         const card = e.target.closest('.feature-card');
-
-        // Show download status for features that need model downloads
         const pkgStatus = card.querySelector('.package-status');
-        const needsDownload = enabled && (settingKey === 'WAKE_WORD_ENABLED' || settingKey === 'STT_ENABLED');
+
+        const needsDownload = enabled && settingKey === 'WAKE_WORD_ENABLED';
         if (needsDownload && pkgStatus) {
-          const label = settingKey === 'WAKE_WORD_ENABLED' ? 'wakeword' : 'STT';
           pkgStatus.className = 'package-status checking';
           pkgStatus.dataset.downloading = 'true';
-          pkgStatus.innerHTML = `<span class="spinner">⏳</span> Downloading ${label} models, please wait...`;
+          pkgStatus.innerHTML = `<span class="spinner">&midcir;</span> Downloading wakeword models, please wait...`;
         }
 
         try {
           await updateSetting(settingKey, enabled);
           settings[settingKey] = enabled;
+          card.classList.toggle('enabled', enabled);
 
-          if (enabled) {
-            card.classList.add('enabled');
-          } else {
-            card.classList.remove('enabled');
-          }
-
-          // Clear download message on success
           if (needsDownload && pkgStatus) {
             delete pkgStatus.dataset.downloading;
             pkgStatus.className = 'package-status installed';
-            pkgStatus.innerHTML = `<span class="status-icon">✓</span> Models loaded successfully`;
+            pkgStatus.innerHTML = `<span class="status-icon">\u2713</span> Models loaded successfully`;
           }
-
-          // Immediately refresh UI state (mic button, volume row, etc.)
           updateScene();
         } catch (err) {
           console.error('Failed to update setting:', err);
@@ -118,13 +200,13 @@ export default {
           if (needsDownload && pkgStatus) {
             delete pkgStatus.dataset.downloading;
             pkgStatus.className = 'package-status not-installed';
-            pkgStatus.innerHTML = `<span class="status-icon">✗</span> Failed to load models`;
+            pkgStatus.innerHTML = `<span class="status-icon">\u2717</span> Failed to load models`;
           }
         }
       });
     });
 
-    // Copy buttons (delegated - works for dynamically added buttons)
+    // Copy buttons
     container.addEventListener('click', (e) => {
       if (e.target.classList.contains('copy-btn')) {
         e.stopPropagation();
@@ -138,28 +220,49 @@ export default {
     });
   },
 
+  _updateCardBody(card, settingKey, value, providers) {
+    const providerDef = providers[value] || {};
+    // Remove existing body content (package-status, key-row)
+    card.querySelectorAll('.package-status, .provider-key-row').forEach(el => el.remove());
+
+    if (providerDef.needsPackage) {
+      card.insertAdjacentHTML('beforeend',
+        `<div class="package-status checking" data-package="${providerDef.needsPackage}">
+          <span class="spinner">&midcir;</span> Checking ${providerDef.label}...
+        </div>`);
+    }
+    if (providerDef.needsKey) {
+      card.insertAdjacentHTML('beforeend',
+        `<div class="provider-key-row">
+          <input type="password" class="provider-key-input" data-key-setting="${providerDef.keyField}"
+            placeholder="${providerDef.keyPlaceholder}" autocomplete="off">
+          <span class="key-status" data-key-status="${providerDef.keyField}"></span>
+        </div>`);
+    }
+    if (value === 'none') {
+      // Nothing to show
+    }
+  },
+
   async loadPackageStatus(container) {
     try {
       packageStatus = await checkPackages();
 
-      // Update each package status in DOM
       for (const [key, info] of Object.entries(packageStatus)) {
         const statusEl = container.querySelector(`[data-package="${key}"]`);
         if (!statusEl) continue;
-
-        // Don't overwrite active download progress messages
         if (statusEl.dataset.downloading) continue;
 
         statusEl.classList.remove('checking');
 
         if (info.installed) {
           statusEl.classList.add('installed');
-          statusEl.innerHTML = `✓ ${info.package || key} is installed and ready to use`;
+          statusEl.innerHTML = `\u2713 ${info.package || key} is installed and ready to use`;
         } else {
           statusEl.classList.add('not-installed');
           const requirements = info.requirements || `requirements-${key}.txt`;
           statusEl.innerHTML = `
-            <div>⚠️ Requires ${info.package || key} - install to enable this feature:</div>
+            <div>\u26A0\uFE0F Requires ${info.package || key} - install to enable this feature:</div>
             <div class="pip-command">
               <code>pip install -r ${requirements}</code>
               <button class="copy-btn" data-copy="pip install -r ${requirements}">Copy</button>
@@ -169,10 +272,9 @@ export default {
       }
     } catch (e) {
       console.warn('Could not check packages:', e);
-      // Show error state
       container.querySelectorAll('.package-status.checking').forEach(el => {
         el.classList.remove('checking');
-        el.innerHTML = `⚠️ Could not check package status`;
+        el.innerHTML = `\u26A0\uFE0F Could not check package status`;
       });
     }
   },

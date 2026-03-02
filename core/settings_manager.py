@@ -155,6 +155,10 @@ class SettingsManager:
         if 'PRIVACY_MODE' not in self._config and 'PRIVACY_MODE' not in self._runtime:
             self._config['PRIVACY_MODE'] = self._config.get('START_IN_PRIVACY_MODE', False)
 
+        # Derive STT_ENABLED from STT_PROVIDER for backwards compatibility
+        provider = self._config.get('STT_PROVIDER', 'none')
+        self._config['STT_ENABLED'] = bool(provider and provider != 'none')
+
         # Restore runtime-only overrides (set with persist=False, must survive reload)
         if self._runtime:
             self._config.update(self._runtime)

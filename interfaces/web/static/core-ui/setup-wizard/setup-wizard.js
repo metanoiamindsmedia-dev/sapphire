@@ -341,6 +341,7 @@ class SetupWizard {
    */
   formatChangedKeys(keys) {
     const labels = {
+      'STT_PROVIDER': 'Speech Recognition',
       'STT_ENABLED': 'Speech Recognition',
       'TTS_ENABLED': 'Voice Responses',
       'WAKE_WORD_ENABLED': 'Wake Word',

@@ -285,6 +285,53 @@ export function injectSetupStyles() {
       opacity: 0.9;
     }
 
+    /* Provider dropdown (STT, future TTS) */
+    .provider-select {
+      padding: 8px 12px;
+      background: var(--surface-tertiary, #1a1a2a);
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      color: var(--text-primary, #fff);
+      font-size: 0.85rem;
+      cursor: pointer;
+      min-width: 160px;
+    }
+    .provider-select:focus {
+      outline: none;
+      border-color: var(--accent-color, #4a9eff);
+    }
+
+    /* API key row (cloud providers) */
+    .provider-key-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(74, 158, 255, 0.08);
+      border-radius: 8px;
+    }
+    .provider-key-input {
+      flex: 1;
+      padding: 10px 12px;
+      background: var(--surface-tertiary, #1a1a2a);
+      border: 1px solid var(--border-color, #333);
+      border-radius: 6px;
+      color: var(--text-primary, #fff);
+      font-size: 0.9rem;
+    }
+    .provider-key-input:focus {
+      outline: none;
+      border-color: var(--accent-color, #4a9eff);
+    }
+    .provider-key-input::placeholder {
+      color: var(--text-tertiary, #666);
+    }
+    .key-status {
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
     /* Setup wizard info tip (not .help-tip — that's a 15px tooltip in main CSS) */
     .setup-tip {
       display: flex;

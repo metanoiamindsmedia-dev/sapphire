@@ -46,9 +46,9 @@ run_migrations()
 
 # Wrap all further imports to catch errors
 try:
-    from core.stt import WhisperSTT
     from core.stt import AudioRecorder as WhisperRecorder
     from core.stt.stt_null import NullWhisperClient
+    from core.stt.providers import get_stt_provider
     from core.chat import LLMChat, ConversationHistory
     from core.api_fastapi import app, set_system
     from core.settings_manager import settings
@@ -303,40 +303,42 @@ class VoiceChatSystem:
                 logger.info("Wakeword stopped")
             return True
 
-    def toggle_stt(self, enabled: bool):
-        """Hot-swap STT components at runtime."""
-        if enabled:
-            # Already real? Nothing to do
-            if not isinstance(self.whisper_client, NullWhisperClient):
-                logger.info("STT already initialized")
-                return True
-
-            # Cold start: import real WhisperSTT and AudioRecorder directly
-            # (module-level imports may be Null if STT was disabled at import time)
-            try:
-                from core.stt.server import WhisperSTT as RealWhisperSTT
-                from core.stt.recorder import AudioRecorder as RealAudioRecorder
-                logger.info(f"Hot-loading {config.STT_ENGINE} model...")
-                self.whisper_client = RealWhisperSTT()
-                self.whisper_recorder = RealAudioRecorder()
-                logger.info("STT hot-started successfully")
-                return True
-            except ImportError as e:
-                logger.error(f"STT not installed: {e}")
-                self.whisper_client = NullWhisperClient()
-                return False
-            except Exception as e:
-                logger.error(f"STT hot-start failed: {e}")
-                self.whisper_client = NullWhisperClient()
-                return False
-        else:
-            # Swap to null (free model memory)
+    def switch_stt_provider(self, provider_name: str):
+        """Hot-swap STT provider at runtime."""
+        if not provider_name or provider_name == 'none':
             from core.stt.stt_null import NullAudioRecorder
             if not isinstance(self.whisper_client, NullWhisperClient):
-                logger.info("STT stopped, unloading model")
+                logger.info("STT stopped, unloading provider")
                 self.whisper_client = NullWhisperClient()
                 self.whisper_recorder = NullAudioRecorder()
             return True
+
+        try:
+            logger.info(f"Hot-loading STT provider: {provider_name}")
+            self.whisper_client = get_stt_provider(provider_name)
+            # Ensure real recorder if switching from disabled
+            from core.stt.stt_null import NullAudioRecorder
+            if isinstance(self.whisper_recorder, NullAudioRecorder):
+                from core.stt.recorder import AudioRecorder as RealAudioRecorder
+                self.whisper_recorder = RealAudioRecorder()
+            logger.info(f"STT provider switched to {provider_name}")
+            return True
+        except Exception as e:
+            logger.error(f"STT provider switch failed: {e}")
+            self.whisper_client = NullWhisperClient()
+            return False
+
+    def toggle_stt(self, enabled: bool):
+        """Legacy compat — maps to switch_stt_provider. Persists STT_PROVIDER."""
+        from core.settings_manager import settings as _settings
+        if enabled:
+            provider = getattr(config, 'STT_PROVIDER', 'faster_whisper')
+            if provider == 'none':
+                provider = 'faster_whisper'
+            _settings.set('STT_PROVIDER', provider, persist=True)
+            return self.switch_stt_provider(provider)
+        _settings.set('STT_PROVIDER', 'none', persist=True)
+        return self.switch_stt_provider('none')
 
     def toggle_tts(self, enabled: bool):
         """Hot-swap TTS server + client at runtime."""
@@ -418,21 +420,21 @@ class VoiceChatSystem:
         return None
 
     def start_background_services(self):
-        if config.STT_ENABLED:
-            logger.info(f"Initializing {config.STT_ENGINE} model...")
+        provider = getattr(config, 'STT_PROVIDER', 'none')
+        if provider and provider != 'none':
+            logger.info(f"Initializing STT provider: {provider}")
             try:
-                from core.stt.server import WhisperSTT as RealWhisperSTT
+                self.whisper_client = get_stt_provider(provider)
                 from core.stt.recorder import AudioRecorder as RealAudioRecorder
-                self.whisper_client = RealWhisperSTT()
                 self.whisper_recorder = RealAudioRecorder()
             except ImportError as e:
-                logger.error(f"STT not installed: {e}")
+                logger.error(f"STT provider '{provider}' not available: {e}")
                 return False
             except RuntimeError as e:
-                logger.error(f"Failed to initialize {config.STT_ENGINE}: {e}")
+                logger.error(f"Failed to initialize STT provider '{provider}': {e}")
                 return False
         else:
-            logger.info("STT disabled - skipping model initialization")
+            logger.info("STT disabled - skipping initialization")
 
         return True
 
