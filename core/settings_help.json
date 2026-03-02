@@ -115,9 +115,17 @@
     "long": "Pitch of the beep tone when wake word is detected. 880 Hz is a pleasant, attention-getting tone (A5 musical note). Higher frequencies are more piercing, lower are more subtle."
   },
   
-  "STT_ENABLED": {
-    "short": "Enable speech-to-text recognition",
-    "long": "When enabled, allows voice input through the microphone button in the UI. Requires the STT server to be running on the configured host and port. Disabling this will hide the microphone button and disable voice input."
+  "STT_PROVIDER": {
+    "short": "Speech-to-text provider",
+    "long": "Select your STT engine. 'Disabled' turns off voice input. 'Local (Faster Whisper)' runs Whisper on your machine (free, requires RAM/VRAM). 'Fireworks Whisper' uses Fireworks AI cloud API (fast, requires API key, ~$0.01/min)."
+  },
+  "STT_FIREWORKS_API_KEY": {
+    "short": "Fireworks API key for cloud transcription",
+    "long": "Your Fireworks AI API key. Get one at fireworks.ai. If left empty, falls back to the FIREWORKS_API_KEY environment variable (shared with the LLM provider if you use Fireworks for chat too)."
+  },
+  "STT_FIREWORKS_MODEL": {
+    "short": "Fireworks Whisper model",
+    "long": "whisper-v3-turbo is faster and cheaper. whisper-v3 is higher quality but slower. For most voice input, turbo is more than good enough."
   },
   "STT_MODEL_SIZE": {
     "short": "Whisper model size for transcription quality",

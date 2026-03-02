@@ -60,10 +60,11 @@
   },
   
   "stt": {
-    "STT_ENABLED": false,
-    "STT_ENGINE": "faster_whisper",
+    "STT_PROVIDER": "none",
     "STT_MODEL_SIZE": "base.en",
     "STT_LANGUAGE": "en",
+    "STT_FIREWORKS_API_KEY": "",
+    "STT_FIREWORKS_MODEL": "whisper-v3-turbo",
     "FASTER_WHISPER_CUDA_DEVICE": 0,
     "FASTER_WHISPER_DEVICE": "cpu",
     "FASTER_WHISPER_COMPUTE_TYPE": "int8",

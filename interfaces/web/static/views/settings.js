@@ -310,6 +310,18 @@ function renderInput(key, value, type) {
             ${['onnx', 'tflite'].map(f => `<option value="${f}" ${value === f ? 'selected' : ''}>${f.toUpperCase()}</option>`).join('')}
         </select>`;
     }
+    if (key === 'STT_FIREWORKS_MODEL') {
+        const models = [
+            ['whisper-v3-turbo', 'Whisper V3 Turbo (Fast)'],
+            ['whisper-v3', 'Whisper V3 (Quality)']
+        ];
+        return `<select id="${id}" data-key="${key}">
+            ${models.map(([v, l]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>`;
+    }
+    if (key.endsWith('_API_KEY')) {
+        return `<input type="password" id="${id}" data-key="${key}" value="${escapeAttr(String(value))}" autocomplete="off">`;
+    }
     if (type === 'checkbox') {
         return `<label class="setting-toggle">
             <input type="checkbox" id="${id}" data-key="${key}" ${value ? 'checked' : ''}>

@@ -811,6 +811,7 @@ async def get_unified_status(request: Request, _=Depends(require_login), system=
             "has_cloud_tools": has_cloud_tools,
             "tts_enabled": config.TTS_ENABLED,
             "stt_enabled": config.STT_ENABLED,
+            "stt_provider": getattr(config, 'STT_PROVIDER', 'none'),
             "stt_ready": not isinstance(system.whisper_client, _NullWhisperClient),
             "wakeword_enabled": config.WAKE_WORD_ENABLED,
             "wakeword_ready": not isinstance(system.wake_detector, _NullWakeWordDetector),
@@ -1666,6 +1667,8 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
             results.append({"key": key, "status": "success", "tier": tier})
             if key == 'WAKE_WORD_ENABLED':
                 get_system().toggle_wakeword(value)
+            if key == 'STT_PROVIDER':
+                await asyncio.to_thread(get_system().switch_stt_provider, value)
             if key == 'STT_ENABLED':
                 await asyncio.to_thread(get_system().toggle_stt, value)
             if key == 'TTS_ENABLED':
@@ -1788,6 +1791,8 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
     if key == 'WAKE_WORD_ENABLED':
         system = get_system()
         system.toggle_wakeword(value)
+    if key == 'STT_PROVIDER':
+        await asyncio.to_thread(get_system().switch_stt_provider, value)
     if key == 'STT_ENABLED':
         await asyncio.to_thread(get_system().toggle_stt, value)
     if key == 'TTS_ENABLED':

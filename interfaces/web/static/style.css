@@ -2382,6 +2382,7 @@ div.hb-response-summary {
 .setting-row.full-width .setting-help { display: none; }
 .setting-input input[type="text"],
 .setting-input input[type="number"],
+.setting-input input[type="password"],
 .setting-input select {
     width: 100%;
     padding: 6px 10px;

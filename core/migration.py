@@ -5,12 +5,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-USER_PROMPTS_DIR = Path(__file__).parent.parent / "user" / "prompts"
+USER_DIR = Path(__file__).parent.parent / "user"
+USER_PROMPTS_DIR = USER_DIR / "prompts"
 
 
 def run_all():
     """Run all pending migrations."""
     migrate_persona_to_character()
+    migrate_stt_to_provider()
 
 
 def migrate_persona_to_character():
@@ -96,3 +98,54 @@ def _migrate_user_prompts():
                 logger.info(f"Migrated {path.name}: persona -> character")
         except Exception as e:
             logger.warning(f"Could not migrate {path.name}: {e}")
+
+
+def migrate_stt_to_provider():
+    """Migrate STT_ENABLED + STT_ENGINE → STT_PROVIDER.
+
+    If user has STT_ENABLED in their settings but no STT_PROVIDER,
+    convert: enabled=true → provider='faster_whisper', enabled=false → provider='none'.
+    Removes old STT_ENABLED and STT_ENGINE keys from user settings.
+    """
+    settings_path = USER_DIR / "settings.json"
+    if not settings_path.exists():
+        return
+
+    try:
+        with open(settings_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        stt = data.get('stt', {})
+        if not isinstance(stt, dict):
+            stt = {}
+
+        # Already migrated?
+        if 'STT_PROVIDER' in stt:
+            # Clean up root-level STT_ENABLED if present (legacy wizard path)
+            if 'STT_ENABLED' in data:
+                data.pop('STT_ENABLED', None)
+                data.pop('STT_ENGINE', None)
+            else:
+                return
+
+        # Check both nested (stt.STT_ENABLED) and root-level (STT_ENABLED)
+        was_enabled = stt.get('STT_ENABLED', data.get('STT_ENABLED', False))
+        engine = stt.get('STT_ENGINE', data.get('STT_ENGINE', 'faster_whisper'))
+
+        # Nothing to migrate?
+        if 'STT_ENABLED' not in stt and 'STT_ENABLED' not in data and 'STT_ENGINE' not in stt:
+            return
+
+        if 'STT_PROVIDER' not in stt:
+            stt['STT_PROVIDER'] = engine if was_enabled else 'none'
+        stt.pop('STT_ENABLED', None)
+        stt.pop('STT_ENGINE', None)
+        data.pop('STT_ENABLED', None)
+        data.pop('STT_ENGINE', None)
+        data['stt'] = stt
+
+        with open(settings_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        logger.info(f"Migrated STT settings: enabled={was_enabled} engine={engine} → provider={stt['STT_PROVIDER']}")
+    except Exception as e:
+        logger.error(f"STT settings migration failed: {e}")
