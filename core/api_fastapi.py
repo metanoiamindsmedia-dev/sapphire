@@ -4485,6 +4485,10 @@ async def install_plugin(
             if info and info.get("loaded"):
                 plugin_loader.unload_plugin(name)
 
+            # Drop stale cache entry so rescan re-reads the new manifest
+            with plugin_loader._lock:
+                plugin_loader._plugins.pop(name, None)
+
             # Delete old plugin dir (state preserved separately)
             shutil.rmtree(dest)
 
@@ -4504,6 +4508,14 @@ async def install_plugin(
 
         # ── Rescan to discover the new plugin ──
         plugin_loader.rescan()
+
+        # ── Sync active toolset so new tools are immediately available ──
+        system = get_system()
+        if system and system.llm_chat:
+            fm = system.llm_chat.function_manager
+            current = fm.current_toolset_name
+            if current:
+                fm.update_enabled_functions([current])
 
         return {
             "status": "ok",
