@@ -244,7 +244,7 @@
   
   "plugins": {
     "ALLOW_UNSIGNED_PLUGINS": false,
-    "PLUGIN_KEYS_URL": "https://raw.githubusercontent.com/krembanan/sapphire-plugin-keys/main/authorized_keys.json"
+    "PLUGIN_KEYS_URL": "https://raw.githubusercontent.com/ddxfish/sapphire-plugin-keys/main/authorized_keys.json"
   },
 
   "setup": {
