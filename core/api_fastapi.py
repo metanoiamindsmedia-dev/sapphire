@@ -2833,6 +2833,24 @@ async def set_spice_set_emoji(set_name: str, request: Request, _=Depends(require
 # MEMORY SCOPE ROUTES
 # =============================================================================
 
+@app.post("/api/embedding/test")
+async def test_embedding(request: Request, _=Depends(require_login)):
+    """Test current embedding provider with a real embedding call."""
+    import time
+    from core.embeddings import get_embedder
+    embedder = get_embedder()
+    provider = type(embedder).__name__
+    if not embedder.available:
+        return {"success": False, "provider": provider, "error": "Embedder not available"}
+    t0 = time.time()
+    result = embedder.embed(["This is a test sentence for embedding verification."], prefix='search_document')
+    elapsed = round((time.time() - t0) * 1000)
+    if result is None:
+        return {"success": False, "provider": provider, "error": "Embedding returned None", "ms": elapsed}
+    dim = result.shape[1] if len(result.shape) > 1 else len(result[0])
+    return {"success": True, "provider": provider, "dimensions": dim, "ms": elapsed}
+
+
 @app.get("/api/memory/scopes")
 async def get_memory_scopes(request: Request, _=Depends(require_login)):
     """Get list of memory scopes."""

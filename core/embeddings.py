@@ -77,8 +77,25 @@ class LocalEmbedder:
 class RemoteEmbedder:
     """OpenAI-compatible embedding API client (for Nomic via TEI, etc.)."""
 
+    @staticmethod
+    def _normalize_url(url):
+        """Fix common URL mistakes — invisible UX."""
+        url = url.strip()
+        if not url:
+            return ''
+        if not url.startswith(('http://', 'https://')):
+            url = f'http://{url}'
+        if not url.endswith('/v1/embeddings'):
+            url = url.rstrip('/')
+            if not url.endswith(('/v1/embeddings', '/v1', '/embeddings')):
+                url += '/v1/embeddings'
+            elif url.endswith('/v1'):
+                url += '/embeddings'
+        return url
+
     def embed(self, texts, prefix='search_document'):
-        url = getattr(config, 'EMBEDDING_API_URL', '')
+        raw_url = getattr(config, 'EMBEDDING_API_URL', '')
+        url = self._normalize_url(raw_url)
         if not url:
             return None
         try:
@@ -104,7 +121,7 @@ class RemoteEmbedder:
 
     @property
     def available(self):
-        return bool(getattr(config, 'EMBEDDING_API_URL', ''))
+        return bool(self._normalize_url(getattr(config, 'EMBEDDING_API_URL', '')))
 
 
 class NullEmbedder:

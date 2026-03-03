@@ -34,10 +34,51 @@ export default {
     description: 'Vector embedding engine for memory and knowledge search',
 
     render(ctx) {
-        return renderProviderTab(tabConfig, ctx);
+        let html = renderProviderTab(tabConfig, ctx);
+        // Test button — shown for all providers except disabled
+        html += `
+            <div class="settings-grid" style="margin-top: 1rem;">
+                <div class="setting-row full-width">
+                    <button id="embedding-test-btn" class="btn btn-secondary" style="width: auto;">
+                        Test Embedding
+                    </button>
+                    <span id="embedding-test-result" style="margin-left: 0.75rem; font-size: var(--font-sm);"></span>
+                </div>
+            </div>`;
+        return html;
     },
 
     attachListeners(ctx, el) {
         attachProviderListeners(tabConfig, ctx, el);
+
+        // Set placeholder on URL field after render
+        const urlInput = el.querySelector('[data-key="EMBEDDING_API_URL"]');
+        if (urlInput) urlInput.placeholder = 'http://your-server:8080/v1/embeddings';
+
+        // Test button
+        const btn = el.querySelector('#embedding-test-btn');
+        const result = el.querySelector('#embedding-test-result');
+        if (btn) btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            result.textContent = '';
+            result.style.color = '';
+            try {
+                const res = await fetch('/api/embedding/test', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    result.style.color = 'var(--color-success, #4caf50)';
+                    result.textContent = `${data.provider} — ${data.dimensions}d vector in ${data.ms}ms`;
+                } else {
+                    result.style.color = 'var(--color-error, #f44336)';
+                    result.textContent = data.error || 'Test failed';
+                }
+            } catch (e) {
+                result.style.color = 'var(--color-error, #f44336)';
+                result.textContent = `Error: ${e.message}`;
+            }
+            btn.disabled = false;
+            btn.textContent = 'Test Embedding';
+        });
     }
 };
