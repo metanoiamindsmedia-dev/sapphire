@@ -216,7 +216,8 @@ class AudioRecorder:
                 if time.time() - start_time > config.RECORDER_MAX_SECONDS:
                     if has_speech:
                         break
-                    return None
+                    # No speech within max time — fall through to cleanup below
+                    break
                 
             except sd.PortAudioError as e:
                 # Handle audio system errors (like ALSA underruns)

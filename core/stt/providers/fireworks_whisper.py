@@ -19,23 +19,28 @@ class FireworksWhisperProvider(BaseSTTProvider):
     """Fireworks AI cloud Whisper — OpenAI-compatible transcription API."""
 
     def __init__(self):
-        self._api_key = self._resolve_api_key()
-        self._model = getattr(config, 'STT_FIREWORKS_MODEL', 'whisper-v3-turbo')
-        if self._api_key:
-            logger.info(f"Fireworks Whisper ready (model: {self._model})")
+        # Validate on init but read fresh from config on each call
+        if self._resolve_api_key():
+            logger.info(f"Fireworks Whisper ready (model: {self._get_model()})")
         else:
             logger.warning("Fireworks Whisper: no API key — check STT_FIREWORKS_API_KEY or FIREWORKS_API_KEY env")
 
-    def _resolve_api_key(self) -> str:
-        """Resolve API key: direct setting > env var."""
+    @staticmethod
+    def _resolve_api_key() -> str:
+        """Resolve API key fresh from config: direct setting > env var."""
         key = getattr(config, 'STT_FIREWORKS_API_KEY', '')
         if key:
             return key
         return os.environ.get('FIREWORKS_API_KEY', '')
 
+    @staticmethod
+    def _get_model() -> str:
+        return getattr(config, 'STT_FIREWORKS_MODEL', 'whisper-v3-turbo')
+
     def transcribe_file(self, audio_path: str) -> Optional[str]:
         """Transcribe via Fireworks API (multipart POST)."""
-        if not self._api_key:
+        api_key = self._resolve_api_key()
+        if not api_key:
             logger.error("Fireworks Whisper: no API key configured")
             return None
 
@@ -45,17 +50,18 @@ class FireworksWhisperProvider(BaseSTTProvider):
             logger.error("httpx not installed — pip install httpx")
             return None
 
-        endpoint = FIREWORKS_ENDPOINTS.get(self._model, FIREWORKS_ENDPOINTS['whisper-v3-turbo'])
+        model = self._get_model()
+        endpoint = FIREWORKS_ENDPOINTS.get(model, FIREWORKS_ENDPOINTS['whisper-v3-turbo'])
         language = getattr(config, 'STT_LANGUAGE', 'en')
 
         try:
             with open(audio_path, 'rb') as f:
                 response = httpx.post(
                     endpoint,
-                    headers={'Authorization': self._api_key},
+                    headers={'Authorization': f'Bearer {api_key}'},
                     files={'file': ('audio.wav', f, 'audio/wav')},
                     data={
-                        'model': self._model,
+                        'model': model,
                         'language': language,
                         'response_format': 'json',
                     },
@@ -72,4 +78,4 @@ class FireworksWhisperProvider(BaseSTTProvider):
             return None
 
     def is_available(self) -> bool:
-        return bool(self._api_key)
+        return bool(self._resolve_api_key())

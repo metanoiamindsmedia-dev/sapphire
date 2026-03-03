@@ -39,12 +39,16 @@ MODE_FILTER = {
 }
 
 # Available TTS voices (prefix: am=American Male, af=American Female, bm=British Male, bf=British Female)
-TTS_VOICES = [
-    'am_adam', 'am_eric', 'am_liam', 'am_michael',
-    'af_bella', 'af_nicole', 'af_heart', 'af_jessica', 'af_sarah', 'af_river', 'af_sky',
-    'bf_emma', 'bf_isabella', 'bf_alice', 'bf_lily',
-    'bm_george', 'bm_daniel', 'bm_lewis',
-]
+def _fetch_tts_voices(headers, main_api_url):
+    """Fetch available voices from the active TTS provider."""
+    try:
+        resp = requests.get(f"{main_api_url}/api/tts/voices", headers=headers, timeout=5, verify=False)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get('voices', []), data.get('provider', 'unknown')
+    except Exception:
+        pass
+    return [], 'unknown'
 
 TOOLS = [
     # === Universal tools (both modes) ===
@@ -125,7 +129,7 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "set_tts_voice",
-            "description": "Set TTS voice. Without name, lists current/available voices. Prefix indicates accent/gender: am=American Male, af=American Female, bm=British Male, bf=British Female.",
+            "description": "Set TTS voice. Without name, lists current/available voices.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -557,9 +561,10 @@ def execute(function_name, arguments, config):
             return f"Username changed to {name}. This will appear in prompts using {{user_name}}.", True
 
         elif function_name == "set_tts_voice":
-            name = arguments.get('name', '').strip().lower()
-            
-            # No name - list available voices with current
+            name = arguments.get('name', '').strip()
+            voices, provider = _fetch_tts_voices(headers, main_api_url)
+
+            # No name — list available voices with current
             if not name:
                 current_voice = "unknown"
                 try:
@@ -570,30 +575,38 @@ def execute(function_name, arguments, config):
                         timeout=5, verify=False
                     )
                     if response.status_code == 200:
-                        current_voice = response.json().get('settings', {}).get('voice', 'af_heart')
+                        current_voice = response.json().get('settings', {}).get('voice', 'unknown')
                 except Exception:
                     pass
-                
-                lines = [f"Current: {current_voice}", "Available voices (prefix: am=American Male, af=American Female, bm=British Male, bf=British Female):"]
-                am = [v for v in TTS_VOICES if v.startswith('am_')]
-                af = [v for v in TTS_VOICES if v.startswith('af_')]
-                bm = [v for v in TTS_VOICES if v.startswith('bm_')]
-                bf = [v for v in TTS_VOICES if v.startswith('bf_')]
-                lines.append(f"  American Male: {', '.join(am)}")
-                lines.append(f"  American Female: {', '.join(af)}")
-                lines.append(f"  British Male: {', '.join(bm)}")
-                lines.append(f"  British Female: {', '.join(bf)}")
+
+                lines = [f"Provider: {provider}", f"Current: {current_voice}", "Available voices:"]
+                # Group by category if present
+                categories = {}
+                for v in voices:
+                    cat = v.get('category', 'Other')
+                    categories.setdefault(cat, []).append(v)
+                for cat, cat_voices in categories.items():
+                    names = ', '.join(v['voice_id'] for v in cat_voices)
+                    lines.append(f"  {cat}: {names}")
                 return '\n'.join(lines), True
-            
-            if name not in TTS_VOICES:
+
+            # Match by voice_id or name (case-insensitive)
+            match = None
+            name_lower = name.lower()
+            for v in voices:
+                if v['voice_id'].lower() == name_lower or v.get('name', '').lower() == name_lower:
+                    match = v['voice_id']
+                    break
+
+            if not match:
                 return f"Voice '{name}' not found. Use set_tts_voice without params to list available voices.", False
-            
-            success, msg = _update_chat_setting('voice', name, headers, main_api_url)
+
+            success, msg = _update_chat_setting('voice', match, headers, main_api_url)
             if not success:
                 return msg, False
-            
-            logger.info(f"TTS voice changed to: {name}")
-            return f"Voice changed to {name}.", True
+
+            logger.info(f"TTS voice changed to: {match}")
+            return f"Voice changed to {match}.", True
 
         elif function_name == "list_tools":
             scope = arguments.get('scope', 'enabled').lower().strip()

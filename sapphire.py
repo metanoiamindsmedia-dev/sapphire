@@ -323,6 +323,10 @@ class VoiceChatSystem:
         if base_dir is None:
             base_dir = Path(__file__).parent.resolve()
 
+        # Stop any in-flight playback before swapping
+        if hasattr(self, 'tts') and hasattr(self.tts, 'stop'):
+            self.tts.stop()
+
         if not provider_name or provider_name == 'none':
             self._stop_kokoro_server()
             self.tts = NullTTS()

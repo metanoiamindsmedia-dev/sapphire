@@ -1667,12 +1667,18 @@ async def set_system_prompt(request: Request, _=Depends(require_login), system=D
 # SETTINGS ROUTES (from settings_api.py)
 # =============================================================================
 
+_SENSITIVE_SUFFIXES = ('_API_KEY', '_SECRET', '_PASSWORD', '_TOKEN')
+
 @app.get("/api/settings")
 async def get_all_settings(request: Request, _=Depends(require_login)):
     """Get all current settings."""
     from core.settings_manager import settings
     try:
         all_settings = settings.get_all_settings()
+        # Mask sensitive values — frontend only needs to know if they're set
+        for key in all_settings:
+            if any(key.upper().endswith(s) for s in _SENSITIVE_SUFFIXES) and all_settings[key]:
+                all_settings[key] = '••••••••'
         user_overrides = settings.get_user_overrides()
         return {"settings": all_settings, "user_overrides": list(user_overrides.keys()), "count": len(all_settings)}
     except Exception as e:
@@ -1718,6 +1724,8 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
         raise HTTPException(status_code=400, detail="Missing 'settings'")
     settings_dict = data['settings']
     persist = data.get('persist', True)
+    # Skip masked values sent back by frontend (don't overwrite real secrets with dots)
+    settings_dict = {k: v for k, v in settings_dict.items() if v != '••••••••'}
     results = []
     # Defer provider switches until after all settings are applied
     # (e.g. API key must be in config before provider init reads it)
@@ -1734,13 +1742,16 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
                 deferred_actions.append(('switch_stt_provider', value, key, tier))
                 deferred_keys.add(key)
             if key == 'STT_ENABLED':
-                deferred_actions.append(('toggle_stt', value, key, tier))
+                if 'STT_PROVIDER' not in settings_dict:
+                    deferred_actions.append(('toggle_stt', value, key, tier))
                 deferred_keys.add(key)
             if key == 'TTS_PROVIDER':
                 deferred_actions.append(('switch_tts_provider', value, key, tier))
                 deferred_keys.add(key)
             if key == 'TTS_ENABLED':
-                deferred_actions.append(('toggle_tts', value, key, tier))
+                # Skip if TTS_PROVIDER is in the same batch (it already handles the switch)
+                if 'TTS_PROVIDER' not in settings_dict:
+                    deferred_actions.append(('toggle_tts', value, key, tier))
                 deferred_keys.add(key)
             if key == 'EMBEDDING_PROVIDER':
                 deferred_actions.append(('switch_embedding', value, key, tier))
@@ -1864,6 +1875,8 @@ async def get_setting(key: str, request: Request, _=Depends(require_login)):
     value = settings.get(key)
     if value is None:
         raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    if any(key.upper().endswith(s) for s in _SENSITIVE_SUFFIXES) and value:
+        value = '••••••••'
     tier = settings.validate_tier(key)
     is_user_override = key in settings.get_user_overrides()
     return {"key": key, "value": value, "tier": tier, "user_override": is_user_override}
@@ -1878,6 +1891,9 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
     if data is None or 'value' not in data:
         raise HTTPException(status_code=400, detail="Missing 'value'")
     value = data['value']
+    # Don't overwrite real secrets with masked placeholder
+    if value == '••••••••':
+        return {"status": "success", "key": key, "value": value, "tier": settings.validate_tier(key), "persisted": False}
     persist = data.get('persist', True)
     tier = settings.validate_tier(key)
     settings.set(key, value, persist=persist)
@@ -2843,7 +2859,8 @@ async def test_embedding(request: Request, _=Depends(require_login)):
     if not embedder.available:
         return {"success": False, "provider": provider, "error": "Embedder not available"}
     t0 = time.time()
-    result = embedder.embed(["This is a test sentence for embedding verification."], prefix='search_document')
+    result = await asyncio.to_thread(
+        embedder.embed, ["This is a test sentence for embedding verification."], 'search_document')
     elapsed = round((time.time() - t0) * 1000)
     if result is None:
         return {"success": False, "provider": provider, "error": "Embedding returned None", "ms": elapsed}

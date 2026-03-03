@@ -63,6 +63,7 @@ class LocalEmbedder:
             masked = embeddings * mask[:, :, np.newaxis]
             pooled = masked.sum(axis=1) / mask.sum(axis=1, keepdims=True)
             norms = np.linalg.norm(pooled, axis=1, keepdims=True)
+            norms[norms == 0] = 1
             return (pooled / norms).astype(np.float32)
         except Exception as e:
             logger.error(f"Embedding failed: {e}")
@@ -80,18 +81,20 @@ class RemoteEmbedder:
     @staticmethod
     def _normalize_url(url):
         """Fix common URL mistakes — invisible UX."""
+        from urllib.parse import urlparse, urlunparse
         url = url.strip()
         if not url:
             return ''
         if not url.startswith(('http://', 'https://')):
             url = f'http://{url}'
-        if not url.endswith('/v1/embeddings'):
-            url = url.rstrip('/')
-            if not url.endswith(('/v1/embeddings', '/v1', '/embeddings')):
-                url += '/v1/embeddings'
-            elif url.endswith('/v1'):
-                url += '/embeddings'
-        return url
+        parsed = urlparse(url)
+        path = parsed.path.rstrip('/')
+        if not path.endswith('/v1/embeddings'):
+            if path.endswith('/v1'):
+                path += '/embeddings'
+            elif not path.endswith('/embeddings'):
+                path += '/v1/embeddings'
+        return urlunparse(parsed._replace(path=path))
 
     def embed(self, texts, prefix='search_document'):
         raw_url = getattr(config, 'EMBEDDING_API_URL', '')
@@ -109,7 +112,10 @@ class RemoteEmbedder:
             resp = httpx.post(url, json={'input': prefixed, 'model': EMBEDDING_MODEL},
                               headers=headers, timeout=30.0)
             resp.raise_for_status()
-            data = resp.json()['data']
+            data = resp.json().get('data', [])
+            if not data:
+                logger.warning("Remote embedding returned empty data")
+                return None
             vecs = np.array([d['embedding'] for d in data], dtype=np.float32)
             # L2-normalize (safe regardless of server behavior)
             norms = np.linalg.norm(vecs, axis=1, keepdims=True)
@@ -160,3 +166,9 @@ def switch_embedding_provider(provider_name):
     global _embedder
     logger.info(f"Switching embedding provider to: {provider_name}")
     _embedder = _create_embedder(provider_name)
+    # Reset backfill flag so new provider can re-embed missing memories
+    try:
+        import functions.memory as mem
+        mem._backfill_done = False
+    except Exception:
+        pass

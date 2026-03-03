@@ -127,17 +127,13 @@
     "short": "Fireworks Whisper model",
     "long": "whisper-v3-turbo is faster and cheaper. whisper-v3 is higher quality but slower. For most voice input, turbo is more than good enough."
   },
+  "STT_LANGUAGE": {
+    "short": "Language code for speech recognition",
+    "long": "ISO 639-1 language code (e.g. 'en' for English, 'es' for Spanish, 'fr' for French). Used by both local and remote Whisper providers."
+  },
   "STT_MODEL_SIZE": {
     "short": "Whisper model size for transcription quality",
     "long": "Larger models are more accurate but slower and use more RAM/VRAM. Options: tiny (~1GB RAM, fast but less accurate), base (~1GB RAM, good for testing), small (~2GB RAM, good balance), medium (~5GB RAM, high accuracy), large (~10GB RAM, best accuracy). The .en variants (base.en, small.en, etc.) are English-only and ~30% faster."
-  },
-  "STT_HOST": {
-    "short": "Hostname of STT server",
-    "long": "Hostname or IP address where the speech-to-text server is running. Use 'localhost' or '127.0.0.1' if running on the same machine. For remote servers, use the server's IP or hostname."
-  },
-  "STT_SERVER_PORT": {
-    "short": "Port number of STT server",
-    "long": "Port where the speech-to-text server listens for requests. Default is 5050. Change if you have port conflicts or are running multiple instances. Must match the port the STT server is configured to use."
   },
   "FASTER_WHISPER_CUDA_DEVICE": {
     "short": "CUDA device index for GPU acceleration",

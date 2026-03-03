@@ -15,7 +15,6 @@ const tabConfig = {
             label: 'Local (Faster Whisper)',
             essentialKeys: ['STT_MODEL_SIZE'],
             advancedKeys: [
-                'STT_HOST', 'STT_SERVER_PORT',
                 'FASTER_WHISPER_DEVICE', 'FASTER_WHISPER_CUDA_DEVICE', 'FASTER_WHISPER_COMPUTE_TYPE',
                 'FASTER_WHISPER_BEAM_SIZE', 'FASTER_WHISPER_NUM_WORKERS', 'FASTER_WHISPER_VAD_FILTER'
             ]
