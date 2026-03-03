@@ -119,7 +119,7 @@ PROVIDER_METADATA = {
     'grok': {
         'display_name': 'Grok (xAI)',
         'provider_class': 'openai',
-        'required_fields': ['api_key', 'model'],
+        'required_fields': ['base_url', 'api_key', 'model'],
         'optional_fields': ['timeout'],
         'model_options': {
             'grok-4-1-fast-reasoning': 'Grok 4.1 Fast Reasoning',

@@ -423,7 +423,9 @@ class SettingsManager:
             # SOCKS can be hot-reloaded - session cache is cleared on change
             'SOCKS_ENABLED', 'SOCKS_HOST', 'SOCKS_PORT', 'SOCKS_TIMEOUT',
             # Privacy mode is runtime-only, always hot
-            'PRIVACY_MODE', 'PRIVACY_NETWORK_WHITELIST', 'START_IN_PRIVACY_MODE'
+            'PRIVACY_MODE', 'PRIVACY_NETWORK_WHITELIST', 'START_IN_PRIVACY_MODE',
+            # Providers hot-swap at runtime via switch_*_provider() methods
+            'STT_PROVIDER', 'TTS_PROVIDER', 'EMBEDDING_PROVIDER',
         }
         
         # Everything else requires restart (TTS, STT, modules, etc. are initialized at startup)

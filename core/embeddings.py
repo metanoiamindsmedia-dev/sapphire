@@ -94,7 +94,7 @@ class RemoteEmbedder:
                 path += '/embeddings'
             elif not path.endswith('/embeddings'):
                 path += '/v1/embeddings'
-        return urlunparse(parsed._replace(path=path))
+        return urlunparse((parsed.scheme, parsed.netloc, path, '', '', ''))
 
     def embed(self, texts, prefix='search_document'):
         raw_url = getattr(config, 'EMBEDDING_API_URL', '')
