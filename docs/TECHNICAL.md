@@ -256,7 +256,7 @@ Sensitive fields (Bitcoin WIF keys, API keys, passwords) are encrypted at rest u
 
 - Server: `core/tts/tts_server.py` (Kokoro, HTTP subprocess)
 - Client: `core/tts/tts_client.py`
-- Null impl: `core/tts/tts_null.py` (when disabled)
+- Null provider: `core/tts/providers/null.py` (when disabled, wrapped in TTSClient)
 
 Started by `ProcessManager` if `TTS_ENABLED=true`. Auto-restarts on crash. Server auto-restarts at 3GB memory or 500 requests.
 

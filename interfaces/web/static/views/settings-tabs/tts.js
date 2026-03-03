@@ -37,10 +37,45 @@ export default {
     description: 'Text-to-speech engine configuration',
 
     render(ctx) {
-        return renderProviderTab(tabConfig, ctx);
+        let html = renderProviderTab(tabConfig, ctx);
+        html += `
+            <div class="settings-grid" style="margin-top: 1rem;">
+                <div class="setting-row full-width">
+                    <button id="tts-test-btn" class="btn btn-secondary" style="width: auto;">
+                        Test TTS
+                    </button>
+                    <span id="tts-test-result" style="margin-left: 0.75rem; font-size: var(--font-sm);"></span>
+                </div>
+            </div>`;
+        return html;
     },
 
     attachListeners(ctx, el) {
         attachProviderListeners(tabConfig, ctx, el);
+
+        const btn = el.querySelector('#tts-test-btn');
+        const result = el.querySelector('#tts-test-result');
+        if (btn) btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            result.textContent = '';
+            result.style.color = '';
+            try {
+                const res = await fetch('/api/tts/test', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    result.style.color = 'var(--color-success, #4caf50)';
+                    result.textContent = `${data.provider} — ${data.ms}ms`;
+                } else {
+                    result.style.color = 'var(--color-error, #f44336)';
+                    result.textContent = data.error || 'Test failed';
+                }
+            } catch (e) {
+                result.style.color = 'var(--color-error, #f44336)';
+                result.textContent = `Error: ${e.message}`;
+            }
+            btn.disabled = false;
+            btn.textContent = 'Test TTS';
+        });
     }
 };

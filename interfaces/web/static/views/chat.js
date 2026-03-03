@@ -550,8 +550,10 @@ async function loadSidebar() {
         if (voiceSel && desiredVoice && voiceSel.value !== desiredVoice && ttsVoicesData?.default_voice) {
             setVal(container, '#sb-voice', ttsVoicesData.default_voice);
         }
-        setVal(container, '#sb-pitch', settings.pitch || 0.94);
+        setVal(container, '#sb-pitch', settings.pitch || 0.98);
         setVal(container, '#sb-speed', settings.speed || 1.3);
+        // Update speed slider range from provider limits
+        _updateSpeedRange(container, ttsVoicesData);
         setVal(container, '#sb-spice-turns', settings.spice_turns || 3);
         setVal(container, '#sb-custom-context', settings.custom_context || '');
 
@@ -583,7 +585,7 @@ async function loadSidebar() {
 
         // Update labels
         const pitchLabel = container.querySelector('#sb-pitch-val');
-        if (pitchLabel) pitchLabel.textContent = settings.pitch || 0.94;
+        if (pitchLabel) pitchLabel.textContent = settings.pitch || 0.98;
         const speedLabel = container.querySelector('#sb-speed-val');
         if (speedLabel) speedLabel.textContent = settings.speed || 1.3;
 
@@ -662,7 +664,7 @@ function collectSettings(container) {
         toolset: getVal(container, '#sb-toolset'),
         spice_set: getVal(container, '#sb-spice-set') || 'default',
         voice: getVal(container, '#sb-voice'),
-        pitch: parseFloat(getVal(container, '#sb-pitch')) || 0.94,
+        pitch: parseFloat(getVal(container, '#sb-pitch')) || 0.98,
         speed: parseFloat(getVal(container, '#sb-speed')) || 1.3,
         spice_enabled: getToggle(container, '#sb-spice-toggle'),
         spice_turns: parseInt(getVal(container, '#sb-spice-turns')) || 3,
@@ -860,6 +862,23 @@ function setSidebarMode(container, mode) {
 // Dynamic voice name map — populated from /api/tts/voices in loadSidebar()
 let _voiceNames = {};
 
+function _updateSpeedRange(container, ttsData) {
+    if (!ttsData) return;
+    const slider = container.querySelector('#sb-speed');
+    if (!slider) return;
+    const lo = ttsData.speed_min ?? 0.5;
+    const hi = ttsData.speed_max ?? 2.5;
+    slider.min = lo;
+    slider.max = hi;
+    // Clamp current value into new range
+    const cur = parseFloat(slider.value);
+    if (cur < lo) slider.value = lo;
+    else if (cur > hi) slider.value = hi;
+    updateSliderFill(slider);
+    const label = container.querySelector('#sb-speed-val');
+    if (label) label.textContent = slider.value;
+}
+
 async function refreshVoiceDropdown() {
     const container = document.getElementById('view-chat');
     if (!container) return;
@@ -888,6 +907,8 @@ async function refreshVoiceDropdown() {
             voiceSel.value = data.default_voice;
             voiceChanged = true;
         }
+        // Update speed slider range for new provider
+        _updateSpeedRange(container, data);
         // Save the new voice to chat so backend TTS uses it immediately
         if (voiceChanged) {
             if (saveTimer) clearTimeout(saveTimer);

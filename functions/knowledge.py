@@ -354,12 +354,12 @@ def _get_current_people_scope():
 
 
 def _get_embedder():
-    """Reuse the singleton embedder from memory.py."""
+    """Get the singleton embedder directly from core.embeddings."""
     try:
-        from functions.memory import _get_embedder as mem_get_embedder
-        return mem_get_embedder()
+        from core.embeddings import get_embedder
+        return get_embedder()
     except Exception as e:
-        logger.warning(f"Could not import embedder from memory: {e}")
+        logger.warning(f"Could not get embedder: {e}")
         return None
 
 

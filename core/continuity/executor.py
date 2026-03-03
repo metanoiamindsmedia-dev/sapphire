@@ -380,13 +380,8 @@ class ContinuityExecutor:
 
     def _validate_voice(self, voice: str) -> str:
         """Validate voice matches current TTS provider, substitute default if mismatched."""
-        import config
-        provider = getattr(config, 'TTS_PROVIDER', 'none')
-        if voice and provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
-            return 'af_heart'
-        if voice and provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
-            return getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
-        return voice
+        from core.tts.utils import validate_voice
+        return validate_voice(voice)
 
     def _restore_voice(self, snapshot: Dict[str, Any]) -> None:
         """Restore TTS voice/pitch/speed from snapshot."""

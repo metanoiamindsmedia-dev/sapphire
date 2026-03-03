@@ -453,26 +453,14 @@ def format_messages_for_display(messages):
     return display_messages
 
 
-def _tts_default_voice(provider_name: str) -> str:
-    """Return the default voice for a TTS provider."""
-    if provider_name == 'kokoro':
-        return 'af_heart'
-    if provider_name == 'elevenlabs':
-        return getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
-    return ''
+from core.tts.utils import validate_voice as _validate_tts_voice, default_voice as _tts_default_voice
 
 
 def _apply_chat_settings(system, settings: dict):
     """Apply chat settings to the system (TTS, prompt, ability, state engine)."""
     try:
         if "voice" in settings:
-            voice = settings["voice"]
-            provider = getattr(config, 'TTS_PROVIDER', 'none')
-            # Cross-provider voice mismatch detection
-            if voice and provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
-                voice = _tts_default_voice('kokoro')
-            elif voice and provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
-                voice = _tts_default_voice('elevenlabs')
+            voice = _validate_tts_voice(settings["voice"])
             system.tts.set_voice(voice)
         if "pitch" in settings:
             system.tts.set_pitch(settings["pitch"])
@@ -1428,11 +1416,7 @@ async def tts_preview(request: Request, _=Depends(require_login), system=Depends
 
     try:
         if voice:
-            provider = getattr(config, 'TTS_PROVIDER', 'none')
-            if provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
-                voice = _tts_default_voice('kokoro')
-            elif provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
-                voice = _tts_default_voice('elevenlabs')
+            voice = _validate_tts_voice(voice)
             system.tts.set_voice(voice)
         if pitch is not None: system.tts.set_pitch(pitch)
         if speed is not None: system.tts.set_speed(speed)
@@ -1469,15 +1453,37 @@ async def tts_stop(request: Request, _=Depends(require_login), system=Depends(ge
     return {"status": "success"}
 
 
+@app.post("/api/tts/test")
+async def test_tts(request: Request, _=Depends(require_login), system=Depends(get_system)):
+    """Test current TTS provider availability."""
+    import time
+    prov_name = getattr(config, 'TTS_PROVIDER', 'none')
+    provider = getattr(system.tts, 'provider', None)
+    if not provider:
+        return {"success": False, "provider": prov_name, "error": "No TTS provider loaded"}
+    t0 = time.time()
+    try:
+        available = await asyncio.to_thread(provider.is_available)
+    except Exception as e:
+        return {"success": False, "provider": prov_name, "error": str(e)}
+    elapsed = round((time.time() - t0) * 1000)
+    if not available:
+        return {"success": False, "provider": prov_name, "error": "Provider not available", "ms": elapsed}
+    return {"success": True, "provider": prov_name, "ms": elapsed}
+
+
 @app.get("/api/tts/voices")
 async def tts_voices_get(_=Depends(require_login), system=Depends(get_system)):
     """List voices for the active TTS provider."""
     prov_name = getattr(config, 'TTS_PROVIDER', 'none')
-    provider = getattr(system.tts, '_provider', None)
+    provider = getattr(system.tts, 'provider', None)
+    base = {"provider": prov_name, "default_voice": _tts_default_voice(prov_name),
+            "speed_min": getattr(provider, 'SPEED_MIN', 0.5),
+            "speed_max": getattr(provider, 'SPEED_MAX', 2.5)}
     if provider and hasattr(provider, 'list_voices'):
         voices = await asyncio.to_thread(provider.list_voices)
-        return {"voices": voices, "provider": prov_name, "default_voice": _tts_default_voice(prov_name)}
-    return {"voices": [], "provider": prov_name, "default_voice": _tts_default_voice(prov_name)}
+        return {"voices": voices, **base}
+    return {"voices": [], **base}
 
 
 @app.post("/api/tts/voices")

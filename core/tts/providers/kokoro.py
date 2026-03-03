@@ -14,6 +14,8 @@ class KokoroTTSProvider(BaseTTSProvider):
     """Generates audio via the local Kokoro TTS server subprocess."""
 
     audio_content_type = 'audio/ogg'
+    SPEED_MIN = 0.5
+    SPEED_MAX = 2.0
 
     def __init__(self):
         self.primary_server = config.TTS_PRIMARY_SERVER

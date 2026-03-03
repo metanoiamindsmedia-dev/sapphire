@@ -167,8 +167,14 @@ class TTSClient:
         return True
     
     def set_speed(self, speed):
-        """Set the speech speed"""
-        self.speed = float(speed)
+        """Set the speech speed, clamped to provider's valid range."""
+        speed = float(speed)
+        lo, hi = self._provider.SPEED_MIN, self._provider.SPEED_MAX
+        if speed < lo or speed > hi:
+            clamped = max(lo, min(hi, speed))
+            logger.warning(f"Speed {speed} outside range [{lo}-{hi}], clamped to {clamped}")
+            speed = clamped
+        self.speed = speed
         logger.info(f"Speed set to: {self.speed}")
         return True
     
@@ -177,6 +183,11 @@ class TTSClient:
         self.pitch_shift = float(pitch)
         logger.info(f"Pitch set to: {self.pitch_shift}")
         return True
+
+    @property
+    def provider(self):
+        """The active TTS provider instance."""
+        return self._provider
 
     @property
     def audio_content_type(self):

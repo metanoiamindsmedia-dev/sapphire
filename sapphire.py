@@ -179,12 +179,8 @@ class VoiceChatSystem:
             settings = self.llm_chat.session_manager.get_chat_settings()
             
             if "voice" in settings:
-                voice = settings["voice"]
-                provider = getattr(config, 'TTS_PROVIDER', 'none')
-                if voice and provider == 'kokoro' and len(voice) >= 20 and voice.isalnum():
-                    voice = 'af_heart'
-                elif voice and provider == 'elevenlabs' and not (len(voice) >= 20 and voice.isalnum()):
-                    voice = getattr(config, 'TTS_ELEVENLABS_VOICE_ID', '') or '21m00Tcm4TlvDq8ikWAM'
+                from core.tts.utils import validate_voice
+                voice = validate_voice(settings["voice"])
                 self.tts.set_voice(voice)
             if "pitch" in settings:
                 self.tts.set_pitch(settings["pitch"])
@@ -319,7 +315,8 @@ class VoiceChatSystem:
 
     def _init_tts_provider(self, provider_name, base_dir=None):
         """Initialize TTS with the given provider. Starts Kokoro subprocess if needed."""
-        from core.tts.tts_null import NullTTS
+        from core.tts.providers import get_tts_provider
+        from core.tts.tts_client import TTSClient
         if base_dir is None:
             base_dir = Path(__file__).parent.resolve()
 
@@ -329,7 +326,7 @@ class VoiceChatSystem:
 
         if not provider_name or provider_name == 'none':
             self._stop_kokoro_server()
-            self.tts = NullTTS()
+            self.tts = TTSClient(provider=get_tts_provider('none'))
             logger.info("TTS disabled")
             return True
 
@@ -340,15 +337,13 @@ class VoiceChatSystem:
             self._stop_kokoro_server()
 
         try:
-            from core.tts.providers import get_tts_provider
-            from core.tts.tts_client import TTSClient
             provider = get_tts_provider(provider_name)
             self.tts = TTSClient(provider=provider)
             logger.info(f"TTS provider active: {provider_name}")
             return True
         except Exception as e:
             logger.error(f"TTS init failed for {provider_name}: {e}")
-            self.tts = NullTTS()
+            self.tts = TTSClient(provider=get_tts_provider('none'))
             return False
 
     def _start_kokoro_server(self, base_dir):

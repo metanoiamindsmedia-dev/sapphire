@@ -13,6 +13,10 @@ class BaseTTSProvider(ABC):
     # Subclasses override to declare their output format
     audio_content_type: str = 'audio/ogg'
 
+    # Speed range — subclasses override for provider-specific limits
+    SPEED_MIN: float = 0.5
+    SPEED_MAX: float = 2.5
+
     @abstractmethod
     def generate(self, text: str, voice: str, speed: float, **kwargs) -> Optional[bytes]:
         """Generate audio bytes from text.

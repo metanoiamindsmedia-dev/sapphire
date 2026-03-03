@@ -51,7 +51,8 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             return None
 
         # Per-chat voice override: use if it looks like an ElevenLabs ID
-        voice_id = voice if (voice and len(voice) >= 20 and voice.isalnum()) else self._voice_id
+        from core.tts.utils import is_elevenlabs_voice
+        voice_id = voice if is_elevenlabs_voice(voice) else self._voice_id
         url = f"{ELEVENLABS_TTS_URL}/{voice_id}/stream"
 
         # Clamp speed to ElevenLabs range (Kokoro allows up to 2.0, ElevenLabs only 0.7-1.2)
