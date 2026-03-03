@@ -298,7 +298,9 @@ class VoiceChatSystem:
             return True
         except Exception as e:
             logger.error(f"STT provider switch failed: {e}")
+            from core.stt.stt_null import NullAudioRecorder as _NullRec
             self.whisper_client = NullWhisperClient()
+            self.whisper_recorder = _NullRec()
             return False
 
     def toggle_stt(self, enabled: bool):
@@ -308,8 +310,10 @@ class VoiceChatSystem:
             provider = getattr(config, 'STT_PROVIDER', 'faster_whisper')
             if provider == 'none':
                 provider = 'faster_whisper'
-            _settings.set('STT_PROVIDER', provider, persist=True)
-            return self.switch_stt_provider(provider)
+            if self.switch_stt_provider(provider):
+                _settings.set('STT_PROVIDER', provider, persist=True)
+                return True
+            return False
         _settings.set('STT_PROVIDER', 'none', persist=True)
         return self.switch_stt_provider('none')
 
@@ -343,6 +347,7 @@ class VoiceChatSystem:
             return True
         except Exception as e:
             logger.error(f"TTS init failed for {provider_name}: {e}")
+            self._stop_kokoro_server()
             self.tts = TTSClient(provider=get_tts_provider('none'))
             return False
 
@@ -385,8 +390,10 @@ class VoiceChatSystem:
             provider = getattr(config, 'TTS_PROVIDER', 'kokoro')
             if provider == 'none':
                 provider = 'kokoro'
-            _settings.set('TTS_PROVIDER', provider, persist=True)
-            return self.switch_tts_provider(provider)
+            if self.switch_tts_provider(provider):
+                _settings.set('TTS_PROVIDER', provider, persist=True)
+                return True
+            return False
         _settings.set('TTS_PROVIDER', 'none', persist=True)
         return self.switch_tts_provider('none')
 
@@ -424,6 +431,9 @@ class VoiceChatSystem:
 
     def start_background_services(self):
         provider = getattr(config, 'STT_PROVIDER', 'none')
+        # Legacy compat: if STT_PROVIDER missing but STT_ENABLED is true, assume faster_whisper
+        if (not provider or provider == 'none') and getattr(config, 'STT_ENABLED', False):
+            provider = 'faster_whisper'
         if provider and provider != 'none':
             logger.info(f"Initializing STT provider: {provider}")
             try:

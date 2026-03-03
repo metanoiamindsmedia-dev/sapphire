@@ -2149,7 +2149,8 @@ async def test_llm_provider(provider_key: str, request: Request, _=Depends(requi
 
         return await asyncio.to_thread(_test_provider)
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        logger.error(f"LLM provider test failed for '{provider_key}': {e}")
+        return {"status": "error", "error": "Provider test failed — check API key and endpoint configuration"}
 
 
 # =============================================================================
