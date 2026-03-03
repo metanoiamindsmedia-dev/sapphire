@@ -240,6 +240,47 @@ Sensitive fields (Bitcoin WIF keys, API keys, passwords) are encrypted at rest u
 
 ---
 
+## Plugin Signing & Verification
+
+Plugins are signed with ed25519 to detect tampering. The signing key lives outside the repo; the public key is baked into the app.
+
+### How Signing Works (Authors)
+
+The signing tool (`user/tools/sign_plugin.py`) walks every file in a plugin directory matching `SIGNABLE_EXTENSIONS` (`.py`, `.json`, `.js`, `.css`, `.html`, `.md`), computes a SHA256 hash of each, builds a JSON manifest, and signs it with an ed25519 private key. The output is `plugin.sig` in the plugin directory.
+
+```
+python user/tools/sign_plugin.py plugins/stop/
+python user/tools/sign_plugin.py --all          # sign all plugins in plugins/
+```
+
+**Private key:** `user/plugin_signing_key.pem` (gitignored). Generate with `user/tools/generate_signing_key.py`.
+
+### How Verification Works (App)
+
+On plugin load (`core/plugin_verify.py`), the app:
+
+1. Loads `plugin.sig` and verifies the ed25519 signature against the baked-in public key
+2. Re-hashes every file listed in the manifest and compares to the signed hashes
+3. Scans for any new files not in the manifest (injection detection)
+
+**Results:** `verified` (load), `unsigned` (load with warning if sideloading enabled, block if disabled), or `tampered` (always block).
+
+### Cross-Platform Line Ending Normalization
+
+Both the signer and verifier normalize line endings before hashing — `CRLF` (`\r\n`) is converted to `LF` (`\n`) in memory. This ensures signatures are valid regardless of OS or git `core.autocrlf` settings.
+
+Without this, a plugin signed on Linux (LF) would read as tampered on Windows if git converts line endings to CRLF on checkout. The normalization is in-memory only — no files are modified on disk.
+
+### Settings
+
+| Setting | Default | Effect |
+|---------|---------|--------|
+| `ALLOW_UNSIGNED_PLUGINS` | `true` | Allow unsigned plugins with sideloading confirmation |
+
+When `false`, only signed+verified plugins load. Unsigned plugins are blocked entirely.
+
+---
+
 ## Default Ports
 
 | Service | Port | Binding |

@@ -31,10 +31,9 @@ def _build_signable_payload(manifest_data: dict) -> bytes:
 
 
 def _hash_file(path: Path) -> str:
-    """SHA256 hex digest of a file."""
-    h = hashlib.sha256()
-    h.update(path.read_bytes())
-    return f"sha256:{h.hexdigest()}"
+    """SHA256 hex digest of a file, line-ending normalized (CRLF → LF)."""
+    content = path.read_bytes().replace(b'\r\n', b'\n')
+    return f"sha256:{hashlib.sha256(content).hexdigest()}"
 
 
 def verify_plugin(plugin_dir: Path) -> Tuple[bool, str]:
