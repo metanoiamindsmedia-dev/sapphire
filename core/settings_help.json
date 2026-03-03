@@ -233,6 +233,19 @@
     "short": "Timeout before trying fallback server (seconds)",
     "long": "How long to wait for primary TTS server before switching to fallback. 0.2 seconds (200ms) provides quick failover. Too low may not give primary server enough time. Too high causes noticeable delays when primary is down."
   },
+  "EMBEDDING_PROVIDER": {
+    "short": "Where to run embedding inference",
+    "long": "Local runs Nomic on your CPU (requires onnxruntime + transformers). API sends text to a remote Nomic server. Disable to use text-only search."
+  },
+  "EMBEDDING_API_URL": {
+    "short": "Remote embedding server URL",
+    "long": "OpenAI-compatible endpoint, e.g. http://your-server:8080/v1/embeddings"
+  },
+  "EMBEDDING_API_KEY": {
+    "short": "API key for remote server (optional)",
+    "long": "Sent as Bearer token. Leave blank if your server has no auth."
+  },
+
   "LLM_MAX_HISTORY": {
     "short": "Maximum conversation messages to send (0 = unlimited)",
     "long": "How many past messages to send to LLM. Single messages count, not assistant/user pairs. Truncates earlier messages when exceeded. Set to 0 to disable message-based trimming and rely only on CONTEXT_LIMIT for token-based trimming."

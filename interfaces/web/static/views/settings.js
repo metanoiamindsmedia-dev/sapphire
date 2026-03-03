@@ -8,6 +8,7 @@ import appearanceTab from './settings-tabs/appearance.js';
 import audioTab from './settings-tabs/audio.js';
 import ttsTab from './settings-tabs/tts.js';
 import sttTab from './settings-tabs/stt.js';
+import embeddingTab from './settings-tabs/embedding.js';
 import llmTab from './settings-tabs/llm.js';
 import toolsTab from './settings-tabs/tools.js';
 import networkTab from './settings-tabs/network.js';
@@ -19,7 +20,7 @@ import systemTab from './settings-tabs/system.js';
 
 import { getRegisteredTabs } from '../shared/plugin-registry.js';
 
-const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
+const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, embeddingTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
 
 let container = null;
 let activeTab = 'appearance';

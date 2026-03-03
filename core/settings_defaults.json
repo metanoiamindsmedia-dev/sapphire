@@ -105,7 +105,13 @@
     "TTS_ELEVENLABS_MODEL": "eleven_flash_v2_5",
     "TTS_ELEVENLABS_VOICE_ID": ""
   },
-  
+
+  "embedding": {
+    "EMBEDDING_PROVIDER": "local",
+    "EMBEDDING_API_URL": "",
+    "EMBEDDING_API_KEY": ""
+  },
+
   "server": {
     "WEB_UI_HOST": "0.0.0.0",
     "WEB_UI_PORT": 8073,

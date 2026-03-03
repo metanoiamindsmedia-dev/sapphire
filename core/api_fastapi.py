@@ -1742,6 +1742,9 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
             if key == 'TTS_ENABLED':
                 deferred_actions.append(('toggle_tts', value, key, tier))
                 deferred_keys.add(key)
+            if key == 'EMBEDDING_PROVIDER':
+                deferred_actions.append(('switch_embedding', value, key, tier))
+                deferred_keys.add(key)
             if key == 'ALLOW_UNSIGNED_PLUGINS' and not value:
                 try:
                     from core.plugin_loader import plugin_loader
@@ -1759,7 +1762,11 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
     system = get_system()
     for action, value, key, tier in deferred_actions:
         try:
-            await asyncio.to_thread(getattr(system, action), value)
+            if action == 'switch_embedding':
+                from core.embeddings import switch_embedding_provider
+                switch_embedding_provider(value)
+            else:
+                await asyncio.to_thread(getattr(system, action), value)
         except Exception as e:
             logger.error(f"Deferred action {action} failed: {e}")
     # Re-apply chat settings so voice gets validated for new provider
