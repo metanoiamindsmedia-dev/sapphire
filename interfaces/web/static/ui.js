@@ -217,7 +217,7 @@ const createMessage = (msg, idx = null, total = null, isHistoryRender = false) =
     if (role === 'assistant' && msg.metadata) {
         const meta = msg.metadata;
         const parts = [];
-        
+
         if (meta.duration_seconds) {
             parts.push(`${meta.duration_seconds}s`);
         }
@@ -225,9 +225,21 @@ const createMessage = (msg, idx = null, total = null, isHistoryRender = false) =
             parts.push(`${meta.tokens_per_second} tok/s`);
         }
         if (meta.model) {
-            parts.push(meta.model);
+            // Show "provider / model" when provider isn't obvious from model name
+            const provider = meta.provider || '';
+            const model = meta.model;
+            const modelLower = model.toLowerCase();
+            const providerInModel = provider && (
+                modelLower.startsWith(provider.toLowerCase()) ||
+                modelLower.includes(provider.toLowerCase())
+            );
+            if (provider && !providerInModel) {
+                parts.push(`${provider} / ${model}`);
+            } else {
+                parts.push(model);
+            }
         }
-        
+
         if (parts.length > 0) {
             const metaDiv = createElem('div', { class: 'message-metadata' }, parts.join(' • '));
             contentDiv.appendChild(metaDiv);
