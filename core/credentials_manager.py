@@ -39,7 +39,10 @@ DEFAULT_CREDENTIALS = {
         "claude": {"api_key": ""},
         "fireworks": {"api_key": ""},
         "openai": {"api_key": ""},
-        "other": {"api_key": ""}
+        "other": {"api_key": ""},
+        "grok": {"api_key": ""},
+        "featherless": {"api_key": ""},
+        "gemini": {"api_key": ""}
     },
     "socks": {
         "username": "",
@@ -61,6 +64,9 @@ PROVIDER_ENV_VARS = {
     'claude': 'ANTHROPIC_API_KEY',
     'fireworks': 'FIREWORKS_API_KEY',
     'openai': 'OPENAI_API_KEY',
+    'grok': 'XAI_API_KEY',
+    'featherless': 'FEATHERLESS_API_KEY',
+    'gemini': 'GOOGLE_API_KEY',
     # 'other' has no standard env var - fully manual
 }
 
@@ -135,7 +141,9 @@ class CredentialsManager:
         if changed:
             if not self._save():
                 logger.warning("Schema update could not be saved to disk")
-    
+        # Always sweep stale api_keys from settings.json into credentials
+        self._migrate_settings_api_keys()
+
     def _migrate_legacy(self):
         """Migrate from legacy credential files."""
         migrated = False

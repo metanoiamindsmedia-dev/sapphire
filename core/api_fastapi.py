@@ -2101,6 +2101,13 @@ async def update_llm_provider(provider_key: str, request: Request, _=Depends(req
     providers = settings.get('LLM_PROVIDERS', {})
     if provider_key not in providers:
         raise HTTPException(status_code=404, detail=f"Provider '{provider_key}' not found")
+
+    # Route API keys to credentials manager, not settings.json
+    api_key = data.pop('api_key', None)
+    if api_key is not None and api_key.strip():
+        from core.credentials_manager import credentials
+        credentials.set_llm_api_key(provider_key, api_key.strip())
+
     providers[provider_key].update(data)
     settings.set('LLM_PROVIDERS', providers, persist=True)
     return {"status": "success", "provider": provider_key}

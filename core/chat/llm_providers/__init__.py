@@ -439,6 +439,17 @@ def get_available_providers(providers_config: Dict[str, Dict[str, Any]]) -> List
         has_api_key = bool(api_key and api_key != 'not-needed')
         needs_api_key = 'api_key' in metadata.get('required_fields', [])
         
+        # Key source info for frontend hints
+        try:
+            from core.credentials_manager import credentials
+            has_config_key = credentials.has_stored_api_key(key)
+            has_env_key = credentials.has_env_api_key(key)
+            env_var = credentials.get_env_var_name(key)
+        except ImportError:
+            has_config_key = False
+            has_env_key = False
+            env_var = metadata.get('api_key_env', '')
+
         result.append({
             'key': key,
             'display_name': config.get('display_name', metadata.get('display_name', key)),
@@ -447,6 +458,9 @@ def get_available_providers(providers_config: Dict[str, Dict[str, Any]]) -> List
             'is_local': metadata.get('is_local', False),
             'model': config.get('model', ''),
             'model_options': metadata.get('model_options'),
+            'has_config_key': has_config_key,
+            'has_env_key': has_env_key,
+            'env_var': env_var,
         })
     
     return result
