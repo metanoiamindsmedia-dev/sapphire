@@ -51,7 +51,7 @@ def get_user_defaults() -> Dict[str, Any]:
     merged = SYSTEM_DEFAULTS.copy()
 
     # User chat_defaults.json as base layer (if it exists)
-    user_defaults_path = Path("user/settings/chat_defaults.json")
+    user_defaults_path = Path(__file__).parent.parent.parent / "user" / "settings" / "chat_defaults.json"
     if user_defaults_path.exists():
         try:
             with open(user_defaults_path, 'r', encoding='utf-8') as f:

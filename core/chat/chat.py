@@ -929,7 +929,7 @@ class LLMChat:
             tools = None
             toolset = task_settings.get("toolset")
             if toolset and toolset not in ("none", ""):
-                # Temporarily set memory and goal scopes for tool execution
+                # Temporarily set scopes for tool execution — reset all to prevent stale state
                 memory_scope = task_settings.get("memory_scope", "default")
                 self.function_manager.set_memory_scope(memory_scope if memory_scope != "none" else None)
                 goal_scope = task_settings.get("goal_scope", "default")
@@ -942,6 +942,8 @@ class LLMChat:
                 self.function_manager.set_email_scope(email_scope if email_scope != "none" else None)
                 bitcoin_scope = task_settings.get("bitcoin_scope", "default")
                 self.function_manager.set_bitcoin_scope(bitcoin_scope if bitcoin_scope != "none" else None)
+                self.function_manager.set_rag_scope(None)
+                self.function_manager.set_private_chat(False)
                 self.function_manager.update_enabled_functions([toolset])
                 tools = self.function_manager.enabled_tools
                 _scopes = self.function_manager.snapshot_scopes()

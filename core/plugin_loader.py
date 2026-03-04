@@ -390,14 +390,16 @@ class PluginLoader:
         """Unload and reload a plugin. Safe — if reload fails, plugin stays unloaded.
 
         Re-reads manifest from disk so code/settings changes take effect.
+        Re-verifies signature to catch tampering since initial scan.
         Also re-enables plugin tools in the active toolset.
         """
         self.unload_plugin(name)
         with self._lock:
             should_load = name in self._plugins and self._plugins[name]["enabled"]
-            # Re-read manifest from disk (tool code or settings may have changed)
             if name in self._plugins:
-                manifest_path = self._plugins[name]["path"] / "plugin.json"
+                plugin_path = self._plugins[name]["path"]
+                # Re-read manifest from disk (tool code or settings may have changed)
+                manifest_path = plugin_path / "plugin.json"
                 if manifest_path.exists():
                     try:
                         self._plugins[name]["manifest"] = json.loads(
@@ -405,6 +407,11 @@ class PluginLoader:
                         )
                     except Exception as e:
                         logger.warning(f"[PLUGINS] Failed to re-read manifest for {name}: {e}")
+                # Re-verify signature (code may have been tampered with since scan)
+                verified, verify_msg, verify_meta = verify_plugin(plugin_path)
+                self._plugins[name]["verified"] = verified
+                self._plugins[name]["verify_msg"] = verify_msg
+                self._plugins[name]["verified_author"] = verify_meta.get("author")
         if should_load:
             try:
                 self._load_plugin(name)

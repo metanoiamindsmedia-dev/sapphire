@@ -1409,23 +1409,12 @@ async def tts_preview(request: Request, _=Depends(require_login), system=Depends
     if not config.TTS_ENABLED:
         raise HTTPException(status_code=503, detail="TTS disabled")
 
-    # Save current settings
-    orig_voice = system.tts.voice_name
-    orig_pitch = system.tts.pitch_shift
-    orig_speed = system.tts.speed
-
-    try:
-        if voice:
-            voice = _validate_tts_voice(voice)
-            system.tts.set_voice(voice)
-        if pitch is not None: system.tts.set_pitch(pitch)
-        if speed is not None: system.tts.set_speed(speed)
-        audio_data = await asyncio.to_thread(system.tts.generate_audio_data, text)
-    finally:
-        # Restore original settings
-        system.tts.set_voice(orig_voice)
-        system.tts.set_pitch(orig_pitch)
-        system.tts.set_speed(orig_speed)
+    if voice:
+        voice = _validate_tts_voice(voice)
+    audio_data = await asyncio.to_thread(
+        system.tts.generate_audio_data, text,
+        voice=voice, speed=speed, pitch=pitch
+    )
 
     if not audio_data:
         raise HTTPException(status_code=503, detail="TTS generation failed")
@@ -1544,6 +1533,8 @@ async def handle_transcribe(audio: UploadFile = File(...), _=Depends(require_log
                 os.unlink(temp_path)
         except Exception:
             pass
+    if transcribed_text is None:
+        raise HTTPException(status_code=500, detail="Transcription failed — check STT provider logs")
     return {"text": transcribed_text}
 
 

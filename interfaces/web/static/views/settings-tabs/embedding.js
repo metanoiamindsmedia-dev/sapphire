@@ -49,7 +49,7 @@ export default {
     },
 
     attachListeners(ctx, el) {
-        attachProviderListeners(tabConfig, ctx, el);
+        attachProviderListeners(tabConfig, ctx, el, this);
 
         // Set placeholder on URL field after render
         const urlInput = el.querySelector('[data-key="EMBEDDING_API_URL"]');

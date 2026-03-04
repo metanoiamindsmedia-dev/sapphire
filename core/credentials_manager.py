@@ -101,6 +101,7 @@ class CredentialsManager:
                 except Exception as backup_err:
                     logger.error(f"Could not back up corrupt credentials: {backup_err}")
                 self._credentials = self._deep_copy(DEFAULT_CREDENTIALS)
+                self._save()
         else:
             logger.info(f"Credentials file does not exist, creating with defaults")
             self._credentials = self._deep_copy(DEFAULT_CREDENTIALS)

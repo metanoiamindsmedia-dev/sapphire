@@ -51,7 +51,7 @@ export default {
     },
 
     attachListeners(ctx, el) {
-        attachProviderListeners(tabConfig, ctx, el);
+        attachProviderListeners(tabConfig, ctx, el, this);
 
         const btn = el.querySelector('#tts-test-btn');
         const result = el.querySelector('#tts-test-result');

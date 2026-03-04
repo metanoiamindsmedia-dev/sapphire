@@ -34,7 +34,7 @@ class KokoroTTSProvider(BaseTTSProvider):
                 'text': text.replace("*", ""),
                 'voice': voice,
                 'speed': clamped_speed,
-            })
+            }, timeout=60)
             if response.status_code != 200:
                 logger.error(f"Kokoro server error: {response.status_code}")
                 return None

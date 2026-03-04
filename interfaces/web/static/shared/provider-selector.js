@@ -44,7 +44,7 @@ export function renderProviderTab(tabConfig, ctx) {
     return html;
 }
 
-export function attachProviderListeners(tabConfig, ctx, el) {
+export function attachProviderListeners(tabConfig, ctx, el, tabModule) {
     const dropdown = el.querySelector(`#setting-${tabConfig.providerKey}`);
     if (!dropdown) return;
 
@@ -56,9 +56,14 @@ export function attachProviderListeners(tabConfig, ctx, el) {
         if (content) {
             const body = content.querySelector('.settings-tab-body');
             if (body) {
-                body.innerHTML = renderProviderTab(tabConfig, ctx);
-                // Re-attach our listener on the new dropdown
-                attachProviderListeners(tabConfig, ctx, content);
+                // Use tab's full render if available (preserves test buttons etc.)
+                body.innerHTML = tabModule?.render ? tabModule.render(ctx) : renderProviderTab(tabConfig, ctx);
+                // Re-attach all listeners (provider dropdown + tab-specific like test buttons)
+                if (tabModule?.attachListeners) {
+                    tabModule.attachListeners(ctx, content);
+                } else {
+                    attachProviderListeners(tabConfig, ctx, content);
+                }
                 // Re-attach generic listeners (accordion, input tracking, etc.)
                 if (ctx.attachAccordionListeners) ctx.attachAccordionListeners(content);
             }

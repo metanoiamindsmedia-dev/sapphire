@@ -292,21 +292,22 @@ class TTSClient:
         self._generate_and_play_audio(processed_text)
         return True
         
-    def _apply_pitch_shift(self, audio_data, samplerate):
+    def _apply_pitch_shift(self, audio_data, samplerate, pitch=None):
         """Apply pitch shifting to audio data in memory"""
-        if self.pitch_shift == 1.0:
+        pitch = pitch if pitch is not None else self.pitch_shift
+        if pitch == 1.0:
             return audio_data, samplerate
-            
+
         try:
             # Convert to mono if stereo for pitch processing
             if len(audio_data.shape) > 1:
                 mono_data = audio_data.mean(axis=1)
             else:
                 mono_data = audio_data
-            
+
             # Resample to shift pitch
             original_length = len(mono_data)
-            new_length = int(original_length / self.pitch_shift)
+            new_length = int(original_length / pitch)
             indices = np.linspace(0, original_length - 1, new_length)
             shifted_data = np.interp(indices, np.arange(original_length), mono_data)
             
@@ -449,16 +450,22 @@ class TTSClient:
             _time.sleep(0.1)
         return not self._is_playing
 
-    def generate_audio_data(self, text):
-        """Generate audio and return raw bytes for file download."""
+    def generate_audio_data(self, text, voice=None, speed=None, pitch=None):
+        """Generate audio and return raw bytes for file download.
+
+        Optional voice/speed/pitch override without mutating shared state (used by preview).
+        """
+        use_voice = voice or self.voice_name
+        use_speed = speed if speed is not None else self.speed
+        use_pitch = pitch if pitch is not None else self.pitch_shift
         temp_path = None
         try:
-            audio_bytes = self._provider.generate(text, self.voice_name, self.speed)
+            audio_bytes = self._provider.generate(text, use_voice, use_speed)
             if not audio_bytes:
                 return None
 
             # Apply pitch shift if needed (requires decode → re-encode)
-            if self.pitch_shift != 1.0:
+            if use_pitch != 1.0:
                 fd, temp_path = tempfile.mkstemp(suffix='.ogg', dir=self.temp_dir)
                 os.close(fd)
 
@@ -466,7 +473,7 @@ class TTSClient:
                     f.write(audio_bytes)
 
                 audio_data, samplerate = sf.read(temp_path)
-                audio_data, samplerate = self._apply_pitch_shift(audio_data, samplerate)
+                audio_data, samplerate = self._apply_pitch_shift(audio_data, samplerate, pitch=use_pitch)
                 sf.write(temp_path, audio_data, samplerate, format='OGG', subtype='OPUS')
 
                 with open(temp_path, 'rb') as f:

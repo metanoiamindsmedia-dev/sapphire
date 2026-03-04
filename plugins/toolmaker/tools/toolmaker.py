@@ -377,7 +377,9 @@ def execute(function_name, arguments, config):
             if not name:
                 return _list_user_plugins(), True
 
-            clean = name.strip().lower().replace('.py', '').replace('-', '_')
+            clean = _sanitize_name(name)
+            if not clean:
+                return f"Invalid tool name: '{name}'. Use alphanumeric and underscores only.", False
             # Check user plugins first
             plugin_tool = _USER_PLUGINS / clean / "tools" / f"{clean}.py"
             if plugin_tool.exists():

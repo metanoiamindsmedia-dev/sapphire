@@ -442,9 +442,11 @@ class VoiceChatSystem:
                 self.whisper_recorder = RealAudioRecorder()
             except ImportError as e:
                 logger.error(f"STT provider '{provider}' not available: {e}")
+                self.whisper_client = NullWhisperClient()
                 return False
             except RuntimeError as e:
                 logger.error(f"Failed to initialize STT provider '{provider}': {e}")
+                self.whisper_client = NullWhisperClient()
                 return False
         else:
             logger.info("STT disabled - skipping initialization")
