@@ -519,8 +519,8 @@ class OpenAICompatProvider(BaseProvider):
             # Tool call chunks
             if delta.tool_calls:
                 for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    
+                    idx = tc_delta.index if tc_delta.index is not None else 0
+
                     # Expand list if needed
                     while len(tool_calls_acc) <= idx:
                         tool_calls_acc.append({
