@@ -24,6 +24,7 @@ from .base import BaseProvider, LLMResponse, ToolCall
 from .openai_compat import OpenAICompatProvider
 from .openai_responses import OpenAIResponsesProvider
 from .claude import ClaudeProvider
+from .gemini import GeminiProvider
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ PROVIDER_CLASSES = {
     'responses': OpenAIResponsesProvider,  # Generic Responses API
     'fireworks': OpenAICompatProvider,
     'claude': ClaudeProvider,
+    'gemini': GeminiProvider,
 }
 
 # Provider metadata for UI rendering
@@ -159,6 +161,22 @@ PROVIDER_METADATA = {
         'is_local': False,
         'default_timeout': 10.0,
         'api_key_env': 'FEATHERLESS_API_KEY',
+    },
+    'gemini': {
+        'display_name': 'Gemini',
+        'provider_class': 'gemini',
+        'required_fields': ['api_key', 'model'],
+        'optional_fields': ['timeout', 'reasoning_effort'],
+        'model_options': {
+            'gemini-2.5-flash': 'Gemini 2.5 Flash (Thinking)',
+            'gemini-2.5-pro': 'Gemini 2.5 Pro (Thinking)',
+            'gemini-2.0-flash': 'Gemini 2.0 Flash',
+            'gemini-2.0-flash-lite': 'Gemini 2.0 Flash Lite',
+        },
+        'is_local': False,
+        'default_timeout': 10.0,
+        'api_key_env': 'GOOGLE_API_KEY',
+        'supports_reasoning': True,
     },
     'other': {
         'display_name': 'Other (OpenAI Compatible)',
@@ -469,6 +487,8 @@ def get_provider_for_url(base_url: str) -> str:
         return 'claude'
     elif 'fireworks.ai' in url_lower:
         return 'fireworks'
+    elif 'generativelanguage.googleapis.com' in url_lower:
+        return 'gemini'
     return 'openai'
 
 
@@ -538,6 +558,7 @@ __all__ = [
     'OpenAICompatProvider',
     'OpenAIResponsesProvider',
     'ClaudeProvider',
+    'GeminiProvider',
     'PROVIDER_CLASSES',
     'PROVIDER_METADATA',
 ]
