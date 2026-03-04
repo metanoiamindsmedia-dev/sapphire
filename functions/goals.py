@@ -236,8 +236,9 @@ def _ensure_db():
         # Migration: add permanent column to existing databases
         try:
             cursor.execute('ALTER TABLE goals ADD COLUMN permanent INTEGER DEFAULT 0')
-        except sqlite3.OperationalError:
-            pass  # Column already exists
+        except sqlite3.OperationalError as e:
+            if 'duplicate column' not in str(e).lower():
+                logger.error(f"Goals migration failed (permanent column): {e}")
 
         conn.commit()
         conn.close()
@@ -904,7 +905,7 @@ def _update_goal(goal_id, scope='default', **kwargs):
             return err, False
 
         # Permanent goal guard — AI can only add progress notes
-        if goal[10]:  # permanent column
+        if len(goal) > 10 and goal[10]:  # permanent column
             if any(v is not None for v in [title, description, priority, status]):
                 return f"Goal [{goal_id}] is permanent — only progress notes can be added.", False
 
@@ -989,7 +990,7 @@ def _delete_goal(goal_id, cascade=True, scope='default'):
             return err, False
 
         # Permanent goal guard — AI cannot delete permanent goals
-        if goal[10]:  # permanent column
+        if len(goal) > 10 and goal[10]:  # permanent column
             return f"Goal [{goal_id}] is permanent and cannot be deleted.", False
 
         title = goal[1]

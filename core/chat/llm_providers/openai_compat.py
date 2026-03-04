@@ -564,6 +564,8 @@ class OpenAICompatProvider(BaseProvider):
     def _parse_response(self, response) -> LLMResponse:
         """Parse OpenAI response into normalized LLMResponse."""
         
+        if not response.choices:
+            raise ValueError("LLM returned empty response (no choices)")
         choice = response.choices[0]
         message = choice.message
         

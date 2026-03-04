@@ -135,6 +135,15 @@ class ContinuityExecutor:
                         progress_cb=None, response_cb=None) -> Dict[str, Any]:
         """Run task in foreground mode - switches to named chat, runs, restores original."""
         import config
+
+        # Don't switch active chat while user is streaming — would corrupt chat context
+        if self.system.llm_chat.streaming_chat.is_streaming:
+            task_name = task.get("name", "Unknown")
+            logger.warning(f"[Continuity] Deferring foreground task '{task_name}' — user stream active")
+            result["errors"].append("Deferred: user stream in progress")
+            result["completed_at"] = datetime.now().isoformat()
+            return result
+
         session_manager = self.system.llm_chat.session_manager
         original_chat = session_manager.get_active_chat_name()
         original_toolset = self.system.llm_chat.function_manager.current_toolset_name

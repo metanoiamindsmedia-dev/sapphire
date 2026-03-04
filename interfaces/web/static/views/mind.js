@@ -290,11 +290,11 @@ async function renderMemories(el) {
     }).join('') + '</div>';
 
     // Pagination handlers
-    el.querySelector('#mem-prev')?.addEventListener('click', () => {
-        if (memoryPage > 0) { memoryPage--; renderMemories(el); }
+    el.querySelector('#mem-prev')?.addEventListener('click', async () => {
+        if (memoryPage > 0) { memoryPage--; await renderMemories(el); }
     });
-    el.querySelector('#mem-next')?.addEventListener('click', () => {
-        if (memoryPage < totalPages - 1) { memoryPage++; renderMemories(el); }
+    el.querySelector('#mem-next')?.addEventListener('click', async () => {
+        if (memoryPage < totalPages - 1) { memoryPage++; await renderMemories(el); }
     });
 
     // Edit handlers

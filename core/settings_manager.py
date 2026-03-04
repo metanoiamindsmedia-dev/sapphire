@@ -263,14 +263,23 @@ class SettingsManager:
             nested = self._deep_update_from_flat(nested, self._user)
             
             user_path.parent.mkdir(exist_ok=True)
-            with open(user_path, 'w', encoding='utf-8') as f:
+            # Atomic write: tmp file + rename to prevent corruption on crash
+            tmp_path = user_path.with_suffix('.json.tmp')
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(nested, f, indent=2)
-            
+            tmp_path.replace(user_path)
+
             self._update_mtime()
             logger.info(f"Saved user settings to {user_path}")
             return True
         except Exception as e:
             logger.error(f"Failed to save user settings: {e}")
+            try:
+                tmp_path = user_path.with_suffix('.json.tmp')
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
             return False
     
     def _deep_update_from_flat(self, nested, flat_updates):
@@ -562,8 +571,10 @@ class SettingsManager:
             removed = self._remove_from_nested(nested, key)
             
             if removed:
-                with open(user_path, 'w', encoding='utf-8') as f:
+                tmp_path = user_path.with_suffix('.json.tmp')
+                with open(tmp_path, 'w', encoding='utf-8') as f:
                     json.dump(nested, f, indent=2)
+                tmp_path.replace(user_path)
                 self._update_mtime()
                 logger.debug(f"Removed '{key}' from settings file")
         except Exception as e:

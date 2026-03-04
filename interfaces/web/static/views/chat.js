@@ -16,6 +16,8 @@ let llmProviders = [];
 let llmMetadata = {};
 let personasList = [];
 let defaultPersonaName = '';
+let _docClickHandler = null;
+let _personaHandler = null;
 
 const SAVE_DEBOUNCE = 500;
 
@@ -154,12 +156,12 @@ export default {
             await loadSidebar();
         });
 
-        // Close sidebar picker on outside click
-        document.addEventListener('click', e => {
+        // Close sidebar picker on outside click (added/removed in show/hide)
+        _docClickHandler = e => {
             if (!e.target.closest('#sb-chat-picker')) {
                 container.querySelector('#sb-chat-picker')?.classList.remove('open');
             }
-        });
+        };
 
         // Toggle buttons (Spice, Date/Time)
         container.querySelectorAll('.sb-toggle').forEach(btn => {
@@ -239,8 +241,8 @@ export default {
         // Sidebar mode tabs (Easy/Full)
         initSidebarModes(container);
 
-        // Listen for persona-loaded events
-        window.addEventListener('persona-loaded', () => loadSidebar());
+        // Listen for persona-loaded events (added/removed in show/hide)
+        _personaHandler = () => loadSidebar();
 
         // Save As New Persona button
         const saveAsPersonaBtn = container.querySelector('#sb-save-as-persona');
@@ -318,11 +320,16 @@ export default {
     },
 
     async show() {
+        if (_docClickHandler) document.addEventListener('click', _docClickHandler);
+        if (_personaHandler) window.addEventListener('persona-loaded', _personaHandler);
         await refreshInitData();
         await loadSidebar();
     },
 
-    hide() {}
+    hide() {
+        if (_docClickHandler) document.removeEventListener('click', _docClickHandler);
+        if (_personaHandler) window.removeEventListener('persona-loaded', _personaHandler);
+    }
 };
 
 function toggleSidebar(container) {

@@ -7,8 +7,6 @@ import { handleVolumeChange, handleMuteToggle } from '../features/volume.js';
 import { handleMicPress, handleMicRelease, handleMicLeave, handleVisibilityChange } from '../features/mic.js';
 import {
     handleChatChange,
-    handleNewChat,
-    handleDeleteChat,
     handleClearChat,
     handleExportChat,
     handleImportChat,
@@ -24,7 +22,6 @@ import { handleSend, handleStop, handleInput, handleKeyDown, triggerSendWithText
 import { handleToolbar } from '../handlers/message-handlers.js';
 
 // Nav rail integration
-import { setChatHeaderName } from './nav-rail.js';
 
 export function bindAllEvents() {
     const el = getElements();
@@ -70,54 +67,15 @@ export function bindAllEvents() {
     // Chat selector (hidden <select> for compatibility)
     el.chatSelect.addEventListener('change', handleChatChange);
 
-    // Header icon buttons
-    document.getElementById('new-chat-btn')?.addEventListener('click', handleNewChat);
-    document.getElementById('delete-chat-btn')?.addEventListener('click', handleDeleteChat);
+    // Header icon buttons (chat picker + new/delete handled by views/chat.js with sb- prefixed IDs)
     el.clearChatBtn?.addEventListener('click', handleClearChat);
     el.importChatBtn?.addEventListener('click', handleImportChat);
     el.exportChatBtn?.addEventListener('click', handleExportChat);
     el.importFileInput?.addEventListener('change', handleImportFile);
 
-    // Chat picker dropdown
-    const picker = document.getElementById('chat-picker');
-    const pickerBtn = document.getElementById('chat-picker-btn');
-    if (picker && pickerBtn) {
-        pickerBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            closeAllKebabs();
-            picker.classList.toggle('open');
-        });
-
-        // Chat item clicks inside picker (event delegation)
-        const dropdown = document.getElementById('chat-picker-dropdown');
-        if (dropdown) {
-            dropdown.addEventListener('click', e => {
-                const item = e.target.closest('.chat-picker-item');
-                if (!item) return;
-                const chatName = item.dataset.chat;
-                if (!chatName) return;
-                picker.classList.remove('open');
-
-                // Update active state immediately
-                dropdown.querySelectorAll('.chat-picker-item').forEach(i => {
-                    const active = i.dataset.chat === chatName;
-                    i.classList.toggle('active', active);
-                    i.querySelector('.chat-picker-item-check').textContent = active ? '\u2713' : '';
-                });
-
-                el.chatSelect.value = chatName;
-                handleChatChange();
-                setChatHeaderName(chatName);
-            });
-        }
-    }
-
     // Close dropdowns on outside click
     document.addEventListener('click', e => {
         if (!e.target.closest('.kebab-menu')) closeAllKebabs();
-        if (!e.target.closest('.chat-picker')) {
-            document.getElementById('chat-picker')?.classList.remove('open');
-        }
         if (!e.target.closest('.volume-compact')) {
             document.getElementById('volume-compact')?.classList.remove('open');
         }
@@ -126,7 +84,6 @@ export function bindAllEvents() {
     // Chat menu kebab toggle
     el.chatMenu?.querySelector('.kebab-btn')?.addEventListener('click', e => {
         e.stopPropagation();
-        document.getElementById('chat-picker')?.classList.remove('open');
         toggleKebab(el.chatMenu);
     });
 

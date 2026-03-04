@@ -172,6 +172,26 @@ async function loadProviderMeta() {
 }
 
 
+// ── Pending Change Preservation ──
+
+function flushCurrentInputs() {
+    const el = container?.querySelector('#settings-content');
+    if (!el) return;
+    el.querySelectorAll('[data-key]').forEach(input => {
+        const key = input.dataset.key;
+        if (!key || key === 'undefined') return;
+        const value = input.type === 'checkbox' ? input.checked : input.value;
+        const original = settings[key];
+        if (input.type === 'checkbox') {
+            if (value !== !!original) pendingChanges[key] = value;
+        } else {
+            const originalStr = original === undefined ? ''
+                : (typeof original === 'object' ? JSON.stringify(original, null, 2) : String(original));
+            if (value !== originalStr) pendingChanges[key] = value;
+        }
+    });
+}
+
 // ── Rendering ──
 
 function render() {
@@ -275,8 +295,9 @@ function renderFields(keys) {
         const h = help[key];
 
         const isFullWidth = key.endsWith('_ENABLED');
+        const isModified = key in pendingChanges;
         return `
-            <div class="setting-row${isOverridden ? ' overridden' : ''}${isFullWidth ? ' full-width' : ''}" data-key="${key}">
+            <div class="setting-row${isOverridden ? ' overridden' : ''}${isFullWidth ? ' full-width' : ''}${isModified ? ' modified' : ''}" data-key="${key}">
                 <div class="setting-label">
                     <div class="setting-label-row">
                         <label>${formatLabel(key)}</label>
@@ -298,6 +319,9 @@ function renderFields(keys) {
 }
 
 function renderInput(key, value, type) {
+    // Apply pending (unsaved) changes over persisted values
+    if (key in pendingChanges) value = pendingChanges[key];
+
     const id = `setting-${key}`;
 
     // Special dropdowns
@@ -346,7 +370,8 @@ function renderInput(key, value, type) {
         </label>`;
     }
     if (type === 'json') {
-        return `<textarea id="${id}" data-key="${key}" class="setting-json" rows="4">${JSON.stringify(value, null, 2)}</textarea>`;
+        const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        return `<textarea id="${id}" data-key="${key}" class="setting-json" rows="4">${content}</textarea>`;
     }
     if (type === 'number') {
         return `<input type="number" id="${id}" data-key="${key}" value="${value}" step="any">`;
@@ -375,6 +400,7 @@ function bindShellEvents() {
     container.querySelector('.settings-sidebar')?.addEventListener('click', e => {
         const btn = e.target.closest('.settings-nav-item');
         if (!btn) return;
+        flushCurrentInputs();
         activeTab = btn.dataset.tab;
         container.querySelectorAll('.settings-nav-item').forEach(b =>
             b.classList.toggle('active', b.dataset.tab === activeTab));
@@ -402,6 +428,7 @@ function bindShellEvents() {
         mobileMenu.addEventListener('click', e => {
             const opt = e.target.closest('.settings-mobile-option');
             if (!opt) return;
+            flushCurrentInputs();
             activeTab = opt.dataset.tab;
 
             // Sync desktop sidebar

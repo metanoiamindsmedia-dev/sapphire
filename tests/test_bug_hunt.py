@@ -736,6 +736,7 @@ class TestRunForegroundRestoresContext:
             executor.system = MagicMock()
             executor.system.llm_chat.session_manager = mock_session
             executor.system.llm_chat.function_manager = mock_fm
+            executor.system.llm_chat.streaming_chat.is_streaming = False
             executor.system.process_llm_query.return_value = "done"
 
             task = {

@@ -62,6 +62,7 @@ export default {
             result.style.color = '';
             try {
                 const res = await fetch('/api/tts/test', { method: 'POST' });
+                if (!res.ok) throw new Error(`Server error (${res.status})`);
                 const data = await res.json();
                 if (data.success) {
                     result.style.color = 'var(--color-success, #4caf50)';
