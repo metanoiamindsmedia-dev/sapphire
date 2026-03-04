@@ -1,4 +1,4 @@
-// chat.js - Chat logic
+//  chat.js - Chat logic
 import * as ui from './ui.js';
 import * as api from './api.js';
 
