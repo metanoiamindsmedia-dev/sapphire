@@ -559,10 +559,10 @@ class ClaudeProvider(BaseProvider):
                 result.append(msg)
                 continue
             
-            # Filter out thinking blocks
+            # Filter out thinking blocks (including redacted_thinking — API rejects both when thinking is disabled)
             filtered_content = [
-                block for block in content 
-                if not (isinstance(block, dict) and block.get("type") == "thinking")
+                block for block in content
+                if not (isinstance(block, dict) and block.get("type") in ("thinking", "redacted_thinking"))
             ]
             
             stripped_count = len(content) - len(filtered_content)

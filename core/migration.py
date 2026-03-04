@@ -123,11 +123,14 @@ def migrate_stt_to_provider():
         # Already migrated?
         if 'STT_PROVIDER' in stt:
             # Clean up root-level STT_ENABLED if present (legacy wizard path)
-            if 'STT_ENABLED' in data:
+            if 'STT_ENABLED' in data or 'STT_ENGINE' in data:
                 data.pop('STT_ENABLED', None)
                 data.pop('STT_ENGINE', None)
-            else:
-                return
+                data['stt'] = stt
+                with open(settings_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                logger.info("Cleaned up root-level STT keys (already migrated)")
+            return
 
         # Check both nested (stt.STT_ENABLED) and root-level (STT_ENABLED)
         was_enabled = stt.get('STT_ENABLED', data.get('STT_ENABLED', False))
@@ -176,8 +179,11 @@ def migrate_tts_to_provider():
             # Clean up root-level TTS_ENABLED if present
             if 'TTS_ENABLED' in data:
                 data.pop('TTS_ENABLED', None)
-            else:
-                return
+                data['tts'] = tts
+                with open(settings_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                logger.info("Cleaned up root-level TTS keys (already migrated)")
+            return
 
         # Check both nested and root-level
         was_enabled = tts.get('TTS_ENABLED', data.get('TTS_ENABLED', False))
