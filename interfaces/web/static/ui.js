@@ -319,7 +319,12 @@ export const renderHistory = (hist) => {
 
 export const showStatus = () => {
     if (!document.getElementById('status-message')) {
-        chat.appendChild(statusTpl.content.cloneNode(true));
+        const clone = statusTpl.content.cloneNode(true);
+        const avatar = clone.querySelector('.msg-avatar');
+        if (avatar && currentPersona) {
+            setPersonaAvatar(avatar, currentPersona);
+        }
+        chat.appendChild(clone);
         scrollToBottomIfSticky();
     }
 };
