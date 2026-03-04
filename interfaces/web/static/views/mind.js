@@ -1081,6 +1081,7 @@ async function renderGoals(el) {
                     <span class="goal-status-dot" title="${escHtml(g.status)}">${statusIcon}</span>
                     <span class="mind-accordion-title">${escHtml(g.title)}</span>
                     <span class="goal-pri-badge ${priClass}">${g.priority}</span>
+                    ${g.permanent ? '<span class="goal-perm-badge" title="Permanent — AI cannot complete or delete">PERM</span>' : ''}
                     ${subtasksTotal ? `<span class="goal-subtask-count">${subtasksDone}/${subtasksTotal}</span>` : ''}
                     <span class="mind-accordion-count">${ago}</span>
                 </summary>
@@ -1226,7 +1227,11 @@ function bindGoalActions(el) {
     // Delete goal
     el.querySelectorAll('.goal-del-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!confirm('Delete this goal and all subtasks/progress?')) return;
+            const isPerm = btn.closest('.mind-accordion')?.querySelector('.goal-perm-badge');
+            const msg = isPerm
+                ? 'This is a PERMANENT goal. Are you sure you want to delete it?'
+                : 'Delete this goal and all subtasks/progress?';
+            if (!confirm(msg)) return;
             try {
                 const resp = await fetch(`/api/goals/${btn.dataset.id}`, { method: 'DELETE', headers: csrfHeaders() });
                 if (resp.ok) { ui.showToast('Deleted', 'success'); renderGoals(el); }
@@ -1271,6 +1276,10 @@ function showGoalModal(el, goal = null) {
                             ).join('')}
                         </select>
                     </div>
+                    <label style="display:flex;gap:6px;align-items:center;color:var(--text-muted);font-size:var(--font-sm);cursor:pointer">
+                        <input type="checkbox" id="mg-permanent" ${goal?.permanent ? 'checked' : ''}>
+                        Permanent <span style="opacity:0.6">(AI cannot complete or delete)</span>
+                    </label>
                     <div style="display:flex;justify-content:flex-end;gap:8px">
                         <button class="mind-btn mind-modal-cancel">Cancel</button>
                         <button class="mind-btn" id="mg-save" style="border-color:var(--trim,var(--accent-blue))">${goal ? 'Update' : 'Create'}</button>
@@ -1296,6 +1305,7 @@ function showGoalModal(el, goal = null) {
             title,
             description: overlay.querySelector('#mg-desc').value.trim() || null,
             priority: overlay.querySelector('#mg-priority').value,
+            permanent: overlay.querySelector('#mg-permanent').checked,
         };
 
         try {

@@ -5341,6 +5341,17 @@ a.gallery-caption:hover {
 .goal-pri-high { background: rgba(238, 85, 85, 0.15); color: #e55; }
 .goal-pri-medium { background: rgba(230, 180, 60, 0.15); color: #db0; }
 .goal-pri-low { background: rgba(100, 180, 100, 0.15); color: #6a6; }
+.goal-perm-badge {
+    font-size: var(--font-xs);
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+    background: rgba(140, 120, 220, 0.15);
+    color: #a89ecc;
+}
 .goal-subtask-count {
     font-size: var(--font-xs);
     color: var(--text-muted);
