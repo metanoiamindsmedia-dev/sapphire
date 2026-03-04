@@ -2976,6 +2976,7 @@ async def create_goal_endpoint(request: Request, _=Depends(require_login)):
             priority=data.get('priority', 'medium'),
             parent_id=data.get('parent_id'),
             scope=data.get('scope', 'default'),
+            permanent=data.get('permanent', False),
         )
         return {"id": goal_id}
     except ValueError as e:
@@ -2994,6 +2995,7 @@ async def update_goal_endpoint(goal_id: int, request: Request, _=Depends(require
             priority=data.get('priority'),
             status=data.get('status'),
             progress_note=data.get('progress_note'),
+            permanent=data.get('permanent'),
         )
         return {"updated": goal_id}
     except ValueError as e:

@@ -55,6 +55,10 @@ TOOLS = [
                     "parent_id": {
                         "type": "integer",
                         "description": "ID of parent goal to make this a subtask. Omit for top-level goal."
+                    },
+                    "permanent": {
+                        "type": "boolean",
+                        "description": "Make this a permanent/standing goal that cannot be completed, abandoned, or deleted. Use for ongoing duties like monitoring tasks. Default: false."
                     }
                 },
                 "required": ["title"]
@@ -201,7 +205,8 @@ def _ensure_db():
                 scope TEXT NOT NULL DEFAULT 'default',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                completed_at DATETIME
+                completed_at DATETIME,
+                permanent INTEGER DEFAULT 0
             )
         ''')
 
@@ -227,6 +232,12 @@ def _ensure_db():
             )
         ''')
         cursor.execute("INSERT OR IGNORE INTO goal_scopes (name) VALUES ('default')")
+
+        # Migration: add permanent column to existing databases
+        try:
+            cursor.execute('ALTER TABLE goals ADD COLUMN permanent INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
         conn.commit()
         conn.close()
@@ -302,13 +313,13 @@ def get_goals_list(scope='default', status='active'):
 
         if status == 'all':
             cursor.execute(
-                'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at '
+                'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at, permanent '
                 f'FROM goals WHERE parent_id IS NULL AND {scope_sql} ORDER BY updated_at DESC',
                 scope_params
             )
         else:
             cursor.execute(
-                'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at '
+                'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at, permanent '
                 f'FROM goals WHERE parent_id IS NULL AND {scope_sql} AND status = ? ORDER BY updated_at DESC',
                 scope_params + [status]
             )
@@ -334,7 +345,7 @@ def get_goals_list(scope='default', status='active'):
             goals.append({
                 "id": r[0], "title": r[1], "description": r[2], "priority": r[3],
                 "status": r[4], "scope": r[6], "created_at": r[7], "updated_at": r[8],
-                "completed_at": r[9], "subtasks": subtasks, "progress": progress
+                "completed_at": r[9], "permanent": bool(r[10]), "subtasks": subtasks, "progress": progress
             })
 
         return goals
@@ -345,7 +356,7 @@ def get_goal_detail(goal_id):
     with _get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at '
+            'SELECT id, title, description, priority, status, parent_id, scope, created_at, updated_at, completed_at, permanent '
             'FROM goals WHERE id = ?', (goal_id,)
         )
         r = cursor.fetchone()
@@ -368,11 +379,12 @@ def get_goal_detail(goal_id):
         return {
             "id": r[0], "title": r[1], "description": r[2], "priority": r[3],
             "status": r[4], "parent_id": r[5], "scope": r[6], "created_at": r[7],
-            "updated_at": r[8], "completed_at": r[9], "subtasks": subtasks, "progress": progress
+            "updated_at": r[8], "completed_at": r[9], "permanent": bool(r[10]),
+            "subtasks": subtasks, "progress": progress
         }
 
 
-def create_goal_api(title, description=None, priority='medium', parent_id=None, scope='default'):
+def create_goal_api(title, description=None, priority='medium', parent_id=None, scope='default', permanent=False):
     """Create a goal and return the new ID. Raises ValueError on validation failure."""
     if not title or not title.strip():
         raise ValueError("Title is required")
@@ -398,9 +410,10 @@ def create_goal_api(title, description=None, priority='medium', parent_id=None, 
             if parent[0] is not None:
                 raise ValueError(f"Goal [{parent_id}] is already a subtask")
 
+        perm_val = 1 if permanent else 0
         cursor.execute(
-            'INSERT INTO goals (title, description, priority, parent_id, scope) VALUES (?, ?, ?, ?, ?)',
-            (title, description, priority, parent_id, scope)
+            'INSERT INTO goals (title, description, priority, parent_id, scope, permanent) VALUES (?, ?, ?, ?, ?, ?)',
+            (title, description, priority, parent_id, scope, perm_val)
         )
         goal_id = cursor.lastrowid
         conn.commit()
@@ -408,7 +421,8 @@ def create_goal_api(title, description=None, priority='medium', parent_id=None, 
 
 
 def update_goal_api(goal_id, **kwargs):
-    """Update goal fields. Returns True on success. Raises ValueError on failure."""
+    """Update goal fields. Returns True on success. Raises ValueError on failure.
+    No permanent guard here — this is the user/UI path with full control."""
     with _get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT id FROM goals WHERE id = ?', (goal_id,))
@@ -430,6 +444,12 @@ def update_goal_api(goal_id, **kwargs):
                     params.append(datetime.now().isoformat())
                 elif field == 'status' and val == 'active':
                     updates.append('completed_at = NULL')
+
+        # User can toggle permanent on/off
+        permanent = kwargs.get('permanent')
+        if permanent is not None:
+            updates.append('permanent = ?')
+            params.append(1 if permanent else 0)
 
         if not updates and 'progress_note' not in kwargs:
             raise ValueError("Nothing to update")
@@ -513,10 +533,12 @@ def _priority_marker(priority):
 
 def _format_goal_full(goal, subtasks, progress_notes):
     """Format a goal with full subtask list and recent progress."""
-    gid, title, desc, priority, status, parent_id, scope, created, updated, completed = goal
+    gid, title, desc, priority, status, parent_id, scope, created, updated, completed = goal[:10]
+    permanent = goal[10] if len(goal) > 10 else 0
     ago = _time_ago(updated)
 
-    lines = [f"[{gid}] {title} ({priority}) — updated {ago}"]
+    perm_tag = " [PERMANENT]" if permanent else ""
+    lines = [f"[{gid}] {title} ({priority}){perm_tag} — updated {ago}"]
     if desc:
         lines.append(f'    "{desc}"')
 
@@ -541,10 +563,11 @@ def _format_goal_full(goal, subtasks, progress_notes):
 
 def _format_goal_summary(goal, subtask_count, subtask_done):
     """One-line summary for the compact section."""
-    gid, title, priority, status, updated = goal
+    gid, title, priority, status, updated, permanent = goal
     ago = _time_ago(updated)
+    perm_tag = " [PERMANENT]" if permanent else ""
     sub_info = f" — {subtask_count} subtasks, {subtask_done} done" if subtask_count else " — no subtasks"
-    return f"[{gid}] {title} ({priority}){sub_info} — {ago}"
+    return f"[{gid}] {title} ({priority}){perm_tag}{sub_info} — {ago}"
 
 
 # ─── Validation ───────────────────────────────────────────────────────────────
@@ -583,7 +606,7 @@ def _validate_length(value, field_name, max_len):
 
 # ─── Operations ───────────────────────────────────────────────────────────────
 
-def _create_goal(title, description=None, priority='medium', parent_id=None, scope='default'):
+def _create_goal(title, description=None, priority='medium', parent_id=None, scope='default', permanent=False):
     if not title or not title.strip():
         return "Cannot create a goal without a title. Provide a clear, short title.", False
 
@@ -613,17 +636,19 @@ def _create_goal(title, description=None, priority='medium', parent_id=None, sco
             if parent[5] is not None:  # parent's parent_id
                 return f"Goal [{parent_id}] is already a subtask. Subtasks can only be one level deep — nest under the top-level goal [{parent[5]}] instead.", False
 
+        perm_val = 1 if permanent else 0
         cursor.execute(
-            'INSERT INTO goals (title, description, priority, parent_id, scope) VALUES (?, ?, ?, ?, ?)',
-            (title, description, priority, parent_id, scope)
+            'INSERT INTO goals (title, description, priority, parent_id, scope, permanent) VALUES (?, ?, ?, ?, ?, ?)',
+            (title, description, priority, parent_id, scope, perm_val)
         )
         goal_id = cursor.lastrowid
         conn.commit()
 
     kind = "Subtask" if parent_id else "Goal"
     parent_note = f" under goal [{parent_id}]" if parent_id else ""
-    logger.info(f"Created {kind.lower()} [{goal_id}] '{title}' ({priority}) in scope '{scope}'{parent_note}")
-    return f"{kind} created: [{goal_id}] {title} ({priority}){parent_note}", True
+    perm_note = " [PERMANENT]" if permanent else ""
+    logger.info(f"Created {kind.lower()} [{goal_id}] '{title}' ({priority}) in scope '{scope}'{parent_note}{perm_note}")
+    return f"{kind} created: [{goal_id}] {title} ({priority}){parent_note}{perm_note}", True
 
 
 def _list_goals(goal_id=None, status='active', scope='default'):
@@ -707,7 +732,7 @@ def _list_goals(goal_id=None, status='active', scope='default'):
                 sub_count = cursor.fetchone()[0]
                 cursor.execute('SELECT COUNT(*) FROM goals WHERE parent_id = ? AND status = ?', (gid, 'completed'))
                 sub_done = cursor.fetchone()[0]
-                summary = (gid, goal[1], goal[3], goal[4], goal[8])  # id, title, priority, status, updated
+                summary = (gid, goal[1], goal[3], goal[4], goal[8], goal[10] if len(goal) > 10 else 0)  # id, title, priority, status, updated, permanent
                 lines.append(_format_goal_summary(summary, sub_count, sub_done))
 
         remaining = len(top_level) - 10
@@ -778,7 +803,7 @@ def _list_goals_all(cursor, scope):
             sub_count = cursor.fetchone()[0]
             cursor.execute('SELECT COUNT(*) FROM goals WHERE parent_id = ? AND status = ?', (gid, 'completed'))
             sub_done = cursor.fetchone()[0]
-            summary = (gid, goal[1], goal[3], goal[4], goal[8])
+            summary = (gid, goal[1], goal[3], goal[4], goal[8], goal[10] if len(goal) > 10 else 0)
             lines.append(_format_goal_summary(summary, sub_count, sub_done))
         if len(active) > 10:
             lines.append(f"... and {len(active) - 10} more active")
@@ -878,6 +903,11 @@ def _update_goal(goal_id, scope='default', **kwargs):
         if err:
             return err, False
 
+        # Permanent goal guard — AI can only add progress notes
+        if goal[10]:  # permanent column
+            if any(v is not None for v in [title, description, priority, status]):
+                return f"Goal [{goal_id}] is permanent — only progress notes can be added.", False
+
         # Apply field updates
         updates = []
         params = []
@@ -958,6 +988,10 @@ def _delete_goal(goal_id, cascade=True, scope='default'):
         if err:
             return err, False
 
+        # Permanent goal guard — AI cannot delete permanent goals
+        if goal[10]:  # permanent column
+            return f"Goal [{goal_id}] is permanent and cannot be deleted.", False
+
         title = goal[1]
 
         # Check for subtasks
@@ -1009,6 +1043,7 @@ def execute(function_name, arguments, config):
                 priority=arguments.get('priority', 'medium'),
                 parent_id=arguments.get('parent_id'),
                 scope=scope,
+                permanent=arguments.get('permanent', False),
             )
 
         elif function_name == "list_goals":
