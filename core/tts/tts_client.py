@@ -44,6 +44,7 @@ class TTSClient:
         self.lock = threading.Lock()
         self.should_stop = threading.Event()
         self._is_playing = False
+        self._generation = 0  # epoch counter — prevents stale threads from playing
         
         # Audio output device setup
         self.output_device = None
@@ -254,11 +255,13 @@ class TTSClient:
             processed_text = tts_event.tts_text
 
         self.stop()
+        self._generation += 1
+        gen = self._generation
         self.should_stop.clear()
 
         threading.Thread(
             target=self._generate_and_play_audio,
-            args=(processed_text,),
+            args=(processed_text, gen),
             daemon=True
         ).start()
 
@@ -358,13 +361,19 @@ class TTSClient:
                     except Exception:
                         break
         
-    def _generate_and_play_audio(self, text):
+    def _generate_and_play_audio(self, text, gen=None):
         """Generate audio from server and play it using sounddevice OutputStream"""
         if not self.audio_available:
             return
 
+        def _stale():
+            return gen is not None and gen != self._generation
+
         try:
             audio_data, samplerate = self._fetch_audio(text)
+            if _stale():
+                logger.debug(f"[TTS] Stale generation {gen} (current {self._generation}), discarding")
+                return
             if audio_data is None or self.should_stop.is_set():
                 if audio_data is None and not self.should_stop.is_set():
                     logger.warning("[TTS] speak_sync: provider returned no audio (check provider logs)")
@@ -373,7 +382,7 @@ class TTSClient:
                 return
 
             with self.lock:
-                if self.should_stop.is_set():
+                if self.should_stop.is_set() or _stale():
                     return
                 self._is_playing = True
                 publish(Events.TTS_PLAYING)
@@ -403,7 +412,7 @@ class TTSClient:
             with sd.OutputStream(samplerate=samplerate, device=self.output_device,
                                  channels=1, dtype='float32') as stream:
                 for i in range(0, len(audio_data), chunk_size):
-                    if self.should_stop.is_set():
+                    if self.should_stop.is_set() or _stale():
                         stopped_early = True
                         break
                     chunk = audio_data[i:i + chunk_size].reshape(-1, 1)

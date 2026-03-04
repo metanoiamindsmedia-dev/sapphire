@@ -21,6 +21,10 @@ GEMINI_THINKING_PREFIXES = ('gemini-2.5', 'gemini-3')
 class GeminiProvider(OpenAICompatProvider):
     """Gemini via OpenAI-compatible API with thinking support."""
 
+    @property
+    def supports_images(self) -> bool:
+        return True
+
     def __init__(self, llm_config: Dict[str, Any], request_timeout: float = 240.0):
         super().__init__(llm_config, request_timeout)
         self._thinking_enabled = llm_config.get('thinking_enabled', True)
