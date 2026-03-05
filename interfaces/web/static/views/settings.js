@@ -693,7 +693,10 @@ function _showVoicePicker(voices, targetInput, parentEl) {
 
 // ── Helpers ──
 
+const LABEL_OVERRIDES = { 'FUNCTIONS_ENABLED': 'Tools Enabled' };
+
 function formatLabel(key) {
+    if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
     return key.replace(/_/g, ' ').split(' ')
         .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }

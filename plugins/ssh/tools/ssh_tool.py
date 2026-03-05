@@ -221,13 +221,24 @@ def _run_local(command, timeout):
     logger.info(f"LOCAL $ {command[:100]}")
 
     try:
-        argv = shlex.split(command)
-        result = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        import sys
+        if sys.platform == 'win32':
+            # shell=True so cmd.exe builtins (dir, type, copy...) work
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                shell=True,
+            )
+        else:
+            argv = shlex.split(command)
+            result = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
         return _format_output('localhost', 'local', command, result)
 
     except subprocess.TimeoutExpired:
