@@ -113,45 +113,7 @@ def pre_chat(event):
 
 ## Voice Commands
 
-Voice commands are pre_chat hooks with trigger pattern matching. They fire before the LLM — fast, deterministic, keyword-driven.
-
-### Manifest Declaration
-
-```json
-"capabilities": {
-  "voice_commands": [
-    {
-      "triggers": ["stop", "halt", "be quiet"],
-      "match": "exact",
-      "bypass_llm": true,
-      "handler": "hooks/stop.py",
-      "description": "Stop TTS and cancel generation"
-    }
-  ]
-}
-```
-
-| Field | Description |
-|-------|-------------|
-| `triggers` | Phrases to match (case-insensitive) |
-| `match` | `exact`, `starts_with`, `contains`, or `regex` |
-| `bypass_llm` | If true, gets highest priority (0-19) |
-| `handler` | Path to handler file |
-
-Multiple voice commands per plugin is fine — they're an array.
-
-### Handler
-
-```python
-def pre_chat(event):
-    system = event.metadata.get("system")
-    if system and hasattr(system, "tts") and system.tts:
-        system.tts.stop()
-    event.skip_llm = True
-    event.ephemeral = True
-    event.response = "Stopped."
-    event.stop_propagation = True
-```
+Voice commands are pre_chat hooks with keyword trigger matching. See the dedicated [Voice Commands](voice-commands.md) guide for match modes, handler patterns, and examples.
 
 ---
 

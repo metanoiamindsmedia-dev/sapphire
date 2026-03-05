@@ -30,7 +30,8 @@ A tool is a single function the AI can call. A plugin is an autonomous package t
 | Guide | What's Inside |
 |-------|--------------|
 | [Manifest](manifest.md) | `plugin.json` reference — fields, priority bands, directory structure |
-| [Hooks](hooks.md) | All 10 hook points, HookEvent fields, system access, voice commands, examples |
+| [Hooks](hooks.md) | All 10 hook points, HookEvent fields, system access, examples |
+| [Voice Commands](voice-commands.md) | Keyword triggers that bypass the LLM — match modes, handlers, macros |
 | [Tools](tools.md) | Tool file format, schema flags, scopes, reading settings, privacy patterns |
 | [Schedule](schedule.md) | Cron tasks — manifest fields, handler contract, examples |
 | [Settings](settings.md) | Manifest-declared settings, custom web UI, settings API, danger confirms |
