@@ -23,6 +23,10 @@ def get_stt_provider(provider_name: str) -> BaseSTTProvider:
         from core.stt.providers.fireworks_whisper import FireworksWhisperProvider
         return FireworksWhisperProvider()
 
+    if provider_name == 'sapphire_router':
+        from core.stt.providers.sapphire_router import SapphireRouterSTTProvider
+        return SapphireRouterSTTProvider()
+
     logger.error(f"Unknown STT provider: {provider_name}, falling back to null")
     from core.stt.stt_null import NullWhisperClient
     return NullWhisperClient()

@@ -23,6 +23,10 @@ def get_tts_provider(provider_name: str) -> BaseTTSProvider:
         from .elevenlabs import ElevenLabsTTSProvider
         return ElevenLabsTTSProvider()
 
+    if provider_name == 'sapphire_router':
+        from .sapphire_router import SapphireRouterTTSProvider
+        return SapphireRouterTTSProvider()
+
     logger.warning(f"Unknown TTS provider '{provider_name}', falling back to null")
     from .null import NullTTSProvider
     return NullTTSProvider()

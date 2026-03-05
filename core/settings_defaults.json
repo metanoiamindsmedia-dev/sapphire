@@ -110,6 +110,11 @@
     "EMBEDDING_API_KEY": ""
   },
 
+  "sapphire_router": {
+    "SAPPHIRE_ROUTER_URL": "",
+    "SAPPHIRE_ROUTER_TENANT_ID": ""
+  },
+
   "server": {
     "WEB_UI_HOST": "0.0.0.0",
     "WEB_UI_PORT": 8073,

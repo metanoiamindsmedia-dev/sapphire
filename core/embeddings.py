@@ -130,6 +130,48 @@ class RemoteEmbedder:
         return bool(self._normalize_url(getattr(config, 'EMBEDDING_API_URL', '')))
 
 
+class SapphireRouterEmbedder:
+    """Forwards embedding requests to a Sapphire Router."""
+
+    def _get_url(self):
+        import os
+        url = os.environ.get('SAPPHIRE_ROUTER_URL') or getattr(config, 'SAPPHIRE_ROUTER_URL', '')
+        return url.rstrip('/')
+
+    def _get_tenant_id(self):
+        import os
+        return os.environ.get('SAPPHIRE_TENANT_ID') or getattr(config, 'SAPPHIRE_ROUTER_TENANT_ID', '')
+
+    def embed(self, texts, prefix='search_document'):
+        url = self._get_url()
+        if not url:
+            return None
+        try:
+            import httpx
+            headers = {'Content-Type': 'application/json'}
+            tenant_id = self._get_tenant_id()
+            if tenant_id:
+                headers['X-Tenant-ID'] = tenant_id
+            resp = httpx.post(
+                f'{url}/v1/embeddings/embed',
+                json={'texts': texts, 'prefix': prefix},
+                headers=headers,
+                timeout=30.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if 'embeddings' in data:
+                return np.array(data['embeddings'], dtype=np.float32)
+            return None
+        except Exception as e:
+            logger.error(f"Sapphire Router embedding failed: {e}")
+            return None
+
+    @property
+    def available(self):
+        return bool(self._get_url())
+
+
 class NullEmbedder:
     """Disabled — consumers fall back to FTS5/LIKE search."""
 
@@ -152,6 +194,8 @@ def _create_embedder(provider_name=None):
         return RemoteEmbedder()
     if name == 'local':
         return LocalEmbedder()
+    if name == 'sapphire_router':
+        return SapphireRouterEmbedder()
     return NullEmbedder()
 
 

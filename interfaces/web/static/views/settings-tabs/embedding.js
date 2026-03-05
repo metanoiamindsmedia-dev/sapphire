@@ -20,6 +20,11 @@ const tabConfig = {
             label: 'Remote (Nomic API)',
             essentialKeys: ['EMBEDDING_API_URL'],
             advancedKeys: ['EMBEDDING_API_KEY']
+        },
+        sapphire_router: {
+            label: 'Sapphire Router',
+            essentialKeys: ['SAPPHIRE_ROUTER_URL', 'SAPPHIRE_ROUTER_TENANT_ID'],
+            advancedKeys: []
         }
     },
 

@@ -23,6 +23,11 @@ const tabConfig = {
             label: 'ElevenLabs (Cloud)',
             essentialKeys: ['TTS_ELEVENLABS_API_KEY', 'TTS_ELEVENLABS_MODEL', 'TTS_ELEVENLABS_VOICE_ID'],
             advancedKeys: []
+        },
+        sapphire_router: {
+            label: 'Sapphire Router',
+            essentialKeys: ['SAPPHIRE_ROUTER_URL', 'SAPPHIRE_ROUTER_TENANT_ID'],
+            advancedKeys: []
         }
     },
 

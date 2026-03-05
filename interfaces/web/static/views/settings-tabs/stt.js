@@ -23,6 +23,11 @@ const tabConfig = {
             label: 'Fireworks Whisper',
             essentialKeys: ['STT_FIREWORKS_API_KEY', 'STT_FIREWORKS_MODEL'],
             advancedKeys: []
+        },
+        sapphire_router: {
+            label: 'Sapphire Router',
+            essentialKeys: ['SAPPHIRE_ROUTER_URL', 'SAPPHIRE_ROUTER_TENANT_ID'],
+            advancedKeys: []
         }
     },
 
