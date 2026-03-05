@@ -9,6 +9,7 @@
 - Third party plugin authors with authorized keys
 - Bug fixes: story tools, private mode, default avatar, many others
 - Approaching Mac compatibility if STT TTS are cloud
+- Proper plugin author readme section in docs/plugin-author/ 
 # 2.1.0 - Unified plugin system
 - Combined plugins, web ui plugins, toolsets
 - Added hooks in application to tap into
