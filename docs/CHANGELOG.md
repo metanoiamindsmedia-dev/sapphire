@@ -1,3 +1,13 @@
+# 2.2.0 - Provider Choices
+- Reliability improvements and broader choices allow low ram computers via cloud
+- STT can use Kokoro local or Elevenlabs cloud
+- TTS can use local Whisper or fireworks.ai whisper
+- nomic can be local or remote nomic docker server
+- Added Gemini, Featherless, Grok
+- Plugins fixed on Windows (sorry everybody)
+- Third party plugin authors with authorized keys
+- Bug fixes: story tools, private mode, default avatar, many others
+- Approaching Mac compatibility if STT TTS are cloud
 # 2.1.0 - Unified plugin system
 - Combined plugins, web ui plugins, toolsets
 - Added hooks in application to tap into
