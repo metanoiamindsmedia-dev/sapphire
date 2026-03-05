@@ -1,5 +1,6 @@
 # 2.2.0 - Provider Choices
-- Reliability improvements and broader choices allow low ram computers via cloud
+- Reliability improvements and broader choices
+- In STT TTS cloud mode, low ram computer can be used now
 - STT can use Kokoro local or Elevenlabs cloud
 - TTS can use local Whisper or fireworks.ai whisper
 - nomic can be local or remote nomic docker server
