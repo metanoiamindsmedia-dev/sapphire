@@ -164,7 +164,7 @@ AI-created tools appear as plugins and can be enabled/disabled like any plugin.
 
 ## Creating Plugins Manually
 
-For full plugin development (tools + hooks + voice commands + schedules + web UI), see [PLUGINS.md](PLUGINS.md).
+For full plugin development (tools + hooks + voice commands + schedules + web UI), see the [Plugin Author Guide](plugin-author/README.md).
 
 ---
 

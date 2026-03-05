@@ -154,7 +154,7 @@ This removes the Python environment. Delete the `sapphire/` folder to remove eve
 
 ## Contributions
 
-**Plugins are the way in.** Sapphire's [plugin system](docs/PLUGINS.md) supports tools, hooks, voice commands, scheduled tasks, settings UI, and web interfaces — all without touching core. Write a plugin, publish it to GitHub, and anyone can install it from Settings in one click. See the [plugin author guide](docs/PLUGINS.md) to get started.
+**Plugins are the way in.** Sapphire's plugin system supports tools, hooks, voice commands, scheduled tasks, settings UI, and web interfaces — all without touching core. Write a plugin, publish it to GitHub, and anyone can install it from Settings in one click. See the [Plugin Author Guide](docs/plugin-author/README.md) to get started.
 
 For core contributions or ideas, reach me at ddxfish@gmail.com.
 

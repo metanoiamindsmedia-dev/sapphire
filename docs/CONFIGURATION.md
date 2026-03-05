@@ -189,7 +189,7 @@ Privacy Mode blocks all outbound cloud connections, keeping conversations local-
 ## Advanced Personalization
 
 ### Custom Plugins
-Keyword-triggered extensions. Feed [PLUGINS.md](PLUGINS.md) to an AI and drop the output in `user/plugins/`. Can run on keywords, in background, or on schedule.
+Keyword-triggered extensions. Feed the [Plugin Author Guide](plugin-author/README.md) to an AI and drop the output in `user/plugins/`. Can run on keywords, in background, or on schedule.
 
 ### Custom Tools
 AI-callable functions. Simpler than plugins—they are one file in `user/functions/`. Control your devices, check services, simulate capabilities like email/text. Feed [TOOLS.md](TOOLS.md) to an AI to generate them.
@@ -198,7 +198,7 @@ AI-callable functions. Simpler than plugins—they are one file in `user/functio
 Drop ONNX models in `user/wakeword/models/`. I trained "Hey Sapphire" in ~2 hours with synthetic data. [Community wakewords](https://github.com/fwartner/home-assistant-wakewords-collection) available.
 
 ### Custom Web UI Plugins
-Extensible plugins for the interface. See [PLUGINS.md](PLUGINS.md) (Web Settings UI section).
+Extensible plugins for the interface. See the [Plugin Author Guide](plugin-author/README.md) (Settings & Web UI sections).
 
 ---
 

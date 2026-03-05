@@ -2,7 +2,7 @@
 
 Tool Maker lets the AI create custom tools at runtime. The AI writes a Python tool file, validates it, saves it as a plugin, and loads it live — no restart needed.
 
-This is the guide for **AI-created tools** — simple tool plugins. For full plugin development (hooks, voice commands, schedules, web UIs), see [PLUGINS.md](PLUGINS.md).
+This is the guide for **AI-created tools** — simple tool plugins. For full plugin development (hooks, voice commands, schedules, web UIs), see the [Plugin Author Guide](plugin-author/README.md).
 
 ---
 
@@ -324,7 +324,7 @@ Tool Maker validates code before saving. The level is set in Settings > Tool Mak
 
 ## What Tool Maker Does NOT Create
 
-Tool Maker creates **tool plugins** — Python files the AI can call. For anything beyond that, a developer creates a full plugin manually. See [PLUGINS.md](PLUGINS.md).
+Tool Maker creates **tool plugins** — Python files the AI can call. For anything beyond that, a developer creates a full plugin manually. See the [Plugin Author Guide](plugin-author/README.md).
 
 Not supported by Tool Maker:
 - **Hooks** (pre_chat, prompt_inject, post_chat, etc.)
