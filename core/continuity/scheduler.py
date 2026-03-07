@@ -11,6 +11,7 @@ import random
 import logging
 import threading
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -43,6 +44,16 @@ def _get_croniter():
             logger.error("croniter not installed. Run: pip install croniter")
             raise ImportError("croniter required for Continuity. Install with: pip install croniter")
     return croniter
+
+
+def _user_now():
+    """Get current time in user's configured timezone."""
+    try:
+        import config
+        tz_name = getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
+        return datetime.now(ZoneInfo(tz_name))
+    except Exception:
+        return datetime.now(ZoneInfo('UTC'))
 
 
 class ContinuityScheduler:
@@ -155,7 +166,7 @@ class ContinuityScheduler:
     def _log_activity(self, task_id: str, task_name: str, status: str, details: Optional[Dict] = None):
         """Add entry to activity log."""
         entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": _user_now().isoformat(),
             "task_id": task_id,
             "task_name": task_name,
             "status": status,
@@ -248,12 +259,12 @@ class ContinuityScheduler:
             "plugin_dir": data.get("plugin_dir", ""),  # plugin directory for handler resolution
             "last_run": None,
             "last_response": None,
-            "created": datetime.now().isoformat()
+            "created": _user_now().isoformat()
         }
         
         # Validate cron
         try:
-            _get_croniter()(task["schedule"], datetime.now())
+            _get_croniter()(task["schedule"], _user_now())
         except Exception as e:
             raise ValueError(f"Invalid cron schedule: {e}")
         
@@ -275,7 +286,7 @@ class ContinuityScheduler:
             # Validate cron if provided
             if "schedule" in data:
                 try:
-                    _get_croniter()(data["schedule"], datetime.now())
+                    _get_croniter()(data["schedule"], _user_now())
                 except Exception as e:
                     raise ValueError(f"Invalid cron schedule: {e}")
             
@@ -330,7 +341,7 @@ class ContinuityScheduler:
         try:
             cron = _get_croniter()(cron_expr, last_check - timedelta(minutes=1))
             next_time = cron.get_next(datetime)
-            now = datetime.now()
+            now = _user_now()
             
             matched = (next_time.year == now.year and
                        next_time.month == now.month and
@@ -349,7 +360,7 @@ class ContinuityScheduler:
     def _make_progress_callback(self, task_id: str):
         """Create a progress callback for the executor."""
         def callback(iteration: int, total: int):
-            now = datetime.now().isoformat()
+            now = _user_now().isoformat()
             with self._lock:
                 self._task_progress[task_id] = {
                     "iteration": iteration,
@@ -396,7 +407,7 @@ class ContinuityScheduler:
 
                 with self._lock:
                     if task_id in self._tasks:
-                        self._tasks[task_id]["last_run"] = datetime.now().isoformat()
+                        self._tasks[task_id]["last_run"] = _user_now().isoformat()
                         self._save_tasks()
                     self._task_progress.pop(task_id, None)
 
@@ -428,14 +439,14 @@ class ContinuityScheduler:
         end = task.get("active_hours_end")
         if start is None or end is None:
             return True  # no restriction
-        hour = check_hour if check_hour is not None else datetime.now().hour
+        hour = check_hour if check_hour is not None else _user_now().hour
         if start <= end:
             return start <= hour < end
         return hour >= start or hour < end  # wrap-around (e.g. 20→04)
 
     def _check_and_run(self):
         """Single check cycle - evaluate all tasks, run eligible ones."""
-        now = datetime.now()
+        now = _user_now()
 
         with self._lock:
             tasks_snapshot = list(self._tasks.values())
@@ -531,7 +542,7 @@ class ContinuityScheduler:
 
             with self._lock:
                 if task_id in self._tasks:
-                    self._tasks[task_id]["last_run"] = datetime.now().isoformat()
+                    self._tasks[task_id]["last_run"] = _user_now().isoformat()
                     self._save_tasks()
 
             status = "complete" if result.get("success") else "error"
@@ -628,7 +639,7 @@ class ContinuityScheduler:
     
     def _get_next_scheduled(self) -> Optional[Dict]:
         """Get the next task that will run."""
-        now = datetime.now()
+        now = _user_now()
         next_task = None
         next_time = None
         
@@ -659,7 +670,7 @@ class ContinuityScheduler:
     
     def get_timeline(self, hours: int = 24) -> List[Dict]:
         """Get timeline of scheduled tasks for next N hours."""
-        now = datetime.now()
+        now = _user_now()
         end = now + timedelta(hours=hours)
         timeline = []
         
@@ -698,7 +709,7 @@ class ContinuityScheduler:
 
     def get_merged_timeline(self, hours_back: int = 12, hours_ahead: int = 12) -> Dict[str, Any]:
         """Get merged timeline: past activity + future schedule with NOW marker."""
-        now = datetime.now()
+        now = _user_now()
 
         # Future: reuse existing timeline logic
         future = self.get_timeline(hours_ahead)

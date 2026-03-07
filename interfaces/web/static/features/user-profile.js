@@ -5,7 +5,7 @@ import { avatarUrl } from '../shared/persona-api.js';
 import { fetchWithTimeout } from '../shared/fetch.js';
 import * as ui from '../ui.js';
 
-let modal, avatarImg, usernameInput, personaSelect, personaAvatar, profileBtn, profileInitial;
+let modal, avatarImg, usernameInput, personaSelect, personaAvatar, profileBtn, profileInitial, tzSelect;
 let currentUsername = '';
 let saveTimer = null;
 
@@ -38,6 +38,20 @@ export function initUserProfile() {
 
     // Persona select
     personaSelect.addEventListener('change', saveDefaultPersona);
+
+    // Timezone select
+    tzSelect = modal.querySelector('#up-timezone');
+    if (tzSelect) {
+        try {
+            const zones = Intl.supportedValuesOf('timeZone');
+            tzSelect.innerHTML = zones.map(tz =>
+                `<option value="${tz}">${tz.replace(/_/g, ' ')}</option>`
+            ).join('');
+        } catch {
+            tzSelect.innerHTML = '<option value="UTC">UTC</option>';
+        }
+        tzSelect.addEventListener('change', saveTimezone);
+    }
 
     // Set initial state from cached init data
     loadInitial();
@@ -94,6 +108,12 @@ async function openModal() {
 
         // Persona avatar
         updatePersonaAvatar(defaultP);
+
+        // Timezone
+        if (tzSelect) {
+            const tz = data.settings?.USER_TIMEZONE || 'UTC';
+            tzSelect.value = tz;
+        }
 
         modal.style.display = '';
     } catch (e) {
@@ -156,6 +176,21 @@ async function handleAvatarUpload(e) {
         btn.disabled = false;
         btn.textContent = 'Change Avatar';
         e.target.value = '';
+    }
+}
+
+async function saveTimezone() {
+    const tz = tzSelect.value;
+    if (!tz) return;
+    try {
+        await fetchWithTimeout('/api/settings/USER_TIMEZONE', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: tz, persist: true })
+        });
+        refreshInitData();
+    } catch (e) {
+        console.warn('[Profile] Save timezone failed:', e);
     }
 }
 

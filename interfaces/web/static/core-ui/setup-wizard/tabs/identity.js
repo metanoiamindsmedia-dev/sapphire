@@ -9,6 +9,7 @@ export default {
 
   render(settings) {
     const userName = settings.DEFAULT_USERNAME || 'Human Protagonist';
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
     return `
       <div class="identity-section">
@@ -17,6 +18,11 @@ export default {
           <input type="text" id="setup-user-name" class="identity-input"
                  value="${userName}" placeholder="What should Sapphire call you?">
         </div>
+        <div class="identity-field" style="margin-top:16px">
+          <label>Timezone</label>
+          <div style="font-size:0.95em;padding:8px 0">${browserTz.replace(/_/g, ' ')}</div>
+          <div style="font-size:0.8em;color:var(--text-muted)">Auto-detected from your browser. Change later in Settings.</div>
+        </div>
       </div>
     `;
   },
@@ -24,8 +30,7 @@ export default {
   attachListeners(container, settings, updateSettings) {
     const userInput = container.querySelector('#setup-user-name');
 
-    const saveField = async (key, input) => {
-      const value = input.value.trim();
+    const saveField = async (key, value) => {
       if (!value) return;
       try {
         await updateSetting(key, value);
@@ -35,13 +40,21 @@ export default {
       }
     };
 
-    userInput?.addEventListener('blur', () => saveField('DEFAULT_USERNAME', userInput));
+    userInput?.addEventListener('blur', () => saveField('DEFAULT_USERNAME', userInput.value.trim()));
     userInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        saveField('DEFAULT_USERNAME', userInput);
+        saveField('DEFAULT_USERNAME', userInput.value.trim());
       }
     });
+
+    // Auto-save browser timezone on first setup
+    if (!settings.USER_TIMEZONE || settings.USER_TIMEZONE === 'UTC') {
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (browserTz && browserTz !== 'UTC') {
+        saveField('USER_TIMEZONE', browserTz);
+      }
+    }
   },
 
   validate(settings) {

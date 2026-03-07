@@ -222,11 +222,18 @@ class LLMChat:
         elif story_enabled and story_engine:
             logger.info(f"[STORY] User override: using '{active_prompt}' instead of story prompt")
 
-        # Inject datetime if enabled
+        # Inject datetime if enabled (user's timezone)
         if chat_settings.get('inject_datetime', False):
             from datetime import datetime
-            now = datetime.now()
-            context_parts.append(f"Current date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')}")
+            try:
+                from zoneinfo import ZoneInfo
+                tz_name = getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
+                now = datetime.now(ZoneInfo(tz_name))
+                tz_label = f" ({tz_name})"
+            except Exception:
+                now = datetime.now()
+                tz_label = ""
+            context_parts.append(f"Current date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')}{tz_label}")
 
         # Inject custom context if present
         custom_ctx = chat_settings.get('custom_context', '').strip()
@@ -916,10 +923,17 @@ class LLMChat:
             ai_name = 'Sapphire'
             system_prompt = system_prompt.replace("{user_name}", username).replace("{ai_name}", ai_name)
             
-            # Inject datetime if enabled
+            # Inject datetime if enabled (user's timezone)
             if task_settings.get("inject_datetime"):
-                now = datetime.now()
-                system_prompt = f"{system_prompt}\n\nCurrent date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')}"
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz_name = getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
+                    now = datetime.now(ZoneInfo(tz_name))
+                    tz_label = f" ({tz_name})"
+                except Exception:
+                    now = datetime.now()
+                    tz_label = ""
+                system_prompt = f"{system_prompt}\n\nCurrent date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')}{tz_label}"
             
             # Build messages - just system + user, no history for ephemeral
             messages = [

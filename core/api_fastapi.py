@@ -997,7 +997,8 @@ async def get_init_data(request: Request, _=Depends(require_login), system=Depen
             },
             "settings": {
                 "AVATARS_IN_CHAT": avatars_in_chat,
-                "DEFAULT_USERNAME": getattr(config, 'DEFAULT_USERNAME', 'Human Protagonist')
+                "DEFAULT_USERNAME": getattr(config, 'DEFAULT_USERNAME', 'Human Protagonist'),
+                "USER_TIMEZONE": getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
             },
             "wizard_step": wizard_step,
             "avatars": avatars,
