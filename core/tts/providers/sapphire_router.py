@@ -52,6 +52,9 @@ class SapphireRouterTTSProvider(BaseTTSProvider):
                 return resp.content
             logger.error(f"Sapphire Router TTS: unexpected response type")
             return None
+        except httpx.ConnectError:
+            logger.error(f"Sapphire Router TTS: cannot reach router at {url}")
+            raise RuntimeError("TTS service unavailable — router is down")
         except Exception as e:
             logger.error(f"Sapphire Router TTS failed: {e}")
             return None

@@ -551,6 +551,11 @@ class PluginLoader:
                     if not self._validate_manifest(name, manifest):
                         continue
 
+                    # Skip plugins hidden in managed mode
+                    if manifest.get("managed_hide") and os.environ.get('SAPPHIRE_MANAGED'):
+                        logger.debug(f"[PLUGINS] Rescan: skipping {name} (managed_hide)")
+                        continue
+
                     verified, verify_msg, verify_meta = verify_plugin(child)
                     is_enabled = name in enabled_list or manifest.get("default_enabled", False)
 

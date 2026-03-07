@@ -516,6 +516,7 @@
 
     <script>
         window.__v='{{ v }}';
+        window.__managed={{ managed | tojson }};
         // Unregister any stale service workers (PWA manifest can trigger phantom caching)
         if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r => r.forEach(sw => sw.unregister()));
     </script>

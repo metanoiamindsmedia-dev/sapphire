@@ -55,6 +55,9 @@ _BLOCKED_IMPORTS = {
     'socket', 'signal', 'importlib',
 }
 
+# Additional imports blocked in managed/Docker mode (file I/O vectors)
+_MANAGED_BLOCKED_IMPORTS = {'pathlib', 'io', 'tempfile', 'glob'}
+
 _BLOCKED_CALLS = {'eval', 'exec', '__import__', 'compile', 'globals', 'locals', 'getattr', 'setattr', 'delattr', 'open'}
 
 _BLOCKED_ATTRS = {
@@ -171,12 +174,16 @@ def _validate_ast(code, strictness):
     except SyntaxError as e:
         return False, f"Syntax error: {e}"
 
+    blocked = _BLOCKED_IMPORTS
+    if os.environ.get('SAPPHIRE_MANAGED'):
+        blocked = blocked | _MANAGED_BLOCKED_IMPORTS
+
     for node in ast.walk(tree):
         # Check imports
         if isinstance(node, ast.Import):
             for alias in node.names:
                 mod = alias.name.split('.')[0]
-                if mod in _BLOCKED_IMPORTS:
+                if mod in blocked:
                     return False, f"Blocked import: {mod}"
                 if strictness == 'strict' and mod not in _ALLOWED_STRICT:
                     return False, f"Import '{mod}' not in allowlist (strict mode)"
@@ -184,7 +191,7 @@ def _validate_ast(code, strictness):
         elif isinstance(node, ast.ImportFrom):
             if node.module:
                 mod = node.module.split('.')[0]
-                if mod in _BLOCKED_IMPORTS:
+                if mod in blocked:
                     return False, f"Blocked import: {mod}"
                 if strictness == 'strict' and mod not in _ALLOWED_STRICT:
                     return False, f"Import '{mod}' not in allowlist (strict mode)"

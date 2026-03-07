@@ -227,6 +227,7 @@ async def index(request: Request, _=Depends(require_login)):
         "request": request,
         "csrf_token": lambda: csrf_token,
         "v": BOOT_VERSION,
+        "managed": bool(os.environ.get('SAPPHIRE_MANAGED')),
         "import_map": IMPORT_MAP
     })
 
@@ -1198,6 +1199,8 @@ async def create_chat(request: Request, _=Depends(require_login), system=Depends
 @app.post("/api/chats/private")
 async def create_private_chat(request: Request, _=Depends(require_login), system=Depends(get_system)):
     """Create a permanently private chat (privacy enforced, no toggle)."""
+    if os.environ.get('SAPPHIRE_MANAGED'):
+        raise HTTPException(status_code=403, detail="Private chats are disabled in managed mode")
     try:
         data = await request.json() or {}
         raw_name = data.get("name", "").strip()
@@ -1943,6 +1946,8 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
 async def delete_setting(key: str, request: Request, _=Depends(require_login)):
     """Remove user override for a setting."""
     from core.settings_manager import settings
+    if settings.is_locked(key):
+        raise HTTPException(status_code=403, detail=f"Setting '{key}' is locked in managed mode")
     if settings.remove_user_override(key):
         default_value = settings.get(key)
         return {"status": "success", "key": key, "reverted_to": default_value}
