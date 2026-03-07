@@ -24,11 +24,25 @@ def _log_startup_error(msg):
         _startup_log.flush()
     print(msg, file=sys.stderr)
 
-# Ensure user directories exist
+# Ensure all user directories exist (covers both local and Docker first-boot)
+_USER_DIRS = [
+    'user/logs',
+    'user/history',
+    'user/public/avatars',
+    'user/plugins',
+    'user/plugin_state',
+    'user/webui/plugins',
+    'user/continuity',
+    'user/ssl',
+    'user/prompts',
+    'user/toolsets',
+    'user/personas',
+    'user/spice_sets',
+    'user/story_engine',
+]
 try:
-    os.makedirs('user/logs', exist_ok=True)
-    os.makedirs('user/history', exist_ok=True)
-    os.makedirs('user/public/avatars', exist_ok=True)
+    for d in _USER_DIRS:
+        os.makedirs(d, exist_ok=True)
 except Exception as e:
     _log_startup_error(f"Failed to create user dirs: {e}")
 

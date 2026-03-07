@@ -155,6 +155,13 @@ class SettingsManager:
         if 'PRIVACY_MODE' not in self._config and 'PRIVACY_MODE' not in self._runtime:
             self._config['PRIVACY_MODE'] = self._config.get('START_IN_PRIVACY_MODE', False)
 
+        # Managed mode: disable LM Studio (no local server in Docker)
+        if os.environ.get('SAPPHIRE_MANAGED'):
+            providers = self._config.get('LLM_PROVIDERS', {})
+            if 'lmstudio' in providers:
+                providers['lmstudio']['enabled'] = False
+                providers['lmstudio']['use_as_fallback'] = False
+
         # Environment variable overrides (Docker/managed deployments)
         _env_overrides = [
             'STT_PROVIDER', 'TTS_PROVIDER', 'EMBEDDING_PROVIDER',

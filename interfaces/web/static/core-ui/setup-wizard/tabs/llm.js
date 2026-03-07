@@ -58,7 +58,7 @@ export default {
   name: 'LLM',
   icon: '🧠',
 
-  async render(settings) {
+  async render(settings, wizardState) {
     // Fetch metadata from backend
     try {
       const data = await fetchProviderData();
@@ -68,24 +68,34 @@ export default {
     }
 
     const providers = settings.LLM_PROVIDERS || {};
-    const enabledProviders = Object.entries(providers)
-      .filter(([_, cfg]) => cfg.enabled)
-      .map(([key]) => key);
+    const managed = wizardState && wizardState.managed;
+
+    // In managed mode, start with clean slate — no provider pre-selected
+    const enabledProviders = managed ? [] :
+      Object.entries(providers)
+        .filter(([_, cfg]) => cfg.enabled)
+        .map(([key]) => key);
+
+    const tip = managed
+      ? 'Choose your AI provider. You\'ll need an API key from one of these services.'
+      : 'Easy mode: Install LM Studio, load a model, start the server.';
 
     return `
       <div class="setup-tip">
         <span class="tip-icon">💡</span>
-        <span>Easy mode: Install LM Studio, load a model, start the server.</span>
+        <span>${tip}</span>
       </div>
 
       <div class="provider-list">
-        ${this.renderProviderCards(providers, enabledProviders)}
+        ${this.renderProviderCards(providers, enabledProviders, managed)}
       </div>
     `;
   },
 
-  renderProviderCards(providers, enabledProviders) {
-    const order = ['lmstudio', 'claude', 'openai', 'fireworks', 'other'];
+  renderProviderCards(providers, enabledProviders, managed) {
+    let order = ['lmstudio', 'claude', 'openai', 'fireworks', 'other'];
+    // Hide LM Studio in managed/Docker mode — no local server available
+    if (managed) order = order.filter(k => k !== 'lmstudio');
     
     return order.map(key => {
       const config = providers[key] || {};

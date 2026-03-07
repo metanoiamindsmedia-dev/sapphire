@@ -43,7 +43,8 @@ class SetupWizard {
       this.completedStep = wizardState.step;
 
       // Managed mode: skip Voice + Audio tabs (router handles those)
-      if (wizardState.managed) {
+      this.managed = wizardState.managed || false;
+      if (this.managed) {
         TABS = MANAGED_TABS;
         STEP_NAMES = MANAGED_STEP_NAMES;
       } else {
@@ -141,7 +142,7 @@ class SetupWizard {
     if (!container) return;
 
     // Render tab content
-    const html = await tab.render(this.settings);
+    const html = await tab.render(this.settings, { managed: this.managed });
     container.innerHTML = html;
 
     // Attach tab-specific listeners
@@ -476,11 +477,12 @@ class SetupWizard {
     `;
 
     this.modal.querySelector('#setup-done').addEventListener('click', () => {
-      this.close();
+      // Reload so chat sidebar and all views pick up new settings
+      window.location.reload();
     });
 
-    // Auto-close after 3 seconds
-    setTimeout(() => this.close(), 3000);
+    // Auto-reload after 3 seconds
+    setTimeout(() => window.location.reload(), 3000);
   }
 
   close() {
