@@ -289,9 +289,11 @@ class VoiceChatSystem:
         try:
             logger.info(f"Hot-loading STT provider: {provider_name}")
             self.whisper_client = get_stt_provider(provider_name)
-            # Ensure real recorder if switching from disabled
+            # Ensure real recorder if switching from disabled (not needed for router)
             from core.stt.stt_null import NullAudioRecorder
-            if isinstance(self.whisper_recorder, NullAudioRecorder):
+            if provider_name == 'sapphire_router':
+                self.whisper_recorder = NullAudioRecorder()
+            elif isinstance(self.whisper_recorder, NullAudioRecorder):
                 from core.stt.recorder import AudioRecorder as RealAudioRecorder
                 self.whisper_recorder = RealAudioRecorder()
             logger.info(f"STT provider switched to {provider_name}")
@@ -438,8 +440,13 @@ class VoiceChatSystem:
             logger.info(f"Initializing STT provider: {provider}")
             try:
                 self.whisper_client = get_stt_provider(provider)
-                from core.stt.recorder import AudioRecorder as RealAudioRecorder
-                self.whisper_recorder = RealAudioRecorder()
+                # Router/API providers don't need local mic — audio comes via browser
+                if provider == 'sapphire_router':
+                    from core.stt.stt_null import NullAudioRecorder
+                    self.whisper_recorder = NullAudioRecorder()
+                else:
+                    from core.stt.recorder import AudioRecorder as RealAudioRecorder
+                    self.whisper_recorder = RealAudioRecorder()
             except ImportError as e:
                 logger.error(f"STT provider '{provider}' not available: {e}")
                 self.whisper_client = NullWhisperClient()

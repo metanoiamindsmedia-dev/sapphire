@@ -7,8 +7,14 @@ import audioTab from './tabs/audio.js';
 import llmTab from './tabs/llm.js';
 import identityTab from './tabs/identity.js';
 
-const TABS = [voiceTab, audioTab, llmTab, identityTab];
-const STEP_NAMES = ['Voice', 'Audio', 'AI Brain', 'Identity'];
+const ALL_TABS = [voiceTab, audioTab, llmTab, identityTab];
+const ALL_STEP_NAMES = ['Voice', 'Audio', 'AI Brain', 'Identity'];
+const MANAGED_TABS = [llmTab, identityTab];
+const MANAGED_STEP_NAMES = ['AI Brain', 'Identity'];
+
+// Active tabs/names — set in open() based on managed flag
+let TABS = ALL_TABS;
+let STEP_NAMES = ALL_STEP_NAMES;
 
 // Settings that require full app restart when changed
 const RESTART_TIER_KEYS = [
@@ -33,7 +39,17 @@ class SetupWizard {
     // Load current settings and wizard state
     try {
       this.settings = await getSettings();
-      this.completedStep = await getWizardStep();
+      const wizardState = await getWizardStep();
+      this.completedStep = wizardState.step;
+
+      // Managed mode: skip Voice + Audio tabs (router handles those)
+      if (wizardState.managed) {
+        TABS = MANAGED_TABS;
+        STEP_NAMES = MANAGED_STEP_NAMES;
+      } else {
+        TABS = ALL_TABS;
+        STEP_NAMES = ALL_STEP_NAMES;
+      }
       
       // Snapshot restart-tier settings for change detection
       this.initialSettings = {};
@@ -48,7 +64,7 @@ class SetupWizard {
     }
 
     // If wizard is complete and not forced, don't show
-    if (this.completedStep >= 4 && !forceShow) {
+    if (this.completedStep >= TABS.length && !forceShow) {
       console.log('Setup wizard already completed');
       return;
     }
@@ -251,7 +267,7 @@ class SetupWizard {
   }
 
   confirmClose() {
-    if (this.completedStep >= 4) {
+    if (this.completedStep >= TABS.length) {
       this.close();
       return;
     }
@@ -290,8 +306,9 @@ class SetupWizard {
 
   async finish() {
     // Mark as complete
+    // Always save 4 so main.js "wizard complete" check works regardless of tab count
     await setWizardStep(4);
-    this.completedStep = 4;
+    this.completedStep = TABS.length;
 
     // Check for restart-requiring changes
     const changedKeys = this.getRestartRequiredChanges();

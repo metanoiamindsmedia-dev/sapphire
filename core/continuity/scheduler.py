@@ -67,7 +67,7 @@ class ContinuityScheduler:
         self._lock = threading.Lock()
         
         # Paths
-        self._base_dir = Path(__file__).parent.parent.parent.parent / "user" / "continuity"
+        self._base_dir = Path(__file__).parent.parent.parent / "user" / "continuity"
         self._tasks_path = self._base_dir / "tasks.json"
         self._activity_path = self._base_dir / "activity.json"
         

@@ -35,16 +35,17 @@ export default {
     window.sapphireSetupWizard = {
       open: (force = false) => setupWizard.open(force),
       isComplete: async () => {
-        const step = await getWizardStep();
-        return step >= 3;
+        const wizardState = await getWizardStep();
+        return wizardState.step >= 3;
       }
     };
   },
 
   async checkAutoShow() {
     try {
-      const step = await getWizardStep();
-      
+      const wizardState = await getWizardStep();
+      const step = wizardState.step;
+
       // If wizard hasn't been completed, show it
       if (step < 3) {
         // Small delay to let the main UI render first

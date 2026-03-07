@@ -27,6 +27,11 @@ class SapphireRouterTTSProvider(BaseTTSProvider):
         import config
         return os.environ.get('SAPPHIRE_TENANT_ID') or getattr(config, 'SAPPHIRE_ROUTER_TENANT_ID', '')
 
+    def list_voices(self) -> list:
+        """Return Kokoro voices available on the router's orchestrator."""
+        from core.tts.providers.kokoro import KOKORO_VOICES
+        return KOKORO_VOICES
+
     def generate(self, text: str, voice: str, speed: float, **kwargs) -> Optional[bytes]:
         url = self._get_url()
         if not url:

@@ -155,6 +155,22 @@ class SettingsManager:
         if 'PRIVACY_MODE' not in self._config and 'PRIVACY_MODE' not in self._runtime:
             self._config['PRIVACY_MODE'] = self._config.get('START_IN_PRIVACY_MODE', False)
 
+        # Environment variable overrides (Docker/managed deployments)
+        _env_overrides = [
+            'STT_PROVIDER', 'TTS_PROVIDER', 'EMBEDDING_PROVIDER',
+            'SAPPHIRE_ROUTER_URL', 'SAPPHIRE_ROUTER_TENANT_ID',
+            'WEB_UI_HOST', 'WEB_UI_PORT', 'WAKE_WORD_ENABLED',
+        ]
+        for key in _env_overrides:
+            val = os.environ.get(key)
+            if val is not None:
+                # Coerce booleans and ints
+                if val.lower() in ('true', 'false'):
+                    val = val.lower() == 'true'
+                elif val.isdigit():
+                    val = int(val)
+                self._config[key] = val
+
         # Derive STT_ENABLED from STT_PROVIDER for backwards compatibility
         stt_provider = self._config.get('STT_PROVIDER', 'none')
         self._config['STT_ENABLED'] = bool(stt_provider and stt_provider != 'none')

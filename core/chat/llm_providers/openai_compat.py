@@ -266,8 +266,9 @@ class OpenAICompatProvider(BaseProvider):
                     for b in content
                 )
                 
-                if has_images and self._supports_multimodal():
-                    # Convert to OpenAI multimodal format for capable providers
+                if has_images:
+                    # Convert to OpenAI multimodal format — always send images,
+                    # let the provider reject if model doesn't support vision
                     openai_content = []
                     for block in content:
                         if isinstance(block, dict):
@@ -289,7 +290,7 @@ class OpenAICompatProvider(BaseProvider):
                             openai_content.append({"type": "text", "text": block})
                     content = openai_content if openai_content else ""
                 else:
-                    # No images OR provider doesn't support multimodal - flatten to string
+                    # No images - flatten to string
                     text_parts = []
                     for block in content:
                         if isinstance(block, dict):
