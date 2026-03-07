@@ -41,6 +41,9 @@ class SapphireRouterSTTProvider(BaseSTTProvider):
                 )
             resp.raise_for_status()
             return resp.json().get('text', '').strip() or None
+        except httpx.ConnectError:
+            logger.error(f"Sapphire Router STT: cannot reach router at {url}")
+            raise RuntimeError("STT service unavailable — router is down")
         except Exception as e:
             logger.error(f"Sapphire Router STT failed: {e}")
             return None

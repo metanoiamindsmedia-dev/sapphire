@@ -35,6 +35,22 @@ const PROVIDER_INFO = {
     difficulty: 'Easy',
     requirements: 'API key from OpenAI'
   },
+  grok: {
+    icon: '🚀',
+    name: 'Grok',
+    tagline: 'By xAI',
+    description: 'Elon\'s AI. Fast reasoning, uncensored, generous free tier.',
+    difficulty: 'Easy',
+    requirements: 'API key from x.ai'
+  },
+  gemini: {
+    icon: '💎',
+    name: 'Gemini',
+    tagline: 'By Google',
+    description: 'Google\'s AI with thinking support. Large context window.',
+    difficulty: 'Easy',
+    requirements: 'API key from Google AI Studio'
+  },
   fireworks: {
     icon: '🔥',
     name: 'Fireworks',
@@ -42,6 +58,14 @@ const PROVIDER_INFO = {
     description: 'Access to many open-source models with fast inference.',
     difficulty: 'Medium',
     requirements: 'API key from Fireworks.ai'
+  },
+  featherless: {
+    icon: '🪶',
+    name: 'Featherless',
+    tagline: 'Open Source Models',
+    description: 'Hundreds of open-source models. Great prices, no GPU needed.',
+    difficulty: 'Easy',
+    requirements: 'API key from Featherless.ai'
   },
   other: {
     icon: '⚙️',
@@ -93,7 +117,7 @@ export default {
   },
 
   renderProviderCards(providers, enabledProviders, managed) {
-    let order = ['lmstudio', 'claude', 'openai', 'fireworks', 'other'];
+    let order = ['lmstudio', 'claude', 'grok', 'gemini', 'openai', 'fireworks', 'featherless', 'other'];
     // Hide LM Studio in managed/Docker mode — no local server available
     if (managed) order = order.filter(k => k !== 'lmstudio');
     
@@ -127,9 +151,15 @@ export default {
     
     // Base URL (for non-Claude providers)
     if (key !== 'claude') {
-      const defaultUrl = key === 'lmstudio' ? 'http://127.0.0.1:1234/v1' : 
-                        key === 'fireworks' ? 'https://api.fireworks.ai/inference/v1' :
-                        key === 'openai' ? 'https://api.openai.com/v1' : '';
+      const defaultUrls = {
+        lmstudio: 'http://127.0.0.1:1234/v1',
+        openai: 'https://api.openai.com/v1',
+        grok: 'https://api.x.ai/v1',
+        gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        fireworks: 'https://api.fireworks.ai/inference/v1',
+        featherless: 'https://api.featherless.ai/v1',
+      };
+      const defaultUrl = defaultUrls[key] || '';
       fields.push(`
         <div class="config-field">
           <label>Server URL</label>

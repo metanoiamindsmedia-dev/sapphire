@@ -100,14 +100,15 @@ export default {
         if (!visible.length) return '<p class="text-muted">No feature plugins available.</p>';
 
         const allowUnsigned = ctx.settings?.ALLOW_UNSIGNED_PLUGINS ?? false;
+        const managedLocked = ctx.managed && !ctx.unrestricted;
 
         return `
             <div class="plugin-actions" style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
                 <button class="btn btn-sm" id="rescan-plugins-btn">Rescan Plugins</button>
-                <label class="setting-toggle" style="margin-left:auto">
+                ${!managedLocked ? `<label class="setting-toggle" style="margin-left:auto">
                     <input type="checkbox" id="allow-unsigned-toggle" ${allowUnsigned ? 'checked' : ''}>
                     <span>Allow Unsigned Plugins</span>
-                </label>
+                </label>` : ''}
             </div>
             <div class="plugin-install-section" style="margin-bottom:16px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border);">
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">

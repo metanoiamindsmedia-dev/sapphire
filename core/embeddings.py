@@ -164,7 +164,11 @@ class SapphireRouterEmbedder:
                 return np.array(data['embeddings'], dtype=np.float32)
             return None
         except Exception as e:
-            logger.error(f"Sapphire Router embedding failed: {e}")
+            import httpx as _hx
+            if isinstance(e, _hx.ConnectError):
+                logger.error(f"Sapphire Router embeddings: cannot reach router at {url}")
+            else:
+                logger.error(f"Sapphire Router embedding failed: {e}")
             return None
 
     @property

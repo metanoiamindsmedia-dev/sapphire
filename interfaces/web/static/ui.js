@@ -497,7 +497,9 @@ export const renderChatDropdown = (chats, activeChat, storyChats = [], privateCh
 
     // Action buttons at the bottom
     itemsHtml += '<div class="chat-picker-divider"></div>';
-    itemsHtml += '<button class="chat-picker-story-btn" data-action="new-private">&#x1F512; New Private...</button>';
+    if (!window.__managed) {
+        itemsHtml += '<button class="chat-picker-story-btn" data-action="new-private">&#x1F512; New Private...</button>';
+    }
     itemsHtml += '<button class="chat-picker-story-btn" data-action="new-story">&#x1F4D6; New Story...</button>';
 
     // Update sidebar chat picker dropdown
