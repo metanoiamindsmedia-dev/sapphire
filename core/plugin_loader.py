@@ -193,6 +193,11 @@ class PluginLoader:
         verify_msg = info.get("verify_msg", "unknown")
 
         if not verified:
+            if verify_msg != "unsigned":
+                # Tampered signature — always block
+                logger.error(f"[PLUGINS] BLOCKED {name}: {verify_msg}")
+                return False
+
             try:
                 import config
                 allow_unsigned = config.ALLOW_UNSIGNED_PLUGINS
@@ -200,13 +205,20 @@ class PluginLoader:
                 logger.warning(f"[PLUGINS] Could not read ALLOW_UNSIGNED_PLUGINS: {e}")
                 allow_unsigned = False
 
-            if verify_msg == "unsigned" and allow_unsigned:
+            if allow_unsigned:
                 logger.warning(f"[PLUGINS] {name}: unsigned plugin (sideloading enabled)")
-            elif verify_msg == "unsigned" and not allow_unsigned:
-                logger.warning(f"[PLUGINS] BLOCKED {name}: unsigned plugin (sideloading disabled)")
-                return False
+            elif os.environ.get('SAPPHIRE_MANAGED'):
+                # Managed mode: validate code instead of requiring signature
+                from core.code_validator import validate_plugin_files
+                ok, err = validate_plugin_files(info["path"], strictness='strict')
+                if ok:
+                    logger.info(f"[PLUGINS] {name}: unsigned but passed strict validation")
+                    info["verify_tier"] = "validated"
+                else:
+                    logger.warning(f"[PLUGINS] BLOCKED {name}: failed code validation — {err}")
+                    return False
             else:
-                logger.error(f"[PLUGINS] BLOCKED {name}: {verify_msg}")
+                logger.warning(f"[PLUGINS] BLOCKED {name}: unsigned plugin (sideloading disabled)")
                 return False
         else:
             logger.info(f"[PLUGINS] {name}: signature verified")

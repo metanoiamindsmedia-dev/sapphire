@@ -45,52 +45,8 @@ def _get_validation_level():
 
 AVAILABLE_FUNCTIONS = ['tool_load', 'tool_read', 'tool_save']
 
-# --- Validation config ---
-
-_BLOCKED_IMPORTS = {
-    'subprocess', 'shutil', 'ctypes', 'multiprocessing',
-    'socket', 'signal', 'importlib',
-}
-
-# Additional imports blocked in managed/Docker mode (file I/O vectors)
-_MANAGED_BLOCKED_IMPORTS = {'pathlib', 'io', 'tempfile', 'glob'}
-
-_BLOCKED_CALLS = {'eval', 'exec', '__import__', 'compile', 'globals', 'locals', 'getattr', 'setattr', 'delattr', 'open'}
-
-_BLOCKED_ATTRS = {
-    ('os', 'system'), ('os', 'popen'), ('os', 'exec'), ('os', 'execv'),
-    ('os', 'execvp'), ('os', 'execvpe'), ('os', 'spawn'), ('os', 'spawnl'),
-    ('os', 'remove'), ('os', 'unlink'), ('os', 'rmdir'), ('os', 'removedirs'),
-    ('os', 'rename'), ('os', 'kill'), ('os', 'environ'),
-}
-
-# Additional os attrs blocked in managed/Docker mode (env leaks + filesystem enumeration)
-_MANAGED_BLOCKED_ATTRS = {
-    ('os', 'getenv'), ('os', 'listdir'), ('os', 'scandir'), ('os', 'walk'),
-    ('os', 'path'), ('os', 'getcwd'), ('os', 'stat'), ('os', 'lstat'),
-    ('os', 'read'), ('os', 'open'), ('os', 'makedirs'), ('os', 'mkdir'),
-    ('os', 'readlink'), ('os', 'access'), ('os', 'fspath'),
-}
-
-_ALLOWED_STRICT = {
-    # HTTP & data interchange
-    'requests', 'urllib', 'json', 'xml', 'html', 'csv', 'base64',
-    # Text & pattern processing
-    're', 'string', 'textwrap', 'difflib', 'unicodedata',
-    # Date, time, math
-    'datetime', 'zoneinfo', 'calendar', 'time',
-    'math', 'decimal', 'fractions', 'numbers', 'statistics', 'random',
-    # Data structures & functional
-    'collections', 'itertools', 'functools', 'operator', 'copy',
-    # Crypto & encoding
-    'hashlib', 'hmac', 'secrets', 'binascii', 'struct',
-    # Type system & boilerplate
-    'typing', 'enum', 'dataclasses', 'abc',
-    # Misc safe stdlib
-    'uuid', 'logging', 'pprint', 'textwrap', 'contextlib',
-    # Allowed but managed-blocked (belt + suspenders — blocked imports/attrs catch these)
-    'os', 'io', 'pathlib',
-}
+# Validation uses shared code_validator (single source of truth for blocklists/allowlists)
+from core.code_validator import validate_code
 
 # Minimal tool format — embedded in tool_save description so AI always has it
 _TOOL_FORMAT = """ENABLED = True
@@ -179,54 +135,8 @@ TOOLS = [
 # === Validation ===
 
 def _validate_ast(code, strictness):
-    """Validate code AST. Returns (ok, error_msg)."""
-    if strictness == 'trust':
-        try:
-            ast.parse(code)
-            return True, ""
-        except SyntaxError as e:
-            return False, f"Syntax error: {e}"
-
-    try:
-        tree = ast.parse(code)
-    except SyntaxError as e:
-        return False, f"Syntax error: {e}"
-
-    blocked_imports = _BLOCKED_IMPORTS
-    blocked_attrs = _BLOCKED_ATTRS
-    if os.environ.get('SAPPHIRE_MANAGED'):
-        blocked_imports = blocked_imports | _MANAGED_BLOCKED_IMPORTS
-        blocked_attrs = blocked_attrs | _MANAGED_BLOCKED_ATTRS
-
-    for node in ast.walk(tree):
-        # Check imports
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                mod = alias.name.split('.')[0]
-                if mod in blocked_imports:
-                    return False, f"Blocked import: {mod}"
-                if strictness == 'strict' and mod not in _ALLOWED_STRICT:
-                    return False, f"Import '{mod}' not in allowlist (strict mode)"
-
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                mod = node.module.split('.')[0]
-                if mod in blocked_imports:
-                    return False, f"Blocked import: {mod}"
-                if strictness == 'strict' and mod not in _ALLOWED_STRICT:
-                    return False, f"Import '{mod}' not in allowlist (strict mode)"
-
-        # Check dangerous calls
-        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name) and node.func.id in _BLOCKED_CALLS:
-                return False, f"Blocked call: {node.func.id}()"
-
-        # Check dangerous attribute access
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            if (node.value.id, node.attr) in blocked_attrs:
-                return False, f"Blocked: {node.value.id}.{node.attr}"
-
-    return True, ""
+    """Validate code AST. Delegates to shared code_validator."""
+    return validate_code(code, strictness)
 
 
 def _smoke_test(filepath):
