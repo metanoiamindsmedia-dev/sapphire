@@ -502,8 +502,14 @@ def _extract_keywords(content: str) -> str:
 
 def _format_time_ago(timestamp_str: str) -> str:
     try:
+        from zoneinfo import ZoneInfo
+        import config
+        tz_name = getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
+        user_tz = ZoneInfo(tz_name)
         ts = datetime.fromisoformat(timestamp_str)
-        diff = datetime.now() - ts
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=ZoneInfo('UTC'))
+        diff = datetime.now(user_tz) - ts
         days, hours, minutes = diff.days, diff.seconds // 3600, (diff.seconds % 3600) // 60
         if days > 0:
             return f"{days}d ago"
