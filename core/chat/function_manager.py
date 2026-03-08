@@ -60,10 +60,6 @@ class FunctionManager:
 
     def _load_function_modules(self):
         """Dynamically load all function modules from functions/ and user/functions/."""
-        if not config.FUNCTIONS_ENABLED:
-            logger.info("Function loading disabled by config")
-            return
-        
         base_functions_dir = Path(__file__).parent.parent.parent / "functions"
         base_dir = Path(__file__).parent.parent.parent 
 

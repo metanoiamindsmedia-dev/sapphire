@@ -27,10 +27,6 @@
     ]
   },
   
-  "features": {
-    "FUNCTIONS_ENABLED": true
-  },
-  
   "backups": {
     "BACKUPS_ENABLED": true,
     "BACKUPS_KEEP_DAILY": 7,

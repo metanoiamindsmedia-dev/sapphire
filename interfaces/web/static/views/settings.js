@@ -701,7 +701,7 @@ function _showVoicePicker(voices, targetInput, parentEl) {
 
 // ── Helpers ──
 
-const LABEL_OVERRIDES = { 'FUNCTIONS_ENABLED': 'Tools Enabled' };
+const LABEL_OVERRIDES = {};
 
 function formatLabel(key) {
     if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];

@@ -31,11 +31,6 @@
     "long": "List of IP addresses, hostnames, and CIDR ranges that are allowed when Privacy Mode is active. All other network connections are blocked. Supports single IPs (192.168.1.50), hostnames (localhost, myserver.local), and CIDR notation for ranges (192.168.0.0/16, 10.0.0.0/8). Default includes RFC1918 private address ranges for LAN-only operation."
   },
   
-  "FUNCTIONS_ENABLED": {
-    "short": "Enable LLM tool calling (web search, memory, etc.)",
-    "long": "When enabled, the AI can use tools from functions/ like web search, memory storage/retrieval, image generation, self-modification (meta), and more. Disabling this restricts the AI to text-only responses without any tool access. Different from MODULES which are keyword-triggered behaviors."
-  },
-  
   "BACKUPS_ENABLED": {
     "short": "Enable automatic backup system",
     "long": "When enabled, the system will automatically create backups of the user/ directory on a schedule. Daily backups run at 3am, weekly on Sundays, monthly on the 1st. Manual backups can be triggered from the UI."
