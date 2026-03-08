@@ -14,6 +14,7 @@ const statusTpl = document.getElementById('status-template');
 // Avatar display setting (loaded from /api/init)
 let avatarsInChat = true;
 
+
 // Export setter for immediate updates from settings modal
 export const setAvatarsInChat = (val) => { avatarsInChat = val; };
 
@@ -281,14 +282,15 @@ export const addUserMessage = (txt, images = null, files = null) => {
 export const renderHistory = (hist) => {
     Images.clearPendingImages();
     chat.querySelectorAll('.message:not(.status):not(.error)').forEach(msg => msg.remove());
-    
+
     if (!hist || !Array.isArray(hist)) return;
-    
+
     hist.forEach((msg, i) => {
         if (!msg || typeof msg !== 'object') return;
         const { clone } = createMessage(msg, i, hist.length, true);
         chat.appendChild(clone);
     });
+
     updateToolbars();
     
     const waitForImages = () => {
@@ -395,7 +397,7 @@ export const endTool = (toolId, toolName, result, isError) => {
 
 export const finishStreaming = async (ephemeral = false) => {
     const streamingMsg = document.getElementById('streaming-message');
-    
+
     Streaming.finishStreaming(updateToolbars);
     
     // Ephemeral: just remove the message, no swap with history
@@ -421,6 +423,7 @@ export const finishStreaming = async (ephemeral = false) => {
                 if (hist && hist.length > 0) {
                     const lastMsg = hist[hist.length - 1];
                     const { clone } = createMessage(lastMsg, hist.length - 1, hist.length, true);
+
                     streamingMsg.replaceWith(clone);
                 }
             } catch (e) {

@@ -346,19 +346,24 @@ export const scheduleScrollAfterImages = (scrollCallback, force = false) => {
  */
 export const createImageElement = (imageId, isHistoryRender = false, scrollCallback = null) => {
     const img = document.createElement('img');
-    img.src = `/api/sdxl-image/${imageId}`;
+    const isToolImage = imageId.startsWith('tool:');
+    const imgUrl = isToolImage
+        ? `/api/tool-image/${imageId.slice(5)}`
+        : `/api/sdxl-image/${imageId}`;
+    img.src = imgUrl;
     img.className = 'inline-image';
     img.alt = 'Generated image';
     img.dataset.imageId = imageId;
     img.dataset.retryCount = '0';
-    
-    const MAX_RETRIES = 20;
-    
+
+    // Tool images are in the DB — no generation delay, minimal retries
+    const MAX_RETRIES = isToolImage ? 2 : 20;
+
     // Track this image if it's from history render
     if (isHistoryRender) {
         pendingImages.add(imageId);
     }
-    
+
     img.onload = function() {
         if (this.naturalWidth > 0 && this.naturalHeight > 0) {
             // Remove from pending and schedule scroll if needed
@@ -368,7 +373,7 @@ export const createImageElement = (imageId, isHistoryRender = false, scrollCallb
                     scheduleScrollAfterImages(scrollCallback, true);
                 }
             }
-            
+
             // Dispatch custom event for inline cloning (handled in main.js)
             this.dispatchEvent(new CustomEvent('imageReady', {
                 bubbles: true,
@@ -376,7 +381,7 @@ export const createImageElement = (imageId, isHistoryRender = false, scrollCallb
             }));
         }
     };
-    
+
     img.onerror = function() {
         const retries = parseInt(this.dataset.retryCount || '0');
         if (retries >= MAX_RETRIES) {
@@ -392,10 +397,10 @@ export const createImageElement = (imageId, isHistoryRender = false, scrollCallb
         }
         this.dataset.retryCount = (retries + 1).toString();
         setTimeout(() => {
-            this.src = `/api/sdxl-image/${imageId}?t=${Date.now()}`;
+            this.src = `${imgUrl}?t=${Date.now()}`;
         }, 2000);
     };
-    
+
     return img;
 };
 

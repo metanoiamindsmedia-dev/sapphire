@@ -560,6 +560,7 @@ const doEndTool = (toolId, toolName, result, isError, scrollCallback) => {
                 console.warn('[Gallery] Failed to parse category data:', e);
             }
         }
+
     }
 
     if (scrollCallback) scrollCallback();
@@ -572,7 +573,7 @@ export const endTool = (toolId, toolName, result, isError, scrollCallback) => {
         pendingToolEvents.push({ type: 'end', toolId, toolName, result, isError });
         return;
     }
-    
+
     doEndTool(toolId, toolName, result, isError, scrollCallback);
 };
 

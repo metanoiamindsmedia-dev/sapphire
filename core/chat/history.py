@@ -672,10 +672,20 @@ class ChatSessionManager:
                 """)
                 
                 conn.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_state_log_chat_turn 
+                    CREATE INDEX IF NOT EXISTS idx_state_log_chat_turn
                     ON state_log(chat_name, turn_number)
                 """)
-                
+
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS tool_images (
+                        id TEXT PRIMARY KEY,
+                        chat_name TEXT NOT NULL,
+                        data BLOB NOT NULL,
+                        media_type TEXT NOT NULL DEFAULT 'image/jpeg',
+                        created_at TEXT NOT NULL
+                    )
+                """)
+
                 conn.commit()
             logger.debug(f"Database initialized at {self._db_path}")
         except Exception as e:
@@ -911,13 +921,17 @@ class ChatSessionManager:
                 
                 was_active = (chat_name == self.active_chat_name)
                 
-                # Delete chat and any story engine state
+                # Delete chat and any associated data
                 conn.execute("DELETE FROM chats WHERE name = ?", (chat_name,))
                 try:
                     conn.execute("DELETE FROM state_current WHERE chat_name = ?", (chat_name,))
                     conn.execute("DELETE FROM state_log WHERE chat_name = ?", (chat_name,))
                 except Exception:
                     pass  # Tables may not exist if story engine never used
+                try:
+                    conn.execute("DELETE FROM tool_images WHERE chat_name = ?", (chat_name,))
+                except Exception:
+                    pass  # Table may not exist yet
                 conn.commit()
                 logger.info(f"Deleted chat: {chat_name}")
                 
@@ -1125,7 +1139,15 @@ class ChatSessionManager:
         self.current_chat.clear()
         self._in_tool_cycle = False
         self._save_current_chat()
-        
+
+        # Clear tool images for this chat
+        try:
+            with self._get_connection() as conn:
+                conn.execute("DELETE FROM tool_images WHERE chat_name = ?", (self.active_chat_name,))
+                conn.commit()
+        except Exception:
+            pass  # Table may not exist yet
+
         # Always clear state for this chat (even if engine currently disabled)
         try:
             from core.story_engine import StoryEngine
@@ -1239,6 +1261,37 @@ class ChatSessionManager:
             return True
         
         return False
+
+    def save_tool_image(self, image_id: str, data: bytes, media_type: str = "image/jpeg") -> bool:
+        """Save a tool-returned image blob to the database."""
+        self._ensure_db()
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    """INSERT OR REPLACE INTO tool_images (id, chat_name, data, media_type, created_at)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (image_id, self.active_chat_name, data, media_type, datetime.now().isoformat())
+                )
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save tool image '{image_id}': {e}")
+            return False
+
+    def get_tool_image(self, image_id: str) -> Optional[tuple]:
+        """Get a tool image by ID. Returns (data, media_type) or None."""
+        self._ensure_db()
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "SELECT data, media_type FROM tool_images WHERE id = ?",
+                    (image_id,)
+                )
+                row = cursor.fetchone()
+                return (row[0], row[1]) if row else None
+        except Exception as e:
+            logger.error(f"Failed to get tool image '{image_id}': {e}")
+            return None
 
     def _get_chat_path(self, chat_name: str) -> Path:
         """Legacy method - only used for migration detection."""

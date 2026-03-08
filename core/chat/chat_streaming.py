@@ -4,7 +4,7 @@ import re
 import time
 from typing import Generator, Union, Dict, Any
 import config
-from .chat_tool_calling import strip_ui_markers, wrap_tool_result
+from .chat_tool_calling import strip_ui_markers, wrap_tool_result, _extract_tool_images
 from .llm_providers import LLMResponse, get_generation_params
 from core.event_bus import publish, Events
 from core.hooks import hook_runner, HookEvent
@@ -361,23 +361,25 @@ class StreamingChat:
                         metadata=metadata
                     )
                     
+                    iteration_tool_images = []
+
                     for tool_call in tool_calls_to_execute:
                         if self.cancel_flag:
                             logger.info(f"[STOP] [STREAMING] Cancelled before tool execution")
                             break
-                        
+
                         if not tool_call.get("id") or not tool_call.get("function", {}).get("name"):
                             continue
-                        
+
                         tool_call_count += 1
                         function_name = tool_call["function"]["name"]
                         tool_call_id = tool_call["id"]
-                        
+
                         try:
                             function_args = json.loads(tool_call["function"]["arguments"])
                         except json.JSONDecodeError:
                             function_args = {}
-                        
+
                         # Emit typed tool_start event
                         yield {
                             "type": "tool_start",
@@ -385,17 +387,20 @@ class StreamingChat:
                             "name": function_name,
                             "args": function_args
                         }
-                        
+
                         # Publish to event bus for avatar/plugins
                         publish(Events.TOOL_EXECUTING, {"name": function_name})
-                        
+
                         try:
                             function_result = self.main_chat.function_manager.execute_function(function_name, function_args, scopes=_scopes)
-                            result_str = str(function_result)
+                            result_str, tool_imgs = _extract_tool_images(function_result, self.main_chat.session_manager)
+                            if tool_imgs:
+                                iteration_tool_images.extend(tool_imgs)
+                                logger.info(f"[TOOL] {function_name} returned {len(tool_imgs)} image(s)")
                             clean_result = strip_ui_markers(result_str)
-                            
+
                             publish(Events.TOOL_COMPLETE, {"name": function_name, "success": True})
-                            
+
                             # Emit typed tool_end event
                             yield {
                                 "type": "tool_end",
@@ -404,7 +409,7 @@ class StreamingChat:
                                 "result": clean_result[:500] if len(clean_result) > 500 else clean_result,
                                 "error": False
                             }
-                            
+
                             wrapped_msg = provider.format_tool_result(
                                 tool_call_id,
                                 function_name,
@@ -412,7 +417,7 @@ class StreamingChat:
                             )
                             messages.append(wrapped_msg)
                             logger.info(f"[OK] [STREAMING] Tool {function_name} executed successfully")
-                            
+
                             self.main_chat.session_manager.add_tool_result(
                                 tool_call_id,
                                 function_name,
@@ -423,9 +428,9 @@ class StreamingChat:
                         except Exception as tool_error:
                             logger.error(f"Tool execution error: {tool_error}", exc_info=True)
                             error_result = f"Error: {str(tool_error)}"
-                            
+
                             publish(Events.TOOL_COMPLETE, {"name": function_name, "success": False})
-                            
+
                             yield {
                                 "type": "tool_end",
                                 "id": tool_call_id,
@@ -433,7 +438,7 @@ class StreamingChat:
                                 "result": error_result,
                                 "error": True
                             }
-                            
+
                             wrapped_msg = provider.format_tool_result(
                                 tool_call_id,
                                 function_name,
@@ -447,7 +452,12 @@ class StreamingChat:
                                 error_result,
                                 inputs=function_args
                             )
-                    
+
+                    # Inject tool-returned images for next LLM turn
+                    if iteration_tool_images:
+                        from .chat import _inject_tool_images
+                        _inject_tool_images(messages, iteration_tool_images)
+
                     if self.cancel_flag:
                         break
 
@@ -473,7 +483,7 @@ class StreamingChat:
                         full_content = prefill + current_content if has_prefill else current_content
 
                         # Execute text-based tool call (function_manager returns error if not active)
-                        self.tool_engine.execute_text_based_tool_call(
+                        _, text_tool_images = self.tool_engine.execute_text_based_tool_call(
                             function_call_data,
                             full_content,
                             messages,
@@ -481,6 +491,11 @@ class StreamingChat:
                             provider,
                             scopes=_scopes
                         )
+
+                        # Inject tool-returned images for next LLM turn
+                        if text_tool_images:
+                            from .chat import _inject_tool_images
+                            _inject_tool_images(messages, text_tool_images)
 
                         # Emit tool events for UI
                         tool_name = function_call_data["function_call"]["name"]

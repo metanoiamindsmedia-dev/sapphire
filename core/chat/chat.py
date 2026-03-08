@@ -17,6 +17,24 @@ from .llm_providers import get_provider, get_provider_for_url, get_provider_by_k
 logger = logging.getLogger(__name__)
 
 
+def _inject_tool_images(messages, tool_images):
+    """Inject tool-returned images as a user message for the next LLM turn.
+
+    Images are added as content blocks so providers can convert them
+    to their native format (Claude source blocks, OpenAI image_url, etc).
+    """
+    content = [{"type": "text", "text": "[Tool returned image(s) for analysis]"}]
+    for img in tool_images:
+        content.append({
+            "type": "image",
+            "data": img.get("data", ""),
+            "media_type": img.get("media_type", "image/jpeg")
+        })
+    messages.append({"role": "user", "content": content})
+    logger.info(f"[TOOL] Injected {len(tool_images)} tool image(s) into conversation")
+
+
+
 def friendly_llm_error(e):
     """Convert LLM provider exceptions to user-friendly messages. Returns None if unrecognized."""
     error_str = str(e).lower()
@@ -581,7 +599,7 @@ class LLMChat:
                     if tool_calls_to_execute:
                         last_tool_name = tool_calls_to_execute[0]["function"]["name"]
 
-                    tools_executed = self.tool_engine.execute_tool_calls(
+                    tools_executed, tool_images = self.tool_engine.execute_tool_calls(
                         tool_calls_to_execute,
                         messages,
                         self.session_manager,
@@ -589,6 +607,10 @@ class LLMChat:
                         scopes=_scopes
                     )
                     tool_call_count += tools_executed
+
+                    # Inject tool-returned images as user message for next LLM turn
+                    if tool_images:
+                        _inject_tool_images(messages, tool_images)
 
                     logger.info(f"Tool execution iteration {i+1} completed")
                     continue
@@ -612,7 +634,7 @@ class LLMChat:
 
                         last_tool_name = function_call_data["function_call"]["name"]
 
-                        self.tool_engine.execute_text_based_tool_call(
+                        _, tool_images = self.tool_engine.execute_text_based_tool_call(
                             function_call_data,
                             filtered_content,
                             messages,
@@ -620,6 +642,9 @@ class LLMChat:
                             provider,
                             scopes=_scopes
                         )
+
+                        if tool_images:
+                            _inject_tool_images(messages, tool_images)
 
                         logger.info(f"Text-based tool iteration {i+1} completed")
                         continue
@@ -1020,10 +1045,12 @@ class LLMChat:
                         "role": "assistant", "content": filtered,
                         "tool_calls": tool_calls
                     })
-                    tools_executed = self.tool_engine.execute_tool_calls(
+                    tools_executed, tool_images = self.tool_engine.execute_tool_calls(
                         tool_calls, messages, None, provider, scopes=_scopes
                     )
                     tool_call_count += tools_executed
+                    if tool_images:
+                        _inject_tool_images(messages, tool_images)
                     logger.info(f"[ISOLATED] Loop {i+1}: executed {tools_executed} tools (total: {tool_call_count})")
                     continue
 
@@ -1031,9 +1058,11 @@ class LLMChat:
                     fn_data = self.tool_engine.extract_function_call_from_text(response_msg.content)
                     if fn_data:
                         filtered = filter_to_thinking_only(response_msg.content)
-                        self.tool_engine.execute_text_based_tool_call(
+                        _, tool_images = self.tool_engine.execute_text_based_tool_call(
                             fn_data, filtered, messages, None, provider, scopes=_scopes
                         )
+                        if tool_images:
+                            _inject_tool_images(messages, tool_images)
                         tool_call_count += 1
                         logger.info(f"[ISOLATED] Loop {i+1}: text-based tool call (total: {tool_call_count})")
                         continue

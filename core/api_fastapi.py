@@ -14,7 +14,7 @@ from datetime import timedelta
 from fastapi import FastAPI, Request, Depends, HTTPException, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse, FileResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
 import config
@@ -5536,6 +5536,26 @@ async def request_system_shutdown(request: Request, _=Depends(require_login)):
         raise HTTPException(status_code=503, detail="Shutdown not available")
     _shutdown_callback()
     return {"status": "shutting_down", "message": "Shutdown initiated"}
+
+
+# =============================================================================
+# TOOL IMAGE SERVING
+# =============================================================================
+
+@app.get("/api/tool-image/{image_id}")
+async def serve_tool_image(image_id: str, request: Request, _=Depends(require_login)):
+    """Serve tool-returned images from the chat history database."""
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+\.(jpg|png)$', image_id):
+        raise HTTPException(status_code=400, detail="Invalid image ID")
+
+    system = get_system()
+    result = system.llm_chat.session_manager.get_tool_image(image_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    data, media_type = result
+    return Response(content=data, media_type=media_type)
 
 
 # =============================================================================

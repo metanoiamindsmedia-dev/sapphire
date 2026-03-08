@@ -86,6 +86,62 @@ def wrap_tool_result(tool_call_id: str, function_name: str, result: str) -> Dict
     }
 
 
+def _extract_tool_images(result, history=None):
+    """Extract images from a tool result if it returned structured data.
+
+    Tools can return {"text": "...", "images": [{"data": base64, "media_type": "image/..."}]}
+    to pass images back to the LLM on the next turn.
+
+    Images are saved to the chat history DB and <<IMG::tool:id>> markers are embedded
+    in the text so they persist in history and render via existing image infrastructure.
+
+    Returns (text_str, images_list). images_list contains the raw image dicts
+    for injection into the next LLM turn.
+    """
+    if isinstance(result, dict) and "images" in result and isinstance(result["images"], list):
+        text = str(result.get("text", ""))
+        images = [
+            img for img in result["images"]
+            if isinstance(img, dict) and img.get("data")
+        ]
+        # Save images to DB and embed markers in text
+        for img in images:
+            img_id = _save_tool_image(img, history)
+            if img_id:
+                text = f"<<IMG::tool:{img_id}>>\n{text}"
+        return text, images
+    return str(result), []
+
+
+def _save_tool_image(img, history=None):
+    """Save a base64 tool image to the chat history database. Returns image ID or None."""
+    import base64
+
+    try:
+        img_id = uuid.uuid4().hex[:12]
+        media_type = img.get("media_type", "image/jpeg")
+        ext = "png" if "png" in media_type else "jpg"
+        full_id = f"{img_id}.{ext}"
+
+        img_bytes = base64.b64decode(img["data"])
+
+        if history and hasattr(history, 'save_tool_image'):
+            history.save_tool_image(full_id, img_bytes, media_type)
+            logger.info(f"[TOOL] Saved tool image to DB: {full_id}")
+        else:
+            # Fallback to disk if no history available (isolated tool calls)
+            from pathlib import Path
+            img_dir = Path(__file__).parent.parent.parent / "user" / "tool_images"
+            img_dir.mkdir(parents=True, exist_ok=True)
+            (img_dir / full_id).write_bytes(img_bytes)
+            logger.info(f"[TOOL] Saved tool image to disk (no history): {full_id}")
+
+        return full_id
+    except Exception as e:
+        logger.error(f"[TOOL] Failed to save tool image: {e}")
+        return None
+
+
 class ToolCallingEngine:
     def __init__(self, function_manager):
         self.function_manager = function_manager
@@ -185,34 +241,37 @@ class ToolCallingEngine:
     def execute_tool_calls(self, tool_calls, messages, history, provider: BaseProvider = None, scopes=None):
         """
         Execute tool calls and add results to messages array AND history.
-        
+
         Key behaviors:
         - Tool results sent to LLM have UI markers STRIPPED (clean context)
         - Tool results saved to history contain raw content (structured JSON handles display)
         - Reset function results are NOT saved to history
         - Uses provider.format_tool_result() if provider given (for Claude compatibility)
-        
-        Returns number of tools executed.
-        
+        - Tools returning {"text": "...", "images": [...]} have images accumulated
+
+        Returns (tools_executed, tool_images) where tool_images is a list of
+        {"data": base64, "media_type": "image/..."} dicts from tool results.
+
         Note: Caller should slice tool_calls to MAX_PARALLEL_TOOLS before calling.
         """
         tools_executed = 0
-        
+        tool_images = []
+
         for tool_call in tool_calls:
             function_name = tool_call["function"]["name"]
-            
+
             try:
                 function_args = json.loads(tool_call["function"]["arguments"])
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse tool arguments: {tool_call['function']['arguments']}")
                 error_result = "Error: Invalid JSON arguments."
-                
+
                 if provider:
                     wrapped_msg = provider.format_tool_result(tool_call["id"], function_name, error_result)
                 else:
                     wrapped_msg = wrap_tool_result(tool_call["id"], function_name, error_result)
                 messages.append(wrapped_msg)
-                
+
                 if history:
                     history.add_tool_result(tool_call["id"], function_name, error_result)
                 continue
@@ -223,7 +282,12 @@ class ToolCallingEngine:
                 logger.error(f"Tool execution failed for {function_name}: {tool_error}", exc_info=True)
                 function_result = f"Tool '{function_name}' failed: {str(tool_error)}"
 
-            result_str = str(function_result)
+            # Extract images if tool returned structured result
+            result_str, images = _extract_tool_images(function_result, history)
+            if images:
+                tool_images.extend(images)
+                logger.info(f"[TOOL] {function_name} returned {len(images)} image(s)")
+
             clean_result = strip_ui_markers(result_str)
 
             if provider:
@@ -231,11 +295,11 @@ class ToolCallingEngine:
             else:
                 wrapped_msg = wrap_tool_result(tool_call["id"], function_name, clean_result)
             messages.append(wrapped_msg)
-            
+
             logger.info(f"[OK] Tool result added to messages")
             logger.debug(f"   Message role: {wrapped_msg['role']}")
             logger.debug(f"   Content preview: {str(wrapped_msg.get('content', ''))[:100]}")
-            
+
             if history:
                 logger.info(f"[SAVE] Saving tool result for: {function_name}")
                 history.add_tool_result(tool_call["id"], function_name, result_str, inputs=function_args)
@@ -245,7 +309,7 @@ class ToolCallingEngine:
             tools_executed += 1
             logger.info(f"[OK] Executed tool: {function_name}")
 
-        return tools_executed
+        return tools_executed, tool_images
 
     def execute_text_based_tool_call(self, function_call_data, filtered_content, messages, history, provider: BaseProvider = None, scopes=None):
         """
@@ -287,20 +351,22 @@ class ToolCallingEngine:
         except Exception as tool_error:
             logger.error(f"Text-based tool failed for {function_name}: {tool_error}")
             function_result = f"Tool '{function_name}' failed: {str(tool_error)}"
-        
-        result_str = str(function_result)
+
+        result_str, tool_images = _extract_tool_images(function_result, history)
+        if tool_images:
+            logger.info(f"[TOOL] {function_name} returned {len(tool_images)} image(s) (text-based)")
         clean_result = strip_ui_markers(result_str)
-        
+
         if provider:
             wrapped_msg = provider.format_tool_result(tool_call_id, function_name, clean_result)
         else:
             wrapped_msg = wrap_tool_result(tool_call_id, function_name, clean_result)
         messages.append(wrapped_msg)
-        
+
         if history:
             history.add_tool_result(tool_call_id, function_name, result_str, inputs=function_args)
         else:
             logger.debug(f"[ISOLATED] No history manager, skipping save for: {function_name}")
-        
+
         logger.info(f"[OK] Executed text-based tool: {function_name}")
-        return tool_call_id
+        return tool_call_id, tool_images

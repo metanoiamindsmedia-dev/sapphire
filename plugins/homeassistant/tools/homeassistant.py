@@ -4,6 +4,7 @@ import requests
 import logging
 import json
 import os
+import base64
 import fnmatch
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,8 @@ AVAILABLE_FUNCTIONS = [
     'ha_set_light',
     'ha_set_switch',
     'ha_notify',
-    'ha_house_status'
+    'ha_house_status',
+    'ha_get_camera_image'
 ]
 
 TOOLS = [
@@ -241,6 +243,24 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "is_local": "endpoint",
+        "function": {
+            "name": "ha_get_camera_image",
+            "description": "Get a snapshot image from a Home Assistant camera entity. Returns the image for visual analysis. Use ha_house_status first to find camera entity IDs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "entity_id": {
+                        "type": "string",
+                        "description": "Camera entity ID (e.g., 'camera.front_door', 'camera.living_room')"
+                    }
+                },
+                "required": ["entity_id"]
             }
         }
     }
@@ -980,6 +1000,21 @@ def _house_status(settings: dict) -> tuple:
         # In HA, scenes show as 'scening' briefly or have timestamp
         # Skip for now since scenes are always "off" - just list available count
     
+    # --- Cameras ---
+    cameras = []
+    for entity in entities:
+        entity_id = entity.get('entity_id', '')
+        if not entity_id.startswith('camera.'):
+            continue
+        entity_area = entity_areas.get(entity_id, '')
+        if _is_blacklisted(entity_id, entity_area, blacklist):
+            continue
+        name = entity.get('attributes', {}).get('friendly_name', entity_id.split('.')[1])
+        cameras.append(f"{name} ({entity_id})")
+
+    if cameras:
+        status_parts.append(f"Cameras: {', '.join(cameras)}")
+
     # Instead, show switch states for important switches (non-light)
     switches_on = []
     for entity in entities:
@@ -1003,6 +1038,44 @@ def _house_status(settings: dict) -> tuple:
         return "No status data available", True
     
     return '\n'.join(status_parts), True
+
+
+def _get_camera_image(entity_id: str, settings: dict):
+    """Fetch a snapshot from a HA camera entity. Returns structured result with image."""
+    if not entity_id.startswith('camera.'):
+        entity_id = f'camera.{entity_id}'
+
+    url = settings['url']
+    headers = _get_headers()
+    if not headers:
+        return "No HA token configured", False
+
+    try:
+        response = requests.get(
+            f"{url}/api/camera_proxy/{entity_id}",
+            headers=headers,
+            timeout=15
+        )
+
+        if response.status_code == 404:
+            return f"Camera not found: {entity_id}", False
+        if response.status_code != 200:
+            return f"HA camera error: HTTP {response.status_code}", False
+
+        content_type = response.headers.get('Content-Type', 'image/jpeg')
+        media_type = content_type.split(';')[0].strip()
+        img_b64 = base64.b64encode(response.content).decode('ascii')
+
+        return {
+            "text": f"Camera snapshot from {entity_id}",
+            "images": [{"data": img_b64, "media_type": media_type}]
+        }, True
+
+    except requests.exceptions.Timeout:
+        return "HA camera connection timed out", False
+    except Exception as e:
+        logger.error(f"HA camera error: {e}")
+        return f"Camera error: {e}", False
 
 
 # =============================================================================
@@ -1080,7 +1153,13 @@ def execute(function_name: str, arguments: dict, config) -> tuple:
         
         elif function_name == "ha_house_status":
             return _house_status(settings)
-        
+
+        elif function_name == "ha_get_camera_image":
+            entity_id = arguments.get("entity_id", "")
+            if not entity_id:
+                return "Missing entity_id parameter", False
+            return _get_camera_image(entity_id, settings)
+
         else:
             return f"Unknown function: {function_name}", False
             
