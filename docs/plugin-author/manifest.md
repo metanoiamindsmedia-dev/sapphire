@@ -25,6 +25,7 @@ The `capabilities` object declares what the plugin provides:
     "hooks": { ... },
     "voice_commands": [ ... ],
     "tools": [ ... ],
+    "routes": [ ... ],
     "schedule": [ ... ],
     "settings": [ ... ],
     "web": { ... }
@@ -35,6 +36,7 @@ The `capabilities` object declares what the plugin provides:
 Each capability is documented in its own guide:
 - [Hooks & Voice Commands](hooks.md)
 - [Tools](tools.md)
+- [Routes](routes.md)
 - [Schedule](schedule.md)
 - [Settings & Web UI](settings.md)
 

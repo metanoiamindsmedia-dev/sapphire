@@ -5539,6 +5539,53 @@ async def request_system_shutdown(request: Request, _=Depends(require_login)):
 
 
 # =============================================================================
+# PLUGIN ROUTE DISPATCHER
+# =============================================================================
+
+@app.api_route("/api/plugin/{plugin_name}/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def plugin_route_dispatch(plugin_name: str, path: str, request: Request, _=Depends(require_login)):
+    """Dispatch requests to plugin-registered HTTP routes.
+
+    Auth and CSRF are enforced by the framework — plugins cannot bypass them.
+    Routes are registered via plugin.json capabilities.routes declarations.
+    """
+    from core.plugin_loader import plugin_loader
+    from core.auth import check_endpoint_rate
+
+    # Rate limit: 30 requests per 60s per session per plugin
+    check_endpoint_rate(request, f"plugin_route:{plugin_name}", max_calls=30)
+
+    result = plugin_loader.get_route_handler(plugin_name, request.method, path)
+    if not result:
+        raise HTTPException(status_code=404, detail="Route not found")
+
+    handler, path_params = result
+
+    # Parse request body for POST/PUT
+    body = {}
+    if request.method in ("POST", "PUT"):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+    # Build handler kwargs: path params + body + settings
+    settings = plugin_loader.get_plugin_settings(plugin_name)
+    kwargs = {**path_params, "body": body, "settings": settings}
+
+    # Call handler (may be sync — run in threadpool)
+    import asyncio
+    if asyncio.iscoroutinefunction(handler):
+        response_data = await handler(**kwargs)
+    else:
+        response_data = await asyncio.to_thread(handler, **kwargs)
+
+    if isinstance(response_data, Response):
+        return response_data
+    return response_data
+
+
+# =============================================================================
 # TOOL IMAGE SERVING
 # =============================================================================
 

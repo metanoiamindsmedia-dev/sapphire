@@ -6,10 +6,11 @@
 import json
 import logging
 import os
+import re
 import shutil
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable, Tuple
 
 from core.hooks import hook_runner
 from core.plugin_verify import verify_plugin
@@ -81,6 +82,8 @@ class PluginLoader:
         self._scheduler = None  # Set via set_scheduler() for plugin schedule tasks
         self._watcher_running = False
         self._watcher_thread = None
+        # Route registry: {plugin_name: [(method, compiled_regex, param_names, handler_func), ...]}
+        self._routes: Dict[str, list] = {}
 
     def scan(self, function_manager=None):
         """Discover all plugins and load enabled ones.
@@ -272,6 +275,11 @@ class PluginLoader:
         if tool_paths and self._function_manager:
             self._function_manager.register_plugin_tools(name, plugin_dir, tool_paths)
 
+        # Register HTTP routes
+        routes = capabilities.get("routes", [])
+        if routes:
+            self._register_routes(name, plugin_dir, routes)
+
         # Register scheduled tasks with continuity scheduler
         schedules = capabilities.get("schedule", [])
         if schedules and self._scheduler:
@@ -357,10 +365,11 @@ class PluginLoader:
             return None
 
     def unload_plugin(self, name: str):
-        """Unload a plugin — deregister all hooks, tools, and schedule tasks."""
+        """Unload a plugin — deregister all hooks, tools, routes, and schedule tasks."""
         hook_runner.unregister_plugin(name)
         if self._function_manager:
             self._function_manager.unregister_plugin_tools(name)
+        self._unregister_routes(name)
         # Remove plugin schedule tasks
         with self._lock:
             if self._scheduler and name in self._plugins:
@@ -603,6 +612,71 @@ class PluginLoader:
         if new_found or removed:
             logger.info(f"[PLUGINS] Rescan: {len(new_found)} added, {len(removed)} removed")
         return {"added": new_found, "removed": removed}
+
+    # ── Route helpers ──
+
+    def _register_routes(self, name: str, plugin_dir: Path, routes: list):
+        """Register HTTP route handlers declared in plugin manifest."""
+        registered = []
+        for route_def in routes:
+            method = route_def.get("method", "GET").upper()
+            path = route_def.get("path", "")
+            handler_ref = route_def.get("handler", "")
+
+            if not path or not handler_ref:
+                logger.warning(f"[PLUGINS] {name}: route missing path or handler")
+                continue
+
+            if method not in ("GET", "POST", "PUT", "DELETE"):
+                logger.warning(f"[PLUGINS] {name}: unsupported route method '{method}'")
+                continue
+
+            # Parse handler reference: "routes/file.py:func_name"
+            if ":" in handler_ref:
+                file_path, func_name = handler_ref.rsplit(":", 1)
+            else:
+                file_path = handler_ref
+                func_name = "handle"
+
+            handler_func = self._load_handler(plugin_dir, file_path, func_name)
+            if not handler_func:
+                logger.warning(f"[PLUGINS] {name}: failed to load route handler '{handler_ref}'")
+                continue
+
+            # Convert path pattern like "capture/{request_id}" to regex
+            param_names = re.findall(r'\{(\w+)\}', path)
+            regex_pattern = re.sub(r'\{(\w+)\}', r'(?P<\1>[^/]+)', path)
+            compiled = re.compile(f'^{regex_pattern}$')
+
+            registered.append((method, compiled, param_names, handler_func))
+            logger.info(f"[PLUGINS] Registered route: {method} /api/plugin/{name}/{path}")
+
+        if registered:
+            with self._lock:
+                self._routes[name] = registered
+
+    def _unregister_routes(self, name: str):
+        """Remove all route handlers for a plugin."""
+        with self._lock:
+            if name in self._routes:
+                del self._routes[name]
+                logger.info(f"[PLUGINS] Unregistered routes for: {name}")
+
+    def get_route_handler(self, plugin_name: str, method: str, path: str) -> Optional[Tuple[Callable, dict]]:
+        """Find a matching route handler. Returns (handler_func, path_params) or None."""
+        with self._lock:
+            routes = self._routes.get(plugin_name)
+        if not routes:
+            return None
+
+        method = method.upper()
+        for route_method, pattern, param_names, handler in routes:
+            if route_method != method:
+                continue
+            match = pattern.match(path)
+            if match:
+                return handler, match.groupdict()
+        return None
 
     # ── Settings helpers ──
 

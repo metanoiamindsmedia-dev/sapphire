@@ -33,6 +33,7 @@ A tool is a single function the AI can call. A plugin is an autonomous package t
 | [Hooks](hooks.md) | All 10 hook points, HookEvent fields, system access, examples |
 | [Voice Commands](voice-commands.md) | Keyword triggers that bypass the LLM — match modes, handlers, macros |
 | [Tools](tools.md) | Tool file format, schema flags, scopes, reading settings, privacy patterns |
+| [Routes](routes.md) | Custom HTTP endpoints — path params, auth enforcement, handler signature |
 | [Schedule](schedule.md) | Cron tasks — manifest fields, handler contract, examples |
 | [Settings](settings.md) | Manifest-declared settings, custom web UI, settings API, danger confirms |
 | [Web UI](web-ui.md) | Shared JS modules, CSS variables, modals, CSRF, style injection |
@@ -102,6 +103,7 @@ plugins/smart-home/
   hooks/context.py
   hooks/quick_lights.py
   tools/devices.py
+  routes/camera.py
   schedule/lock_check.py
   web/
     index.js
@@ -128,6 +130,13 @@ plugins/smart-home/
       }
     ],
     "tools": ["tools/devices.py"],
+    "routes": [
+      {
+        "method": "POST",
+        "path": "camera/{room}",
+        "handler": "routes/camera.py:handle_snapshot"
+      }
+    ],
     "schedule": [
       {
         "name": "Nightly Lock Check",

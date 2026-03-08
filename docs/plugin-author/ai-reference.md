@@ -10,6 +10,7 @@ When creating or modifying plugins:
 - Tools = `TOOLS` list + `execute(function_name, arguments, config)` returning `(str, bool)`
 - Tool schema supports `is_local` (bool or `"endpoint"`) and `network: true` flags
 - Voice commands = pre_chat hooks with trigger matching, `bypass_llm: true` for instant response
+- Routes = custom HTTP endpoints at `/api/plugin/{name}/{path}`, handler receives `(path_params, body, settings)`, auth+CSRF+rate-limit enforced by framework
 - Schedule = cron tasks calling `run(event)` handler, event has `system`, `config`, `task`, `plugin_state`
 - Web settings = `web/index.js` using `registerPluginSettings()`, served at `/plugin-web/{name}/`
 - State = `plugin_loader.get_plugin_state(name)` for persistent key-value storage

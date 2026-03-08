@@ -4,14 +4,14 @@
 
 1. `plugin_loader.scan()` reads `plugins/` and `user/plugins/`
 2. Each `plugin.json` is validated and signature-checked
-3. Enabled plugins get hooks, tools, voice commands, and schedules registered
+3. Enabled plugins get hooks, tools, voice commands, routes, and schedules registered
 4. Scheduler tasks are deferred if the scheduler hasn't initialized yet
 
 ## Live Toggle
 
 Settings > Plugins calls `PUT /api/webui/plugins/toggle/{name}`:
 - **Enable**: Loads immediately — all capabilities register
-- **Disable**: Unloads immediately — hooks, tools, schedules removed
+- **Disable**: Unloads immediately — hooks, tools, routes, schedules removed
 
 Unsigned/tampered plugins return 403 and the toggle reverts.
 
@@ -43,6 +43,7 @@ A buggy plugin never crashes the system. If a hook handler throws an exception, 
 | PUT | `/api/webui/plugins/{name}/settings` | Save plugin settings |
 | DELETE | `/api/webui/plugins/{name}/settings` | Reset plugin settings |
 | GET | `/plugin-web/{name}/{path}` | Serve plugin web assets |
+| * | `/api/plugin/{name}/{path}` | Plugin custom routes (auth enforced) |
 
 ### Plugin List Response
 
