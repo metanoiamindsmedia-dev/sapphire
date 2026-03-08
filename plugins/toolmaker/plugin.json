@@ -21,15 +21,15 @@
         ],
         "help": "How strictly to validate AI-written tool code. Strict allows 40+ safe modules including requests, json, datetime — covers most tools.",
         "confirm": {
-          "values": ["trust"],
-          "title": "Trust Mode — No Validation",
+          "values": ["moderate", "trust"],
+          "title": "Reduced Validation",
           "warnings": [
+            "Moderate allows any import not explicitly blocked",
             "Trust mode only checks for syntax errors",
-            "The AI can use ANY Python import including subprocess, socket, ctypes",
-            "This is equivalent to giving the AI unrestricted code execution",
+            "Both modes allow imports that could access system resources",
             "Only use this if you fully trust your LLM and prompt setup"
           ],
-          "buttonLabel": "Enable Trust Mode"
+          "buttonLabel": "I understand the risks"
         }
       }
     ]
