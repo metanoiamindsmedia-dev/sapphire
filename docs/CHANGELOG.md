@@ -1,6 +1,7 @@
 # 2.2.3 - Image tool returns
 - AI can call images from home assistant cameras
 - AI can call image from user webcam via browser
+- Added API route support to plugins
 # 2.2.2 - Separated Core
 - STT, TTS and nomic are still core but provider can be changed
 - Split SSH and local shell plugins into 2
