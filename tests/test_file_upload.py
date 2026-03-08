@@ -80,14 +80,16 @@ class TestFormatMessagesForDisplay:
     """Test format_messages_for_display handles file blocks."""
 
     def test_plain_user_message(self):
-        from core.api_fastapi import format_messages_for_display
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.chat import format_messages_for_display
         msgs = [{"role": "user", "content": "Hello", "timestamp": 1000}]
         result = format_messages_for_display(msgs)
         assert len(result) == 1
         assert result[0]["content"] == "Hello"
 
     def test_user_message_with_file_blocks(self):
-        from core.api_fastapi import format_messages_for_display
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.chat import format_messages_for_display
         msgs = [{
             "role": "user",
             "timestamp": 1000,
@@ -103,7 +105,8 @@ class TestFormatMessagesForDisplay:
         assert result[0]["files"][0]["text"] == "print('hello')"
 
     def test_user_message_with_image_and_file(self):
-        from core.api_fastapi import format_messages_for_display
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.chat import format_messages_for_display
         msgs = [{
             "role": "user",
             "timestamp": 1000,
@@ -120,13 +123,15 @@ class TestFormatMessagesForDisplay:
         assert len(result[0]["files"]) == 1
 
     def test_user_message_without_files_has_no_files_key(self):
-        from core.api_fastapi import format_messages_for_display
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.chat import format_messages_for_display
         msgs = [{"role": "user", "content": "Just text", "timestamp": 1000}]
         result = format_messages_for_display(msgs)
         assert "files" not in result[0]
 
     def test_multiple_files(self):
-        from core.api_fastapi import format_messages_for_display
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.chat import format_messages_for_display
         msgs = [{
             "role": "user",
             "timestamp": 1000,

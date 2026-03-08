@@ -1107,14 +1107,16 @@ class TestPluginSettingsEncoding:
     def test_plugin_settings_read_has_encoding(self):
         """get_plugin_settings must open with encoding='utf-8'."""
         import inspect
-        from core.api_fastapi import get_plugin_settings
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.plugins import get_plugin_settings
         source = inspect.getsource(get_plugin_settings)
         assert "encoding='utf-8'" in source or 'encoding="utf-8"' in source
 
     def test_plugin_settings_write_has_encoding(self):
         """update_plugin_settings must write with encoding='utf-8'."""
         import inspect
-        from core.api_fastapi import update_plugin_settings
+        import core.api_fastapi  # noqa: F401 — bootstrap route modules
+        from core.routes.plugins import update_plugin_settings
         source = inspect.getsource(update_plugin_settings)
         assert "encoding='utf-8'" in source or 'encoding="utf-8"' in source
 
