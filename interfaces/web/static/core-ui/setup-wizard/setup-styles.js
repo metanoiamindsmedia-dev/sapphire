@@ -29,7 +29,7 @@ export function injectSetupStyles() {
        Main Modal Container
        ======================================== */
     .setup-wizard {
-      background: var(--surface-primary, #1e1e2e);
+      background: var(--bg-secondary);
       border-radius: 16px;
       width: 95%;
       max-width: 640px;
@@ -50,19 +50,19 @@ export function injectSetupStyles() {
        ======================================== */
     .setup-wizard-header {
       padding: 24px 28px 16px;
-      border-bottom: 1px solid var(--border-color, #333);
+      border-bottom: 1px solid var(--border);
       text-align: center;
     }
     .setup-wizard-header h2 {
       margin: 0 0 8px;
       font-size: 1.75rem;
       font-weight: 600;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .setup-wizard-header .subtitle {
       margin: 0;
       font-size: 0.95rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       line-height: 1.5;
     }
 
@@ -74,7 +74,7 @@ export function injectSetupStyles() {
       justify-content: center;
       gap: 8px;
       padding: 16px 28px;
-      background: var(--surface-secondary, #252535);
+      background: var(--bg-dark);
     }
     .setup-step {
       display: flex;
@@ -83,19 +83,19 @@ export function injectSetupStyles() {
       padding: 8px 16px;
       border-radius: 20px;
       font-size: 0.85rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       background: transparent;
       transition: all 0.2s ease;
     }
     .setup-step.active {
-      background: var(--accent-color, #4a9eff);
+      background: var(--trim);
       color: #fff !important;
     }
     .setup-step.active .step-label {
       color: #fff;
     }
     .setup-step.completed {
-      color: var(--accent-green, #5cb85c);
+      color: var(--success);
     }
     .setup-step.active.completed {
       color: #fff;
@@ -109,13 +109,13 @@ export function injectSetupStyles() {
       justify-content: center;
       font-weight: 600;
       font-size: 0.8rem;
-      background: var(--surface-tertiary, #333);
+      background: var(--bg-hover);
     }
     .setup-step.active .step-num {
       background: rgba(255,255,255,0.2);
     }
     .setup-step.completed .step-num {
-      background: var(--accent-green, #5cb85c);
+      background: var(--success);
       color: #fff;
     }
 
@@ -147,11 +147,11 @@ export function injectSetupStyles() {
     .setup-tab-header h3 {
       margin: 0 0 8px;
       font-size: 1.3rem;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .setup-tab-header p {
       margin: 0;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       font-size: 0.9rem;
     }
 
@@ -159,15 +159,15 @@ export function injectSetupStyles() {
        Feature Cards (Voice tab)
        ======================================== */
     .feature-card {
-      background: var(--surface-secondary, #252535);
-      border: 2px solid var(--border-color, #333);
+      background: var(--bg-dark);
+      border: 2px solid var(--border);
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 16px;
       transition: all 0.2s ease;
     }
     .feature-card.enabled {
-      border-color: var(--accent-green, #5cb85c);
+      border-color: var(--success);
       background: rgba(92, 184, 92, 0.1);
     }
     .feature-card-header {
@@ -185,12 +185,12 @@ export function injectSetupStyles() {
     .feature-info h4 {
       margin: 0 0 4px;
       font-size: 1.1rem;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .feature-info p {
       margin: 0;
       font-size: 0.85rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
     }
 
     /* Toggle switch */
@@ -207,7 +207,7 @@ export function injectSetupStyles() {
     .feature-toggle .slider {
       position: absolute;
       inset: 0;
-      background: var(--surface-tertiary, #333);
+      background: var(--bg-hover);
       border-radius: 28px;
       cursor: pointer;
       transition: 0.3s;
@@ -224,7 +224,7 @@ export function injectSetupStyles() {
       transition: 0.3s;
     }
     .feature-toggle input:checked + .slider {
-      background: var(--accent-green, #5cb85c);
+      background: var(--success);
     }
     .feature-toggle input:checked + .slider:before {
       transform: translateX(24px);
@@ -239,15 +239,15 @@ export function injectSetupStyles() {
     }
     .package-status.installed {
       background: rgba(92, 184, 92, 0.15);
-      color: var(--accent-green, #5cb85c);
+      color: var(--success);
     }
     .package-status.not-installed {
       background: rgba(240, 173, 78, 0.15);
-      color: var(--accent-yellow, #f0ad4e);
+      color: var(--warning);
     }
     .package-status.checking {
       background: rgba(74, 158, 255, 0.1);
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
     }
     .package-status.checking .spinner {
       display: inline-block;
@@ -263,19 +263,19 @@ export function injectSetupStyles() {
       gap: 8px;
       margin-top: 8px;
       padding: 8px 12px;
-      background: var(--surface-tertiary, #1a1a2a);
+      background: var(--input-bg);
       border-radius: 6px;
       font-family: monospace;
       font-size: 0.8rem;
     }
     .pip-command code {
       flex: 1;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .pip-command .copy-btn {
       padding: 4px 8px;
       font-size: 0.75rem;
-      background: var(--accent-color, #4a9eff);
+      background: var(--trim);
       color: #fff;
       border: none;
       border-radius: 4px;
@@ -288,17 +288,17 @@ export function injectSetupStyles() {
     /* Provider dropdown (STT, future TTS) */
     .provider-select {
       padding: 8px 12px;
-      background: var(--surface-tertiary, #1a1a2a);
-      border: 1px solid var(--border-color, #333);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       font-size: 0.85rem;
       cursor: pointer;
       min-width: 160px;
     }
     .provider-select:focus {
       outline: none;
-      border-color: var(--accent-color, #4a9eff);
+      border-color: var(--trim);
     }
 
     /* API key row (cloud providers) */
@@ -314,18 +314,18 @@ export function injectSetupStyles() {
     .provider-key-input {
       flex: 1;
       padding: 10px 12px;
-      background: var(--surface-tertiary, #1a1a2a);
-      border: 1px solid var(--border-color, #333);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       font-size: 0.9rem;
     }
     .provider-key-input:focus {
       outline: none;
-      border-color: var(--accent-color, #4a9eff);
+      border-color: var(--trim);
     }
     .provider-key-input::placeholder {
-      color: var(--text-tertiary, #666);
+      color: var(--text-dim);
     }
     .key-status {
       font-size: 0.85rem;
@@ -339,11 +339,11 @@ export function injectSetupStyles() {
       gap: 10px;
       padding: 12px 16px;
       background: rgba(74, 158, 255, 0.1);
-      border-left: 3px solid var(--accent-color, #4a9eff);
+      border-left: 3px solid var(--trim);
       border-radius: 0 8px 8px 0;
       margin: 16px 0;
       font-size: 0.85rem;
-      color: var(--text-secondary, #aaa);
+      color: var(--text-tertiary);
     }
     .setup-tip .tip-icon {
       font-size: 1.1rem;
@@ -358,12 +358,12 @@ export function injectSetupStyles() {
     .audio-section h4 {
       margin: 0 0 8px;
       font-size: 1rem;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .audio-section > p {
       margin: 0 0 12px;
       font-size: 0.85rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
     }
     .device-row {
       display: flex;
@@ -373,10 +373,10 @@ export function injectSetupStyles() {
     .device-select {
       flex: 1;
       padding: 10px 14px;
-      background: var(--surface-secondary, #252535);
-      border: 1px solid var(--border-color, #333);
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       font-size: 0.9rem;
     }
     .test-result {
@@ -384,9 +384,9 @@ export function injectSetupStyles() {
       font-size: 0.85rem;
       min-height: 20px;
     }
-    .test-result.success { color: var(--accent-green, #5cb85c); }
-    .test-result.warning { color: var(--accent-yellow, #f0ad4e); }
-    .test-result.error { color: var(--accent-red, #d9534f); }
+    .test-result.success { color: var(--success); }
+    .test-result.warning { color: var(--warning); }
+    .test-result.error { color: var(--error); }
 
     .level-meter-container {
       display: flex;
@@ -397,19 +397,19 @@ export function injectSetupStyles() {
     .level-meter {
       flex: 1;
       height: 8px;
-      background: var(--surface-tertiary, #333);
+      background: var(--bg-hover);
       border-radius: 4px;
       overflow: hidden;
     }
     .level-bar {
       height: 100%;
       width: 0%;
-      background: var(--accent-green, #5cb85c);
+      background: var(--success);
       transition: width 0.1s;
     }
     .level-value {
       font-size: 0.8rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       min-width: 35px;
     }
 
@@ -421,14 +421,14 @@ export function injectSetupStyles() {
       margin-bottom: 20px;
     }
     .llm-intro p {
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       font-size: 0.9rem;
       line-height: 1.5;
     }
 
     .provider-simple-card {
-      background: var(--surface-secondary, #252535);
-      border: 2px solid var(--border-color, #333);
+      background: var(--bg-dark);
+      border: 2px solid var(--border);
       border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 12px;
@@ -436,10 +436,10 @@ export function injectSetupStyles() {
       transition: all 0.2s ease;
     }
     .provider-simple-card:hover {
-      border-color: var(--accent-color, #4a9eff);
+      border-color: var(--trim);
     }
     .provider-simple-card.selected {
-      border-color: var(--accent-green, #5cb85c);
+      border-color: var(--success);
       background: rgba(92, 184, 92, 0.1);
     }
     .provider-simple-header {
@@ -456,16 +456,16 @@ export function injectSetupStyles() {
     .provider-simple-header .info h4 {
       margin: 0 0 2px;
       font-size: 1rem;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     .provider-simple-header .info p {
       margin: 0;
       font-size: 0.8rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
     }
     .provider-simple-header .check {
       font-size: 1.2rem;
-      color: var(--accent-green, #5cb85c);
+      color: var(--success);
       opacity: 0;
       transition: opacity 0.2s;
     }
@@ -476,7 +476,7 @@ export function injectSetupStyles() {
     .provider-config {
       margin-top: 16px;
       padding-top: 16px;
-      border-top: 1px solid var(--border-color, #333);
+      border-top: 1px solid var(--border);
       display: none;
     }
     .provider-simple-card.selected .provider-config {
@@ -490,27 +490,27 @@ export function injectSetupStyles() {
       display: block;
       margin-bottom: 6px;
       font-size: 0.85rem;
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
     }
     .config-field input,
     .config-field select {
       width: 100%;
       padding: 10px 12px;
-      background: var(--surface-tertiary, #1a1a2a);
-      border: 1px solid var(--border-color, #333);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       font-size: 0.9rem;
     }
     .config-field input:focus,
     .config-field select:focus {
       outline: none;
-      border-color: var(--accent-color, #4a9eff);
+      border-color: var(--trim);
     }
     .config-field .hint {
       margin-top: 4px;
       font-size: 0.75rem;
-      color: var(--text-tertiary, #666);
+      color: var(--text-dim);
     }
 
     .test-connection-row {
@@ -532,8 +532,8 @@ export function injectSetupStyles() {
       justify-content: space-between;
       align-items: center;
       padding: 16px 28px;
-      border-top: 1px solid var(--border-color, #333);
-      background: var(--surface-secondary, #252535);
+      border-top: 1px solid var(--border);
+      background: var(--bg-dark);
     }
     .setup-wizard-footer .btn {
       padding: 10px 24px;
@@ -545,22 +545,22 @@ export function injectSetupStyles() {
       border: none;
     }
     .setup-wizard-footer .btn-secondary {
-      background: var(--surface-tertiary, #333);
-      color: var(--text-secondary, #888);
+      background: var(--bg-hover);
+      color: var(--text-muted);
     }
     .setup-wizard-footer .btn-secondary:hover {
-      background: var(--surface-primary, #444);
-      color: var(--text-primary, #fff);
+      background: var(--bg-hover);
+      color: var(--text);
     }
     .setup-wizard-footer .btn-primary {
-      background: var(--accent-color, #4a9eff);
+      background: var(--trim);
       color: #fff;
     }
     .setup-wizard-footer .btn-primary:hover {
       background: #3a8eef;
     }
     .setup-wizard-footer .btn-success {
-      background: var(--accent-green, #5cb85c);
+      background: var(--success);
       color: #fff;
     }
     .setup-wizard-footer .btn:disabled {
@@ -569,7 +569,7 @@ export function injectSetupStyles() {
     }
     .footer-hint {
       font-size: 0.8rem;
-      color: var(--text-tertiary, #666);
+      color: var(--text-dim);
     }
 
     /* ========================================
@@ -620,27 +620,27 @@ export function injectSetupStyles() {
     .identity-field label {
       font-size: 0.95rem;
       font-weight: 500;
-      color: var(--text-primary, #fff);
+      color: var(--text);
     }
     
     .identity-input {
       padding: 14px 16px;
       font-size: 1.1rem;
-      background: var(--surface-tertiary, #1a1a2a);
-      border: 2px solid var(--border-subtle, #333);
+      background: var(--input-bg);
+      border: 2px solid var(--border);
       border-radius: 10px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     
     .identity-input:focus {
       outline: none;
-      border-color: var(--accent-color, #4a9eff);
+      border-color: var(--trim);
       box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.2);
     }
     
     .identity-input::placeholder {
-      color: var(--text-dim, #666);
+      color: var(--text-dim);
     }
 
     /* ========================================
@@ -652,12 +652,12 @@ export function injectSetupStyles() {
     }
     .success-screen h3 {
       margin: 0 0 8px;
-      color: var(--text-primary, #fff);
+      color: var(--text);
       font-size: 1.5rem;
       animation: slideUp 0.5s ease 0.3s both;
     }
     .success-screen p {
-      color: var(--text-secondary, #888);
+      color: var(--text-muted);
       margin: 0;
       animation: slideUp 0.5s ease 0.4s both;
     }
@@ -676,7 +676,7 @@ export function injectSetupStyles() {
       transform: translate(-50%, -50%) scale(0);
       width: 80px;
       height: 80px;
-      background: linear-gradient(135deg, var(--accent-green, #5cb85c), #3d9140);
+      background: linear-gradient(135deg, var(--success), #3d9140);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -690,15 +690,15 @@ export function injectSetupStyles() {
     .sparkle {
       position: absolute;
       font-size: 1.2rem;
-      color: var(--accent-color, #4a9eff);
+      color: var(--trim);
       opacity: 0;
       animation: sparkle 0.6s ease-out forwards;
     }
     .sparkle.s1 { top: 10%; left: 50%; animation-delay: 0.2s; color: #ffd700; }
-    .sparkle.s2 { top: 25%; left: 85%; animation-delay: 0.25s; color: var(--accent-green, #5cb85c); }
+    .sparkle.s2 { top: 25%; left: 85%; animation-delay: 0.25s; color: var(--success); }
     .sparkle.s3 { top: 70%; left: 90%; animation-delay: 0.3s; color: #ff6b9d; }
     .sparkle.s4 { top: 85%; left: 50%; animation-delay: 0.35s; color: #ffd700; }
-    .sparkle.s5 { top: 70%; left: 10%; animation-delay: 0.4s; color: var(--accent-color, #4a9eff); }
+    .sparkle.s5 { top: 70%; left: 10%; animation-delay: 0.4s; color: var(--trim); }
     .sparkle.s6 { top: 25%; left: 15%; animation-delay: 0.45s; color: #ff6b9d; }
     
     @keyframes popIn {
