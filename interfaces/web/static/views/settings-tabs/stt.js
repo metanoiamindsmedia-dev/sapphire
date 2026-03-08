@@ -31,9 +31,13 @@ const tabConfig = {
         }
     },
 
-    // Shown for all active providers (recorder is provider-agnostic)
-    commonKeys: ['STT_LANGUAGE', 'RECORDER_BACKGROUND_PERCENTILE', 'RECORDER_SILENCE_DURATION', 'RECORDER_MAX_SECONDS'],
-    commonAdvancedKeys: ['RECORDER_SILENCE_THRESHOLD', 'RECORDER_SPEECH_DURATION', 'RECORDER_BEEP_WAIT_TIME']
+    // Shown for all active providers (recorder keys hidden in managed/Docker — no local mic)
+    commonKeys: window.__managed
+        ? ['STT_LANGUAGE']
+        : ['STT_LANGUAGE', 'RECORDER_BACKGROUND_PERCENTILE', 'RECORDER_SILENCE_DURATION', 'RECORDER_MAX_SECONDS'],
+    commonAdvancedKeys: window.__managed
+        ? []
+        : ['RECORDER_SILENCE_THRESHOLD', 'RECORDER_SPEECH_DURATION', 'RECORDER_BEEP_WAIT_TIME']
 };
 
 export default {
