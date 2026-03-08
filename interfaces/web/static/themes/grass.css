@@ -1,6 +1,13 @@
 /* Grass Theme - /static/themes/grass.css */
 /* Fresh meadow vibes - lush greens everywhere */
 [data-theme="grass"] {
+    /* Trim - fresh green */
+    --trim: #5cb85c;
+    --trim-glow: rgba(92, 184, 92, 0.3);
+    --trim-light: rgba(92, 184, 92, 0.12);
+    --trim-border: rgba(92, 184, 92, 0.35);
+    --trim-50: rgba(92, 184, 92, 0.5);
+
     /* Colors - Core */
     --bg: #0d1f0d;
     --bg-secondary: #132813;

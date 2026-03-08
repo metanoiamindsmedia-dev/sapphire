@@ -1,6 +1,13 @@
 /* Noir Theme - /static/themes/noir.css */
 /* Black and white cinema - shadows and light, no color */
 [data-theme="noir"] {
+    /* Trim - silver (monochrome) */
+    --trim: #b0b0b0;
+    --trim-glow: rgba(176, 176, 176, 0.25);
+    --trim-light: rgba(176, 176, 176, 0.1);
+    --trim-border: rgba(176, 176, 176, 0.3);
+    --trim-50: rgba(176, 176, 176, 0.5);
+
     /* Colors - Core - true blacks and whites */
     --bg: #0a0a0a;
     --bg-secondary: #111111;

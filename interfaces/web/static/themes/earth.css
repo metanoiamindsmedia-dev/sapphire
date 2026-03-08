@@ -1,6 +1,13 @@
 /* Earth Theme - /static/themes/earth.css */
 /* Dirt foundation, grass midtones, sky accents - a slice of planet */
 [data-theme="earth"] {
+    /* Trim - grass green */
+    --trim: #7cb342;
+    --trim-glow: rgba(124, 179, 66, 0.3);
+    --trim-light: rgba(124, 179, 66, 0.12);
+    --trim-border: rgba(124, 179, 66, 0.35);
+    --trim-50: rgba(124, 179, 66, 0.5);
+
     /* Colors - Core - rich brown earth base */
     --bg: #1a130d;
     --bg-secondary: #241a12;

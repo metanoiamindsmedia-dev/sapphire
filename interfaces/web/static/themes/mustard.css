@@ -1,6 +1,13 @@
 /* Mustard Theme - /static/themes/mustard.css */
 /* Warm golden yellows - cozy deli vibes */
 [data-theme="mustard"] {
+    /* Trim - rich mustard gold */
+    --trim: #d4a020;
+    --trim-glow: rgba(212, 160, 32, 0.3);
+    --trim-light: rgba(212, 160, 32, 0.12);
+    --trim-border: rgba(212, 160, 32, 0.35);
+    --trim-50: rgba(212, 160, 32, 0.5);
+
     /* Colors - Core - dark with golden undertones */
     --bg: #1a1608;
     --bg-secondary: #242010;

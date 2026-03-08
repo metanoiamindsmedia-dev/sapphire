@@ -71,6 +71,7 @@
     --border: #333;
     --border-light: #444;
     --border-hover: #555;
+    --border-subtle: rgba(255, 255, 255, 0.06);
     
     /* Overlays & Shadows */
     --overlay-bg: rgba(0, 0, 0, 0.8);
@@ -1287,7 +1288,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
     align-items: center;
     gap: var(--space-sm);
     padding: var(--space-sm) var(--space-md);
-    background: var(--accordion-header-bg, rgba(74, 158, 255, 0.08));
+    background: var(--accordion-header-bg, var(--bg-tertiary));
     border-radius: var(--radius-md);
     cursor: pointer;
     user-select: none;
@@ -1295,7 +1296,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 }
 
 .accordion-section .accordion-header:hover {
-    background: var(--accordion-header-hover, rgba(74, 158, 255, 0.12));
+    background: var(--accordion-header-hover, var(--bg-hover));
 }
 
 .accordion-arrow {

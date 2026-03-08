@@ -1,6 +1,13 @@
 /* Abyss Theme - /static/themes/abyss.css */
 /* Deep ocean darkness - where light comes from within */
 [data-theme="abyss"] {
+    /* Trim - bioluminescent cyan */
+    --trim: #40c8e0;
+    --trim-glow: rgba(64, 200, 224, 0.3);
+    --trim-light: rgba(64, 200, 224, 0.12);
+    --trim-border: rgba(64, 200, 224, 0.35);
+    --trim-50: rgba(64, 200, 224, 0.5);
+
     /* Colors - Core - crushing depth black-blue */
     --bg: #050810;
     --bg-secondary: #080c18;

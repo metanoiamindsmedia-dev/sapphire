@@ -1,6 +1,13 @@
 /* Sunset Theme - /static/themes/sunset.css */
 /* Warm orange sky fading to purple - golden hour forever */
 [data-theme="sunset"] {
+    /* Trim - sunset coral */
+    --trim: #f08050;
+    --trim-glow: rgba(240, 128, 80, 0.3);
+    --trim-light: rgba(240, 128, 80, 0.12);
+    --trim-border: rgba(240, 128, 80, 0.35);
+    --trim-50: rgba(240, 128, 80, 0.5);
+
     /* Colors - Core - deep purple base with warm overlay */
     --bg: #1a1018;
     --bg-secondary: #261820;

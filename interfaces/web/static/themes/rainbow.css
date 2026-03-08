@@ -1,6 +1,13 @@
 /* Rainbow Theme - /static/themes/rainbow.css */
 /* Pure chromatic chaos - every element a different color */
 [data-theme="rainbow"] {
+    /* Trim - electric blue */
+    --trim: #4d96ff;
+    --trim-glow: rgba(77, 150, 255, 0.35);
+    --trim-light: rgba(77, 150, 255, 0.15);
+    --trim-border: rgba(77, 150, 255, 0.4);
+    --trim-50: rgba(77, 150, 255, 0.5);
+
     /* Colors - Core - dark base to make colors pop */
     --bg: #1a1a2e;
     --bg-secondary: #16213e;

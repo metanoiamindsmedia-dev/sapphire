@@ -1,3 +1,6 @@
+# 2.2.4 - Split API into files
+- Major api refactor of back end into files
+- Improved themes - light theme contrast, other themes added missing colors
 # 2.2.3 - Image tool returns
 - AI can call images from home assistant cameras
 - AI can call image from user webcam via browser

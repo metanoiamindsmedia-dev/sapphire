@@ -1,6 +1,13 @@
 /* Dirt Theme - /static/themes/dirt.css */
 /* Pure earthy brown - rich soil tones */
 [data-theme="dirt"] {
+    /* Trim - terracotta */
+    --trim: #b07850;
+    --trim-glow: rgba(176, 120, 80, 0.3);
+    --trim-light: rgba(176, 120, 80, 0.12);
+    --trim-border: rgba(176, 120, 80, 0.35);
+    --trim-50: rgba(176, 120, 80, 0.5);
+
     /* Colors - Core - deep brown earth */
     --bg: #1c150f;
     --bg-secondary: #261c14;
