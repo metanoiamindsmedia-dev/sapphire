@@ -475,17 +475,27 @@ class SettingsManager:
         """
         # Hot-reload: These are read per-request, no restart needed
         hot_reload = {
-            'DEFAULT_USERNAME',
+            'DEFAULT_USERNAME', 'DEFAULT_PERSONA', 'USER_TIMEZONE',
+            'AVATARS_IN_CHAT', 'IMAGE_UPLOAD_MAX_WIDTH',
             'GENERATION_DEFAULTS', 'MODEL_GENERATION_PROFILES',
             'LLM_MAX_HISTORY', 'CONTEXT_LIMIT',
             'FORCE_THINKING', 'THINKING_PREFILL',
+            'CLAUDE_THINKING_ENABLED', 'CLAUDE_THINKING_BUDGET',
             'LLM_PROVIDERS', 'LLM_FALLBACK_ORDER', 'LLM_REQUEST_TIMEOUT',
             # SOCKS can be hot-reloaded - session cache is cleared on change
             'SOCKS_ENABLED', 'SOCKS_HOST', 'SOCKS_PORT', 'SOCKS_TIMEOUT',
             # Privacy mode is runtime-only, always hot
             'PRIVACY_MODE', 'PRIVACY_NETWORK_WHITELIST', 'START_IN_PRIVACY_MODE',
             # Providers hot-swap at runtime via switch_*_provider() methods
-            'STT_PROVIDER', 'TTS_PROVIDER', 'EMBEDDING_PROVIDER',
+            'STT_PROVIDER', 'TTS_PROVIDER', 'EMBEDDING_PROVIDER', 'STT_LANGUAGE',
+            # Tool settings - read per-request
+            'MAX_TOOL_ITERATIONS', 'MAX_PARALLEL_TOOLS', 'DEBUG_TOOL_CALLING',
+            'TOOL_HISTORY_MAX_ENTRIES', 'RAG_SIMILARITY_THRESHOLD',
+            # Backup settings - read per-request by backup scheduler
+            'BACKUPS_ENABLED', 'BACKUPS_KEEP_DAILY', 'BACKUPS_KEEP_WEEKLY',
+            'BACKUPS_KEEP_MONTHLY', 'BACKUPS_KEEP_MANUAL',
+            # Setup wizard progress
+            'SETUP_WIZARD_STEP',
         }
         
         # Everything else requires restart (TTS, STT, modules, etc. are initialized at startup)
