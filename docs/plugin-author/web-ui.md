@@ -85,6 +85,31 @@ function injectStyles() {
 }
 ```
 
+### Plugin Scripts (web/main.js)
+
+Plugins that need JavaScript running in the chat view (not just settings) can provide a `web/main.js` file. It's auto-loaded on app startup for enabled plugins.
+
+```javascript
+// web/main.js
+export default {
+    init() {
+        // Runs once when the app loads and this plugin is enabled
+        document.addEventListener('sapphire:tool_start', (e) => {
+            const { id, name, args } = e.detail;
+            // React to tool execution...
+        });
+    }
+};
+```
+
+The module must export a `default` object with an `init()` method. It's loaded via dynamic `import()` with full error isolation — a broken plugin script won't crash the app.
+
+**Available DOM events:**
+
+| Event | Detail | Fires When |
+|-------|--------|------------|
+| `sapphire:tool_start` | `{id, name, args}` | A tool begins executing during chat streaming |
+
 ### CSRF Headers
 
 Plugin web UIs making custom API calls need CSRF tokens:

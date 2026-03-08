@@ -4404,6 +4404,7 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                 manifest = info.get("manifest", {})
                 plugin_dir = info.get("path", "")
                 has_web = (Path(plugin_dir) / "web" / "index.js").exists() if plugin_dir else False
+                has_script = (Path(plugin_dir) / "web" / "main.js").exists() if plugin_dir else False
                 settings_schema = manifest.get("capabilities", {}).get("settings")
                 if has_web:
                     settings_ui = "plugin"
@@ -4429,6 +4430,7 @@ async def list_plugins(request: Request, _=Depends(require_login)):
                     "author": manifest.get("author"),
                     "icon": manifest.get("icon"),
                     "band": info.get("band"),
+                    "has_script": has_script,
                 })
     except Exception:
         pass

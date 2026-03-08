@@ -250,6 +250,29 @@ function syncNavWithPlugins() {
                 if (btn) btn.style.display = 'none';
             }
         }
+        // Auto-load plugin scripts (web/main.js) for enabled plugins
+        loadPluginScripts(d.plugins);
+    }).catch(() => {});
+}
+
+const _loadedPluginScripts = new Set();
+
+function loadPluginScripts(plugins) {
+    for (const p of plugins) {
+        if (!p.enabled || !p.has_script || _loadedPluginScripts.has(p.name)) continue;
+        _loadedPluginScripts.add(p.name);
+        const url = `/plugin-web/${p.name}/main.js${_v}`;
+        import(url).then(mod => {
+            if (mod.default?.init) mod.default.init();
+            console.log(`[Plugins] Loaded script: ${p.name}`);
+        }).catch(() => {}); // Plugin has no main.js or it failed — that's fine
+    }
+}
+
+// Re-check for new plugin scripts (called after plugin toggle/reload)
+function reloadPluginScripts() {
+    fetch('/api/webui/plugins').then(r => r.ok ? r.json() : null).then(d => {
+        if (d?.plugins) loadPluginScripts(d.plugins);
     }).catch(() => {});
 }
 
@@ -335,10 +358,12 @@ function initEventBus() {
         populateChatDropdown();
     });
 
-    // Plugin reload notification
+    // Plugin reload/toggle — load new scripts
     eventBus.on(eventBus.Events.PLUGIN_RELOADED, (data) => {
         ui.showToast(`Plugin '${data?.plugin || 'unknown'}' reloaded`, 'success');
+        reloadPluginScripts();
     });
+    document.addEventListener('sapphire:plugin_toggled', () => reloadPluginScripts());
 
     // Server restart detection — full state resync
     eventBus.on(eventBus.Events.SERVER_RESTARTED, async () => {

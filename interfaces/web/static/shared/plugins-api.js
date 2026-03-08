@@ -36,7 +36,10 @@ const pluginsAPI = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Failed to toggle: ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    // Notify app so plugin scripts can be loaded/unloaded
+    document.dispatchEvent(new CustomEvent('sapphire:plugin_toggled', { detail: data }));
+    return data;
   },
 
   /**

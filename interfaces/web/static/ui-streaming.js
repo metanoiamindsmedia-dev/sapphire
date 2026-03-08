@@ -468,6 +468,11 @@ const doStartTool = (toolId, toolName, args, scrollCallback) => {
 
 // Handle tool_start event
 export const startTool = (toolId, toolName, args, scrollCallback) => {
+    // Dispatch for plugin scripts that need to react to tool execution
+    document.dispatchEvent(new CustomEvent('sapphire:tool_start', {
+        detail: { id: toolId, name: toolName, args }
+    }));
+
     if (!streamMsg) {
         // Queue the event for later processing
         pendingToolEvents.push({ type: 'start', toolId, toolName, args });
