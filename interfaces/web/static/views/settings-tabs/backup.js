@@ -20,6 +20,29 @@ export default {
                 <div class="backup-stats" id="backup-stats"></div>
             </div>
 
+            <div class="backup-info" style="margin:16px 0;padding:12px 16px;background:var(--bg-secondary);border-radius:8px;font-size:var(--font-sm);line-height:1.6">
+                <div style="margin-bottom:8px"><strong>Included in backups:</strong></div>
+                <div style="color:var(--text-secondary)">
+                    Chat history, prompts, toolsets, spices, scheduled tasks,
+                    settings, memories, knowledge, AI notes, user plugins,
+                    plugin state, and avatars
+                </div>
+                ${window.__managed ? `
+                <div style="margin:10px 0 4px"><strong>Also included (managed mode):</strong></div>
+                <div style="color:var(--text-secondary)">
+                    API keys and credentials (LLM keys, email passwords, bitcoin wallets)
+                    are stored inside your data volume and included in backups
+                </div>
+                ` : `
+                <div style="margin:10px 0 4px"><strong>Not included:</strong></div>
+                <div style="color:var(--text-muted)">
+                    API keys and credentials (LLM keys, email passwords, SSH servers,
+                    bitcoin wallets) are stored separately at ~/.config/sapphire/ for
+                    security and are not part of the backup archive
+                </div>
+                `}
+            </div>
+
             <div class="backup-section-divider">
                 <h4 style="margin:0 0 10px;font-size:var(--font-sm)">Backup Files</h4>
                 <div id="backup-lists"></div>
