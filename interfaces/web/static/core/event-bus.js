@@ -200,6 +200,7 @@ export const Events = {
     // TTS events
     TTS_PLAYING: 'tts_playing',
     TTS_STOPPED: 'tts_stopped',
+    TTS_SPEAK: 'tts_speak',
     
     // STT events
     STT_RECORDING_START: 'stt_recording_start',

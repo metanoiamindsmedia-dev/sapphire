@@ -89,6 +89,7 @@ class ContinuityExecutor:
             self._apply_voice(task)
 
             tts_enabled = task.get("tts_enabled", True)
+            browser_tts = task.get("browser_tts", False)
             msg = task.get("initial_message", "Hello.")
 
             try:
@@ -99,11 +100,14 @@ class ContinuityExecutor:
                     try: response_cb(response)
                     except Exception: pass
 
-                if tts_enabled and response and hasattr(self.system, 'tts') and self.system.tts:
-                    try:
-                        self.system.tts.speak_sync(response)
-                    except Exception as tts_err:
-                        logger.warning(f"[Continuity] TTS failed: {tts_err}")
+                if tts_enabled and response:
+                    if browser_tts:
+                        publish(Events.TTS_SPEAK, {"text": response, "task": task.get("name", "")})
+                    elif hasattr(self.system, 'tts') and self.system.tts:
+                        try:
+                            self.system.tts.speak_sync(response)
+                        except Exception as tts_err:
+                            logger.warning(f"[Continuity] TTS failed: {tts_err}")
 
                 result["responses"].append({
                     "iteration": 1,
@@ -194,6 +198,7 @@ class ContinuityExecutor:
 
             # Run single execution
             tts_enabled = task.get("tts_enabled", True)
+            browser_tts = task.get("browser_tts", False)
             msg = task.get("initial_message", "Hello.")
 
             try:
@@ -204,11 +209,14 @@ class ContinuityExecutor:
                     try: response_cb(response)
                     except Exception: pass
 
-                if tts_enabled and response and hasattr(self.system, 'tts') and self.system.tts:
-                    try:
-                        self.system.tts.speak_sync(response)
-                    except Exception as tts_err:
-                        logger.warning(f"[Continuity] TTS failed: {tts_err}")
+                if tts_enabled and response:
+                    if browser_tts:
+                        publish(Events.TTS_SPEAK, {"text": response, "task": task.get("name", "")})
+                    elif hasattr(self.system, 'tts') and self.system.tts:
+                        try:
+                            self.system.tts.speak_sync(response)
+                        except Exception as tts_err:
+                            logger.warning(f"[Continuity] TTS failed: {tts_err}")
                 result["responses"].append({
                     "iteration": 1,
                     "input": msg,

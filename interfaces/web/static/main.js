@@ -286,6 +286,26 @@ function initEventBus() {
         updateMicButtonState();
     });
 
+    // Browser TTS from heartbeat/scheduled tasks — one tab claims and plays
+    eventBus.on(eventBus.Events.TTS_SPEAK, (data) => {
+        if (!data?.text) return;
+        const claimId = `${Date.now()}-${Math.random()}`;
+        const claimKey = 'sapphire_tts_claim';
+        // Try to claim — first writer wins
+        const existing = localStorage.getItem(claimKey);
+        if (existing && Date.now() - parseInt(existing.split(':')[0]) < 30000) return; // another tab claimed recently
+        localStorage.setItem(claimKey, `${Date.now()}:${claimId}`);
+        // Brief yield to let other tabs race, then verify we won
+        setTimeout(() => {
+            const winner = localStorage.getItem(claimKey);
+            if (!winner || !winner.endsWith(claimId)) return; // lost the race
+            console.log(`[BrowserTTS] Playing: "${data.text.substring(0, 60)}..." from task "${data.task || '?'}"`);
+            audio.playText(data.text).finally(() => {
+                localStorage.removeItem(claimKey);
+            });
+        }, 50);
+    });
+
     // Message events
     eventBus.on(eventBus.Events.MESSAGE_ADDED, () => debouncedRefresh());
     eventBus.on(eventBus.Events.MESSAGE_REMOVED, () => debouncedRefresh());

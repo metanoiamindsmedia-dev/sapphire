@@ -169,6 +169,11 @@ export default class ContinuityEditor {
           </div>
 
           <div class="continuity-checkbox">
+            <input type="checkbox" id="task-browser-tts" ${t.browser_tts ? 'checked' : ''} />
+            <label for="task-browser-tts">Play in browser</label>
+          </div>
+
+          <div class="continuity-checkbox">
             <input type="checkbox" id="task-inject-datetime" ${t.inject_datetime ? 'checked' : ''} />
             <label for="task-inject-datetime">Inject date/time in system prompt</label>
           </div>
@@ -307,6 +312,7 @@ export default class ContinuityEditor {
       model: modelValue,
       memory_scope: this.el.querySelector('#task-memory-scope').value,
       tts_enabled: this.el.querySelector('#task-tts').checked,
+      browser_tts: this.el.querySelector('#task-browser-tts').checked,
       inject_datetime: this.el.querySelector('#task-inject-datetime').checked
     };
 

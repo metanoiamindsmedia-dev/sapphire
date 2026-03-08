@@ -661,10 +661,13 @@ async function openEditor(task, isHeartbeat = false) {
                 </details>
 
                 <details class="sched-accordion">
-                    <summary class="sched-acc-header">Voice <span class="sched-preview" id="ed-voice-preview">${(isHeartbeat ? !t.tts_enabled : t.tts_enabled === false) ? 'TTS disabled' : (t.voice || '')}</span></summary>
+                    <summary class="sched-acc-header">Voice <span class="sched-preview" id="ed-voice-preview">${(() => { const on = isHeartbeat ? !!t.tts_enabled : t.tts_enabled !== false; if (!on) return 'No TTS'; return t.browser_tts ? 'Browser' : (t.voice || 'Server'); })()}</span></summary>
                     <div class="sched-acc-body"><div class="sched-acc-inner">
                         <div class="sched-checkbox">
                             <label><input type="checkbox" id="ed-tts" ${t.tts_enabled !== false && !isHeartbeat ? 'checked' : ''}${isHeartbeat && t.tts_enabled ? ' checked' : ''}> Speak response</label>
+                        </div>
+                        <div class="sched-checkbox">
+                            <label><input type="checkbox" id="ed-browser-tts" ${t.browser_tts ? 'checked' : ''}> Play in browser <span class="help-tip" data-tip="Send TTS audio to open browser tabs instead of server speakers. One tab claims and plays.">?</span></label>
                         </div>
                         <div class="sched-field">
                             <label>Voice <span class="help-tip" data-tip="TTS voice to use. Leave on default to use whatever voice is currently active.">?</span></label>
@@ -953,10 +956,13 @@ async function openEditor(task, isHeartbeat = false) {
         const el = modal.querySelector('#ed-voice-preview');
         if (!el) return;
         const ttsOn = modal.querySelector('#ed-tts')?.checked;
-        el.textContent = ttsOn ? (modal.querySelector('#ed-voice')?.value || '') : 'TTS disabled';
+        if (!ttsOn) { el.textContent = 'No TTS'; return; }
+        const browserTts = modal.querySelector('#ed-browser-tts')?.checked;
+        el.textContent = browserTts ? 'Browser' : (modal.querySelector('#ed-voice')?.value || 'Server');
     };
     modal.querySelector('#ed-voice')?.addEventListener('change', updateVoicePreview);
     modal.querySelector('#ed-tts')?.addEventListener('change', updateVoicePreview);
+    modal.querySelector('#ed-browser-tts')?.addEventListener('change', updateVoicePreview);
 
     // Scope "+" buttons — create across ALL scope backends
     modal.querySelectorAll('.sched-add-scope').forEach(btn => {
@@ -1032,6 +1038,7 @@ async function openEditor(task, isHeartbeat = false) {
             goal_scope: modal.querySelector('#ed-goals')?.value || 'none',
             email_scope: modal.querySelector('#ed-email')?.value || 'default',
             tts_enabled: modal.querySelector('#ed-tts').checked,
+            browser_tts: modal.querySelector('#ed-browser-tts').checked,
             inject_datetime: modal.querySelector('#ed-datetime').checked,
             heartbeat: isHeartbeat,
             emoji: selectedEmoji || t.emoji || '',
