@@ -4629,10 +4629,20 @@ async def install_plugin(
 
         tmp_dir = Path(tempfile.mkdtemp())
         with zipfile.ZipFile(tmp_zip, 'r') as zf:
-            # Reject symlinks in zip (path traversal vector)
+            # Check uncompressed sizes before extracting (zip bomb protection)
+            total_uncompressed = 0
             for info in zf.infolist():
+                # Reject symlinks (path traversal vector)
                 if info.external_attr >> 16 & 0o120000 == 0o120000:
                     raise HTTPException(status_code=400, detail=f"Zip contains symlink: {info.filename}")
+                # Reject path traversal via ..
+                if '..' in info.filename or info.filename.startswith('/'):
+                    raise HTTPException(status_code=400, detail=f"Zip contains unsafe path: {info.filename}")
+                if info.file_size > MAX_FILE_SIZE:
+                    raise HTTPException(status_code=400, detail=f"File too large in zip: {info.filename} ({info.file_size // 1024 // 1024}MB)")
+                total_uncompressed += info.file_size
+            if total_uncompressed > MAX_EXTRACTED_SIZE:
+                raise HTTPException(status_code=400, detail=f"Zip uncompressed size too large ({total_uncompressed // 1024 // 1024}MB, max 100MB)")
             zf.extractall(tmp_dir)
 
         # ── Find plugin.json (root or one level deep) ──
