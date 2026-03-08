@@ -3,10 +3,8 @@ import sys
 import pytest
 from unittest.mock import MagicMock
 
-# Mock heavy deps so we don't load the Kokoro model during tests
+# Mock kokoro so we don't load the GPU model during tests
 sys.modules.setdefault('kokoro', MagicMock())
-sys.modules.setdefault('soundfile', MagicMock())
-sys.modules.setdefault('psutil', MagicMock())
 
 from core.tts.tts_server import clean_text
 

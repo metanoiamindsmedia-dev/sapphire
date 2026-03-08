@@ -647,6 +647,10 @@ class TestChatReadsAllScopes:
         ]
         mock_main_chat._select_provider.return_value = ("test", mock_provider, "")
 
+        # Tool engine should not detect any tool calls in this simple response
+        mock_main_chat.tool_engine = MagicMock()
+        mock_main_chat.tool_engine.extract_function_call_from_text.return_value = None
+
         with patch('core.chat.chat_streaming.get_generation_params', return_value={}):
             sc = StreamingChat(mock_main_chat)
             # Consume the generator
@@ -1011,7 +1015,7 @@ class TestSwitchChatClearsStoryEngine:
 # =============================================================================
 
 class TestSSHNoShellTrue:
-    """SSH local execution must not use shell=True."""
+    """SSH remote execution must not use shell=True."""
 
     @staticmethod
     def _load_ssh_tool():
@@ -1023,21 +1027,20 @@ class TestSSHNoShellTrue:
         spec.loader.exec_module(mod)
         return mod
 
-    def test_run_local_uses_shlex_not_shell(self):
-        """_run_local should use shlex.split, not shell=True."""
+    def test_run_remote_no_shell_true(self):
+        """_run_remote must not use shell=True (command injection risk)."""
         import inspect
         mod = self._load_ssh_tool()
-        source = inspect.getsource(mod._run_local)
-        assert "shell=True" not in source, "shell=True still present in _run_local"
-        assert "shlex.split" in source, "shlex.split not used in _run_local"
+        source = inspect.getsource(mod._run_remote)
+        assert "shell=True" not in source, "shell=True found in _run_remote — command injection risk"
 
-    def test_run_local_splits_command(self):
-        """_run_local should properly split a command string."""
+    def test_run_remote_uses_list_command(self):
+        """_run_remote should pass a list to subprocess.run, not a string."""
+        import inspect
         mod = self._load_ssh_tool()
-        _run_local = mod._run_local
-        # echo is safe and universal — just verify it doesn't crash
-        result, success = _run_local("echo hello world", timeout=5)
-        assert "hello world" in result
+        source = inspect.getsource(mod._run_remote)
+        assert "ssh_cmd" in source, "Expected ssh_cmd list variable in _run_remote"
+        assert "subprocess.run" in source, "Expected subprocess.run in _run_remote"
 
 
 # =============================================================================
