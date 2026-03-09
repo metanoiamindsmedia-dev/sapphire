@@ -66,7 +66,8 @@ class SettingsManager:
         """Check if a key represents a config object (not a category)"""
         config_objects = {
             'LLM_PRIMARY', 'LLM_FALLBACK', 'GENERATION_DEFAULTS',
-            'FASTER_WHISPER_VAD_PARAMETERS', 'LLM_PROVIDERS'
+            'FASTER_WHISPER_VAD_PARAMETERS', 'LLM_PROVIDERS',
+            'MODEL_GENERATION_PROFILES'
         }
         return key in config_objects
     

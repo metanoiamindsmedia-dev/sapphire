@@ -458,6 +458,9 @@ class StreamingChat:
                         from .chat import _inject_tool_images
                         _inject_tool_images(messages, iteration_tool_images)
 
+                    # Refresh tools list — tool_load may have added new tools
+                    enabled_tools = self.main_chat.function_manager.enabled_tools
+
                     if self.cancel_flag:
                         break
 

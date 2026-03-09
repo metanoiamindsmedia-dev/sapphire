@@ -612,6 +612,9 @@ class LLMChat:
                     if tool_images:
                         _inject_tool_images(messages, tool_images)
 
+                    # Refresh tools list — tool_load may have added new tools
+                    enabled_tools = self.function_manager.enabled_tools
+
                     logger.info(f"Tool execution iteration {i+1} completed")
                     continue
 

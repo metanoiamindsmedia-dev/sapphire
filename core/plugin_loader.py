@@ -599,8 +599,10 @@ class PluginLoader:
                 new_found.append(name)
 
                 if is_enabled:
-                    self._load_plugin(name)
-                    logger.info(f"[PLUGINS] Rescan: loaded new plugin '{name}'")
+                    if self._load_plugin(name):
+                        logger.info(f"[PLUGINS] Rescan: loaded new plugin '{name}'")
+                    else:
+                        logger.warning(f"[PLUGINS] Rescan: plugin '{name}' discovered but failed to load")
 
         # Detect removed plugins (folder deleted while running)
         with self._lock:

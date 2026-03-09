@@ -356,6 +356,16 @@ def execute(function_name, arguments, config):
                 result = plugin_loader.rescan()
                 added = result.get("added", [])
 
+                # Filter added list to only plugins that actually loaded
+                actually_loaded = []
+                failed_to_load = []
+                for name in added:
+                    info = plugin_loader.get_plugin_info(name)
+                    if info and info.get("loaded"):
+                        actually_loaded.append(name)
+                    else:
+                        failed_to_load.append(name)
+
                 # Reload any already-loaded user plugins (handles tool updates)
                 reloaded = []
                 if _USER_PLUGINS.exists():
@@ -376,15 +386,18 @@ def execute(function_name, arguments, config):
                         toolset_info = system.llm_chat.function_manager.get_current_toolset_info()
                         toolset_name = toolset_info.get("name", "custom")
                         system.llm_chat.function_manager.update_enabled_functions([toolset_name])
+                        # Notify frontend so toolset count refreshes
+                        from core.event_bus import publish, Events
+                        publish(Events.TOOLSET_CHANGED, {"name": toolset_name})
                 except Exception:
                     pass
 
-                # Check for settings collisions so the AI knows about them
+                # Check for settings collisions (only for plugins that loaded)
                 collision_warnings = []
                 try:
                     from core.settings_manager import settings as sm
                     registered_meta = sm.get_tool_settings_meta()
-                    for name in added + reloaded:
+                    for name in actually_loaded + reloaded:
                         tool_path = _USER_PLUGINS / name / "tools" / f"{name}.py"
                         if not tool_path.exists():
                             continue
@@ -408,14 +421,16 @@ def execute(function_name, arguments, config):
                     pass
 
                 parts = []
-                if added:
-                    parts.append(f"Loaded {len(added)} new: {', '.join(added)}")
+                if actually_loaded:
+                    parts.append(f"Loaded {len(actually_loaded)} new: {', '.join(actually_loaded)}")
                 if reloaded:
                     parts.append(f"Reloaded {len(reloaded)} updated: {', '.join(reloaded)}")
+                if failed_to_load:
+                    parts.append(f"FAILED to load {len(failed_to_load)}: {', '.join(failed_to_load)} (check plugin signing/sideloading)")
                 if collision_warnings:
                     parts.extend(collision_warnings)
                 if parts:
-                    return f"{'. '.join(parts)}. Tools are now available.", not collision_warnings
+                    return f"{'. '.join(parts)}. Tools are now available.", not (collision_warnings or failed_to_load)
                 else:
                     return "Rescan complete — no changes detected.", True
             except Exception as e:
