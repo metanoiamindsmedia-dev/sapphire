@@ -1,6 +1,6 @@
 // tabs/voice.js - Voice feature setup (TTS, STT, Wakeword)
 
-import { checkPackages, updateSetting } from '../setup-api.js';
+import { checkPackages, updateSetting, checkProviderStatus } from '../setup-api.js';
 import { updateScene } from '../../../features/scene.js';
 
 let packageStatus = {};
@@ -106,19 +106,21 @@ export default {
         const card = e.target.closest('.feature-card');
         const providers = PROVIDER_MAP[settingKey] || {};
         const providerDef = providers[value] || {};
+        const isLocal = !!providerDef.needsPackage;
 
         // Show download status for local providers
-        if (providerDef.needsPackage) {
+        if (isLocal) {
           const pkgStatus = card.querySelector('.package-status');
           if (pkgStatus) {
             pkgStatus.className = 'package-status checking';
             pkgStatus.dataset.downloading = 'true';
-            pkgStatus.innerHTML = `<span class="spinner">&midcir;</span> Loading ${providerDef.downloadLabel || 'models'}, please wait...`;
+            pkgStatus.innerHTML = `<span class="spinner">&midcir;</span> Downloading ${providerDef.downloadLabel || 'models'}, please wait...`;
           }
         }
 
         try {
-          await updateSetting(settingKey, value);
+          // Local providers: fire-and-forget so UI isn't blocked during model download
+          await updateSetting(settingKey, value, { async: isLocal });
           settings[settingKey] = value;
 
           card.classList.toggle('enabled', value !== 'none');
@@ -126,8 +128,10 @@ export default {
           // Re-render card body for new provider
           this._updateCardBody(card, settingKey, value, providers);
 
-          // Refresh package status for local providers
-          if (providerDef.needsPackage) {
+          // For local providers, poll until the provider reports ready
+          if (isLocal) {
+            this._pollProviderReady(container, settingKey, providerDef);
+          } else if (providerDef.needsPackage) {
             this.loadPackageStatus(container);
           }
 
@@ -221,8 +225,8 @@ export default {
 
     if (providerDef.needsPackage) {
       card.insertAdjacentHTML('beforeend',
-        `<div class="package-status checking" data-package="${providerDef.needsPackage}">
-          <span class="spinner">&midcir;</span> Checking ${providerDef.label}...
+        `<div class="package-status checking" data-package="${providerDef.needsPackage}" data-downloading="true">
+          <span class="spinner">&midcir;</span> Downloading ${providerDef.downloadLabel || providerDef.label}, please wait...
         </div>`);
     }
     if (providerDef.needsKey) {
@@ -233,6 +237,47 @@ export default {
           <span class="key-status" data-key-status="${providerDef.keyField}"></span>
         </div>`);
     }
+  },
+
+  _pollProviderReady(container, settingKey, providerDef) {
+    // Poll provider-status endpoint until the provider reports ready
+    const statusKey = settingKey === 'STT_PROVIDER' ? 'stt' : 'tts';
+    const pkgKey = providerDef.needsPackage;
+    let attempts = 0;
+    const maxAttempts = 120; // 6 minutes at 3s intervals
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const status = await checkProviderStatus();
+        if (status[statusKey] === 'ready') {
+          // Provider is loaded — show success
+          const statusEl = container.querySelector(`[data-package="${pkgKey}"]`);
+          if (statusEl) {
+            delete statusEl.dataset.downloading;
+            statusEl.className = 'package-status installed';
+            statusEl.innerHTML = `<span class="status-icon">\u2713</span> ${providerDef.downloadLabel || 'Models'} loaded successfully`;
+          }
+          return;
+        }
+      } catch (e) {
+        // Network error — keep polling
+      }
+
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 3000);
+      } else {
+        const statusEl = container.querySelector(`[data-package="${pkgKey}"]`);
+        if (statusEl) {
+          delete statusEl.dataset.downloading;
+          statusEl.className = 'package-status not-installed';
+          statusEl.innerHTML = `<span class="status-icon">\u2717</span> Download timed out — try restarting Sapphire`;
+        }
+      }
+    };
+
+    // Start polling after a brief delay
+    setTimeout(poll, 2000);
   },
 
   async loadPackageStatus(container) {

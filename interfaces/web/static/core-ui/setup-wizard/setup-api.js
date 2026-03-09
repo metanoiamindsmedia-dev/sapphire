@@ -35,14 +35,28 @@ export async function setWizardStep(step) {
 
 /**
  * Update a setting value.
+ * @param {string} key
+ * @param {*} value
+ * @param {object} opts - { async: true } to fire-and-forget provider switches
  */
-export async function updateSetting(key, value) {
-  const res = await fetch(`/api/settings/${key}`, {
+export async function updateSetting(key, value, opts = {}) {
+  const qs = opts.async ? '?async=true' : '';
+  const res = await fetch(`/api/settings/${key}${qs}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value })
   });
   if (!res.ok) throw new Error(`Failed to update ${key}`);
+  return await res.json();
+}
+
+/**
+ * Check if STT/TTS providers are loaded and ready.
+ * Returns { stt: 'ready'|'loading'|'disabled', tts: 'ready'|'loading'|'disabled' }
+ */
+export async function checkProviderStatus() {
+  const res = await fetch('/api/setup/provider-status');
+  if (!res.ok) throw new Error('Failed to check provider status');
   return await res.json();
 }
 

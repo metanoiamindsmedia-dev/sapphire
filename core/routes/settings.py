@@ -350,19 +350,39 @@ async def update_setting(key: str, request: Request, _=Depends(require_login)):
     if key == 'WAKE_WORD_ENABLED':
         system = get_system()
         system.toggle_wakeword(value)
+    # Provider switches: fire-and-forget when ?async=true (setup wizard uses this)
+    run_async = request.query_params.get('async') == 'true'
+
+    async def _do_stt_switch(val):
+        try:
+            await asyncio.to_thread(get_system().switch_stt_provider, val)
+        except Exception as e:
+            logger.error(f"Background STT switch failed: {e}")
+
+    async def _do_tts_switch(val):
+        try:
+            await asyncio.to_thread(get_system().switch_tts_provider, val)
+            try:
+                system = get_system()
+                chat_settings = system.llm_chat.session_manager.get_chat_settings()
+                _apply_chat_settings(system, chat_settings)
+            except Exception as e:
+                logger.warning(f"Failed to re-apply chat settings after TTS switch: {e}")
+        except Exception as e:
+            logger.error(f"Background TTS switch failed: {e}")
+
     if key == 'STT_PROVIDER':
-        await asyncio.to_thread(get_system().switch_stt_provider, value)
+        if run_async:
+            asyncio.create_task(_do_stt_switch(value))
+        else:
+            await _do_stt_switch(value)
     if key == 'STT_ENABLED':
         await asyncio.to_thread(get_system().toggle_stt, value)
     if key == 'TTS_PROVIDER':
-        await asyncio.to_thread(get_system().switch_tts_provider, value)
-        # Re-apply chat settings so voice gets validated for new provider
-        try:
-            system = get_system()
-            chat_settings = system.llm_chat.session_manager.get_chat_settings()
-            _apply_chat_settings(system, chat_settings)
-        except Exception as e:
-            logger.warning(f"Failed to re-apply chat settings after TTS switch: {e}")
+        if run_async:
+            asyncio.create_task(_do_tts_switch(value))
+        else:
+            await _do_tts_switch(value)
     if key == 'TTS_ENABLED':
         await asyncio.to_thread(get_system().toggle_tts, value)
         if value:

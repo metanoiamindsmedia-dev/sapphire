@@ -330,6 +330,36 @@ async def get_continuity_merged_timeline(request: Request, _=Depends(require_log
 # SETUP WIZARD ROUTES
 # =============================================================================
 
+@router.get("/api/setup/provider-status")
+async def provider_status(request: Request, _=Depends(require_login)):
+    """Check if STT/TTS providers are loaded and ready (not null)."""
+    system = get_system()
+    stt_status = "disabled"
+    tts_status = "disabled"
+    stt_provider = getattr(config, 'STT_PROVIDER', 'none')
+    tts_provider = getattr(config, 'TTS_PROVIDER', 'none')
+
+    if stt_provider and stt_provider != 'none':
+        try:
+            if hasattr(system, 'whisper_client') and system.whisper_client.is_available():
+                stt_status = "ready"
+            else:
+                stt_status = "loading"
+        except Exception:
+            stt_status = "loading"
+
+    if tts_provider and tts_provider != 'none':
+        try:
+            if hasattr(system, 'tts') and hasattr(system.tts, '_provider') and system.tts._provider.is_available():
+                tts_status = "ready"
+            else:
+                tts_status = "loading"
+        except Exception:
+            tts_status = "loading"
+
+    return {"stt": stt_status, "tts": tts_status}
+
+
 @router.get("/api/setup/check-packages")
 async def check_packages(request: Request, _=Depends(require_login)):
     """Check optional packages. Returns format expected by setup wizard UI."""

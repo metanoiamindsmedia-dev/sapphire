@@ -163,6 +163,8 @@ class TTSClient:
 
     def set_voice(self, voice_name):
         """Set the voice for TTS"""
+        if not voice_name:
+            return True  # Keep current voice (default af_heart)
         self.voice_name = voice_name
         logger.info(f"Voice set to: {self.voice_name}")
         return True

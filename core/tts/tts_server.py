@@ -218,7 +218,7 @@ class TTSHandler(BaseHTTPRequestHandler):
             _json_response(self, {'error': 'Text is empty after filtering'}, 400)
             return
 
-        voice = data.get('voice', DEFAULT_VOICE)
+        voice = data.get('voice') or DEFAULT_VOICE
         try:
             speed = float(data.get('speed', DEFAULT_SPEED))
         except (ValueError, TypeError):

@@ -1,7 +1,7 @@
 // setup-wizard.js - Setup wizard modal orchestrator
 
 import { injectSetupStyles } from './setup-styles.js';
-import { getSettings, getWizardStep, setWizardStep } from './setup-api.js';
+import { getSettings, getWizardStep, setWizardStep, checkProviderStatus } from './setup-api.js';
 import voiceTab from './tabs/voice.js';
 import audioTab from './tabs/audio.js';
 import llmTab from './tabs/llm.js';
@@ -350,7 +350,7 @@ class SetupWizard {
 
     } else {
       // No restart needed - show normal success
-      this.showSuccessAndClose();
+      await this.showSuccessAndClose();
     }
   }
 
@@ -451,24 +451,53 @@ class SetupWizard {
 
   /**
    * Show success animation and auto-close.
+   * Checks if providers are still loading and shows status if so.
    */
-  showSuccessAndClose() {
+  async showSuccessAndClose() {
     const content = this.modal.querySelector('.setup-wizard-content');
-    content.innerHTML = `
-      <div class="success-screen">
-        <div class="celebration">
-          <div class="sparkle s1">✦</div>
-          <div class="sparkle s2">✦</div>
-          <div class="sparkle s3">✦</div>
-          <div class="sparkle s4">✦</div>
-          <div class="sparkle s5">✦</div>
-          <div class="sparkle s6">✦</div>
-          <div class="success-icon">✓</div>
+
+    // Check if any providers are still downloading
+    let stillLoading = false;
+    try {
+      const status = await checkProviderStatus();
+      stillLoading = status.stt === 'loading' || status.tts === 'loading';
+    } catch (e) {
+      // Can't check — assume ready
+    }
+
+    if (stillLoading) {
+      content.innerHTML = `
+        <div class="success-screen">
+          <div class="celebration">
+            <div class="sparkle s1">✦</div>
+            <div class="sparkle s2">✦</div>
+            <div class="sparkle s3">✦</div>
+            <div class="success-icon">✓</div>
+          </div>
+          <h3>You're all set!</h3>
+          <p class="provider-loading-hint">
+            <span class="spinner">&midcir;</span>
+            Models still downloading — Sapphire will activate them automatically when ready.
+          </p>
         </div>
-        <h3>You're all set!</h3>
-        <p>Sapphire is ready to chat.</p>
-      </div>
-    `;
+      `;
+    } else {
+      content.innerHTML = `
+        <div class="success-screen">
+          <div class="celebration">
+            <div class="sparkle s1">✦</div>
+            <div class="sparkle s2">✦</div>
+            <div class="sparkle s3">✦</div>
+            <div class="sparkle s4">✦</div>
+            <div class="sparkle s5">✦</div>
+            <div class="sparkle s6">✦</div>
+            <div class="success-icon">✓</div>
+          </div>
+          <h3>You're all set!</h3>
+          <p>Sapphire is ready to chat.</p>
+        </div>
+      `;
+    }
 
     // Hide navigation
     this.modal.querySelector('.setup-wizard-footer').innerHTML = `
