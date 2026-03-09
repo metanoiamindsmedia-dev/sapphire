@@ -45,7 +45,7 @@ TOOLS = [
     }
 ]
 
-def execute(function_name, arguments, config):
+def execute(function_name, arguments, config, plugin_settings=None):
     if function_name == 'my_func':
         query = arguments.get('query', '')
         return f"Result: {query}", True
@@ -64,12 +64,13 @@ def execute(function_name, arguments, config):
 ### execute() Contract
 
 ```python
-def execute(function_name, arguments, config):
+def execute(function_name, arguments, config, plugin_settings=None):
     """
     Args:
         function_name: Which tool was called (matches TOOLS[].function.name)
         arguments: Dict of parameters from the AI
         config: Sapphire config module (system settings)
+        plugin_settings: Dict of this plugin's settings from the Settings UI (or None)
 
     Returns:
         (result_string, success_bool) — AI sees the result string
@@ -143,17 +144,12 @@ SETTINGS_HELP = {
     'WEATHER_CACHE_MIN': 'Cache duration in minutes',
 }
 
-def _get_settings():
-    """Load this plugin's settings (merged with defaults)."""
-    from core.plugin_loader import plugin_loader
-    return plugin_loader.get_plugin_settings('weather')  # use plugin name
-
-def execute(function_name, arguments, config):
+def execute(function_name, arguments, config, plugin_settings=None):
     if function_name == 'weather_get':
-        settings = _get_settings()
+        settings = plugin_settings or {}
         api_key = settings.get('WEATHER_API_KEY', '')
         if not api_key:
-            return "Weather API key not configured. Set it in Settings > Tool Maker.", False
+            return "Weather API key not configured. Set it in Settings > Weather.", False
 
         city = arguments.get('city', '')
         units = settings.get('WEATHER_UNITS', 'metric')
@@ -180,13 +176,25 @@ def execute(function_name, arguments, config):
 
 1. `SETTINGS` dict in your code → Tool Maker auto-converts to manifest `capabilities.settings`
 2. Settings appear in web UI under the plugin's settings tab (auto-rendered, no JavaScript needed)
-3. Read at runtime with `plugin_loader.get_plugin_settings('your_plugin_name')`
+3. Read at runtime via the `plugin_settings` parameter in `execute()` — no imports needed
 4. `SETTINGS_HELP` dict (optional) adds descriptions below each field
 
 Type inference from defaults:
 - `str` → text input
 - `int` or `float` → number spinner
 - `bool` → toggle switch
+
+### Settings Key Naming
+
+**Always prefix SETTINGS keys with your plugin name** to avoid collisions with core settings or other plugins. Generic keys like `API_KEY` or `ZIP_CODE` will collide and be silently skipped.
+
+```python
+# BAD — generic keys will collide
+SETTINGS = {'API_KEY': '', 'ZIP_CODE': '10001'}
+
+# GOOD — prefixed with plugin name
+SETTINGS = {'WEATHER_API_KEY': '', 'WEATHER_ZIP_CODE': '10001'}
+```
 
 ---
 
@@ -343,12 +351,15 @@ MINIMAL FORMAT:
 ENABLED = True
 AVAILABLE_FUNCTIONS = ['func_name']
 TOOLS = [{"type": "function", "is_local": True, "function": {"name": "func_name", "description": "...", "parameters": {"type": "object", "properties": {...}, "required": [...]}}}]
-def execute(function_name, arguments, config):
+def execute(function_name, arguments, config, plugin_settings=None):
     return "result", True
 ```
 
 RULES:
 - execute() returns (string, bool) tuple
+- execute() takes 4 args: function_name, arguments, config, plugin_settings=None
+- config = global Sapphire config (system settings, rarely needed)
+- plugin_settings = dict of THIS plugin's settings from the Settings UI
 - description field is critical — AI uses it to decide WHEN to call
 - is_local: True=offline, False=network, "endpoint"=external API
 - network: True = highlighted in UI, routed through SOCKS
@@ -356,12 +367,14 @@ RULES:
 
 SETTINGS (optional):
 ```
-SETTINGS = {'MY_KEY': '', 'MY_TIMEOUT': 30, 'MY_ENABLED': True}
-SETTINGS_HELP = {'MY_KEY': 'API key', 'MY_TIMEOUT': 'Timeout in seconds'}
+SETTINGS = {'MYPLUGIN_API_KEY': '', 'MYPLUGIN_TIMEOUT': 30, 'MYPLUGIN_ENABLED': True}
+SETTINGS_HELP = {'MYPLUGIN_API_KEY': 'API key', 'MYPLUGIN_TIMEOUT': 'Timeout in seconds'}
 ```
+- ALWAYS prefix keys with plugin name to avoid collisions (e.g. WEATHER_API_KEY not API_KEY)
 - Types inferred: str=text, int/float=number, bool=toggle
 - Auto-rendered in Settings UI (no JavaScript needed)
-- Read at runtime: `from core.plugin_loader import plugin_loader; settings = plugin_loader.get_plugin_settings('plugin_name')`
+- Read via plugin_settings param: `settings = plugin_settings or {}; val = settings.get('KEY', default)`
+- Do NOT import core modules to read settings — use plugin_settings param instead
 
 VALIDATION:
 - strict: allowlisted imports only

@@ -279,7 +279,14 @@ class FunctionManager:
                                        if t['function']['name'] not in func_names]
                 self._mode_filters.pop(module_name, None)
 
+        # Clean up tool-registered settings so reload doesn't collide with itself
         if to_remove:
+            try:
+                from core.settings_manager import settings as sm
+                for module_name in to_remove:
+                    sm.unregister_tool_settings(module_name)
+            except Exception as e:
+                logger.warning(f"Failed to unregister tool settings for '{plugin_name}': {e}")
             logger.info(f"Plugin '{plugin_name}' tools unregistered: {to_remove}")
 
     def _get_current_prompt_mode(self) -> str:
@@ -633,6 +640,20 @@ class FunctionManager:
         """Get the configured endpoint URL for conditional tools."""
         return ''
 
+    def _get_plugin_settings_for(self, function_name: str):
+        """Get plugin settings for a function, or None if it's not a plugin tool."""
+        module_name = self._function_module_map.get(function_name)
+        if not module_name:
+            return None
+        info = self.function_modules.get(module_name)
+        if not info or '_plugin' not in info:
+            return None
+        try:
+            from core.plugin_loader import plugin_loader
+            return plugin_loader.get_plugin_settings(info['_plugin'])
+        except Exception:
+            return None
+
     def execute_function(self, function_name, arguments, scopes=None):
         """Execute a function using the mapped executor.
 
@@ -720,7 +741,16 @@ class FunctionManager:
                 return result
 
             try:
-                result, success = executor(function_name, arguments, config)
+                # For plugin tools, inject plugin settings as 4th arg
+                plugin_settings = self._get_plugin_settings_for(function_name)
+                if plugin_settings is not None:
+                    try:
+                        result, success = executor(function_name, arguments, config, plugin_settings)
+                    except TypeError:
+                        # Backward compat: tool doesn't accept 4th arg
+                        result, success = executor(function_name, arguments, config)
+                else:
+                    result, success = executor(function_name, arguments, config)
             except Exception as e:
                 logger.error(f"Error executing function {function_name}: {e}")
                 result = f"Error executing {function_name}: {str(e)}"

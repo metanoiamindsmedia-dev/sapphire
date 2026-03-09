@@ -434,11 +434,26 @@ class SettingsManager:
             tool_name: Module name (e.g. 'weather_alerts')
             defaults: Dict of {KEY: default_value}
             help_dict: Optional dict of {KEY: 'description string'}
+
+        Returns:
+            list: Setting keys that collided and were skipped (empty if all registered)
         """
+        collided = []
         with self._lock:
             for key, value in defaults.items():
                 if key in self._defaults:
-                    logger.warning(f"Tool '{tool_name}' setting '{key}' collides with core setting, skipping")
+                    # Same tool re-registering (e.g. plugin reload) — allow it
+                    if self._tool_settings.get(key) == tool_name:
+                        self._defaults[key] = value
+                        if key not in self._config:
+                            self._config[key] = value
+                        continue
+                    owner = self._tool_settings.get(key)
+                    if owner:
+                        logger.warning(f"Tool '{tool_name}' setting '{key}' collides with tool '{owner}', skipping")
+                    else:
+                        logger.warning(f"Tool '{tool_name}' setting '{key}' collides with core setting, skipping")
+                    collided.append(key)
                     continue
                 self._defaults[key] = value
                 self._tool_settings[key] = tool_name
@@ -446,8 +461,30 @@ class SettingsManager:
                     self._config[key] = value
             if help_dict:
                 for key, text in help_dict.items():
-                    self._tool_settings_help[key] = text
-            logger.info(f"Registered {len(defaults)} settings from tool '{tool_name}'")
+                    if key not in collided:
+                        self._tool_settings_help[key] = text
+            registered = len(defaults) - len(collided)
+            logger.info(f"Registered {registered}/{len(defaults)} settings from tool '{tool_name}'"
+                        + (f" ({len(collided)} collided)" if collided else ""))
+        return collided
+
+    def unregister_tool_settings(self, tool_name):
+        """Remove all settings registered by a tool module.
+
+        Called during plugin unload so reload cycles don't collide with themselves.
+
+        Args:
+            tool_name: Module name used during registration
+        """
+        with self._lock:
+            to_remove = [k for k, t in self._tool_settings.items() if t == tool_name]
+            for key in to_remove:
+                self._defaults.pop(key, None)
+                self._tool_settings.pop(key, None)
+                self._tool_settings_help.pop(key, None)
+                self._config.pop(key, None)
+            if to_remove:
+                logger.debug(f"Unregistered {len(to_remove)} settings from tool '{tool_name}': {to_remove}")
 
     def get_tool_settings_meta(self):
         """Get tool settings grouped by tool name, for the API/frontend."""

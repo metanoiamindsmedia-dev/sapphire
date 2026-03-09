@@ -69,9 +69,16 @@ TOOLS = [
     }
 ]
 
-def execute(function_name, arguments, config):
+# Optional: settings editable in Settings UI (prefix keys with plugin name!)
+# SETTINGS = {'MYFUNC_API_KEY': ''}
+# SETTINGS_HELP = {'MYFUNC_API_KEY': 'Your API key'}
+
+def execute(function_name, arguments, config, plugin_settings=None):
+    # config = global Sapphire config (system settings)
+    # plugin_settings = dict of THIS plugin's settings from the Settings UI
     if function_name == 'my_func':
         query = arguments.get('query', '')
+        # Read plugin settings: plugin_settings.get('MYFUNC_API_KEY', '')
         return f"Result: {query}", True
     return f"Unknown function: {function_name}", False"""
 
@@ -372,13 +379,43 @@ def execute(function_name, arguments, config):
                 except Exception:
                     pass
 
+                # Check for settings collisions so the AI knows about them
+                collision_warnings = []
+                try:
+                    from core.settings_manager import settings as sm
+                    registered_meta = sm.get_tool_settings_meta()
+                    for name in added + reloaded:
+                        tool_path = _USER_PLUGINS / name / "tools" / f"{name}.py"
+                        if not tool_path.exists():
+                            continue
+                        ns = {}
+                        try:
+                            exec(compile(tool_path.read_text(encoding='utf-8'), str(tool_path), 'exec'), ns)
+                        except Exception:
+                            continue
+                        declared = ns.get('SETTINGS', {})
+                        if not declared:
+                            continue
+                        module_key = f"plugin_{name}_{name}"
+                        registered_keys = {e['key'] for e in registered_meta.get(module_key, [])}
+                        missing = [k for k in declared if k not in registered_keys]
+                        if missing:
+                            collision_warnings.append(
+                                f"WARNING: Plugin '{name}' settings {missing} collided with existing settings and were skipped. "
+                                f"Prefix setting keys with the plugin name (e.g. '{name.upper()}_{missing[0]}') to avoid collisions."
+                            )
+                except Exception:
+                    pass
+
                 parts = []
                 if added:
                     parts.append(f"Loaded {len(added)} new: {', '.join(added)}")
                 if reloaded:
                     parts.append(f"Reloaded {len(reloaded)} updated: {', '.join(reloaded)}")
+                if collision_warnings:
+                    parts.extend(collision_warnings)
                 if parts:
-                    return f"{'. '.join(parts)}. Tools are now available.", True
+                    return f"{'. '.join(parts)}. Tools are now available.", not collision_warnings
                 else:
                     return "Rescan complete — no changes detected.", True
             except Exception as e:
