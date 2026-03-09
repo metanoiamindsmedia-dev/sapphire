@@ -371,21 +371,10 @@ class VoiceChatSystem:
         )
         self.tts_server_manager.start()
         self.tts_server_manager.monitor_and_restart(check_interval=10)
-        # Wait for server to actually be ready (model download + load)
-        import requests as _req
-        health_url = f"http://localhost:{tts_port}/health"
-        for i in range(120):  # Up to 10 minutes (first boot downloads model)
-            time.sleep(5)
-            try:
-                resp = _req.get(health_url, timeout=2)
-                if resp.status_code == 200:
-                    logger.info(f"Kokoro server ready after {(i+1)*5}s")
-                    return
-            except Exception:
-                pass
-            if i % 6 == 5:
-                logger.info(f"Waiting for Kokoro server... ({(i+1)*5}s)")
-        logger.warning("Kokoro server did not become ready within 10 minutes")
+        # Don't block startup — Kokoro server loads model in subprocess.
+        # KokoroTTSProvider.generate() handles connection errors gracefully
+        # if the server isn't ready yet. Brief sleep to let the process bind the port.
+        time.sleep(1)
 
     def _stop_kokoro_server(self):
         """Stop Kokoro subprocess if running."""
