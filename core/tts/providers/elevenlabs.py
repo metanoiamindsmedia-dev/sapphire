@@ -122,7 +122,11 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             return []
 
     def _resolve_api_key(self) -> str:
-        """Resolve API key: setting > env var."""
+        """Resolve API key: credentials > setting > env var."""
+        from core.credentials_manager import credentials
+        key = credentials.get_service_api_key('tts_elevenlabs')
+        if key:
+            return key
         key = getattr(config, 'TTS_ELEVENLABS_API_KEY', '') or ''
         if key:
             return key

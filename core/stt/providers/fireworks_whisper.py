@@ -27,7 +27,11 @@ class FireworksWhisperProvider(BaseSTTProvider):
 
     @staticmethod
     def _resolve_api_key() -> str:
-        """Resolve API key fresh from config: direct setting > env var."""
+        """Resolve API key: credentials > config setting > env var."""
+        from core.credentials_manager import credentials
+        key = credentials.get_service_api_key('stt_fireworks')
+        if key:
+            return key
         key = getattr(config, 'STT_FIREWORKS_API_KEY', '')
         if key:
             return key

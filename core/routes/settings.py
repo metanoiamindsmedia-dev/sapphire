@@ -165,8 +165,20 @@ async def update_settings_batch(request: Request, _=Depends(require_login)):
     # (e.g. API key must be in config before provider init reads it)
     deferred_actions = []
     deferred_keys = set()
+    # Service API keys that should route to credentials manager
+    _SERVICE_CRED_MAP = {
+        'STT_FIREWORKS_API_KEY': 'stt_fireworks',
+        'TTS_ELEVENLABS_API_KEY': 'tts_elevenlabs',
+        'EMBEDDING_API_KEY': 'embedding',
+    }
     for key, value in settings_dict.items():
         try:
+            # Route service API keys to credentials, not settings.json
+            if key in _SERVICE_CRED_MAP and value and isinstance(value, str) and value.strip():
+                from core.credentials_manager import credentials
+                credentials.set_service_api_key(_SERVICE_CRED_MAP[key], value.strip())
+                results.append({"key": key, "status": "success", "tier": "hot"})
+                continue
             tier = settings.validate_tier(key)
             settings.set(key, value, persist=persist)
             results.append({"key": key, "status": "success", "tier": tier})
@@ -543,6 +555,10 @@ async def update_llm_provider(provider_key: str, request: Request, _=Depends(req
         credentials.set_llm_api_key(provider_key, api_key.strip())
 
     providers[provider_key].update(data)
+
+    # Strip api_key from all providers before persisting — keys live in credentials.json only
+    for prov in providers.values():
+        prov.pop('api_key', None)
     settings.set('LLM_PROVIDERS', providers, persist=True)
     return {"status": "success", "provider": provider_key}
 

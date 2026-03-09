@@ -52,6 +52,7 @@ try:
     from core.chat import LLMChat, ConversationHistory
     from core.api_fastapi import app, set_system
     from core.settings_manager import settings
+    from core.credentials_manager import credentials  # noqa: F401 — init early to migrate keys from settings.json
     from core.ssl_utils import get_ssl_context
     import config
     import uvicorn

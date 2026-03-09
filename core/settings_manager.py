@@ -311,6 +311,22 @@ class SettingsManager:
             
             # Deep update nested structure with flat changes
             nested = self._deep_update_from_flat(nested, self._user)
+
+            # Strip secrets — keys belong in credentials.json only
+            llm_section = nested.get('llm', {})
+            providers = llm_section.get('LLM_PROVIDERS') if isinstance(llm_section, dict) else None
+            if isinstance(providers, dict):
+                for prov in providers.values():
+                    if isinstance(prov, dict):
+                        prov.pop('api_key', None)
+
+            # Strip service API keys that now live in credentials
+            _CRED_KEYS = ('STT_FIREWORKS_API_KEY', 'TTS_ELEVENLABS_API_KEY', 'EMBEDDING_API_KEY')
+            for section in nested.values():
+                if isinstance(section, dict):
+                    for ck in _CRED_KEYS:
+                        if section.get(ck):
+                            section[ck] = ''
             
             user_path.parent.mkdir(exist_ok=True)
             # Atomic write: tmp file + rename to prevent corruption on crash

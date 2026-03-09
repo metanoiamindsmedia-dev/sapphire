@@ -55,6 +55,11 @@ DEFAULT_CREDENTIALS = {
     "bitcoin_wallets": {},
     "ssh": {
         "servers": []
+    },
+    "services": {
+        "stt_fireworks": {"api_key": ""},
+        "tts_elevenlabs": {"api_key": ""},
+        "embedding": {"api_key": ""}
     }
 }
 
@@ -144,6 +149,7 @@ class CredentialsManager:
                 logger.warning("Schema update could not be saved to disk")
         # Always sweep stale api_keys from settings.json into credentials
         self._migrate_settings_api_keys()
+        self._migrate_service_api_keys()
 
     def _migrate_legacy(self):
         """Migrate from legacy credential files."""
@@ -177,7 +183,8 @@ class CredentialsManager:
         
         # Migrate API keys from user/settings.json LLM_PROVIDERS
         self._migrate_settings_api_keys()
-        
+        self._migrate_service_api_keys()
+
         if migrated:
             logger.info("Legacy credential migration complete")
     
@@ -191,11 +198,14 @@ class CredentialsManager:
             with open(settings_file, 'r', encoding='utf-8') as f:
                 user_settings = json.load(f)
             
+            # Settings file can be nested (llm.LLM_PROVIDERS) or flat (LLM_PROVIDERS)
             providers = user_settings.get('LLM_PROVIDERS', {})
+            if not providers:
+                providers = user_settings.get('llm', {}).get('LLM_PROVIDERS', {})
             migrated_any = False
             
-            for provider_key, config in providers.items():
-                api_key = config.get('api_key', '').strip()
+            for provider_key, prov_config in providers.items():
+                api_key = prov_config.get('api_key', '').strip()
                 if api_key:
                     # Only migrate if we don't already have a key for this provider
                     if not self._credentials.get('llm', {}).get(provider_key, {}).get('api_key'):
@@ -206,23 +216,145 @@ class CredentialsManager:
                         self._credentials['llm'][provider_key]['api_key'] = api_key
                         logger.info(f"Migrated {provider_key} API key from settings.json")
                         migrated_any = True
-            
+
+            # Persist credentials BEFORE blanking settings.json (crash safety)
             if migrated_any:
-                # Remove api_key from settings.json after migration
-                modified = False
-                for provider_key, config in providers.items():
-                    if 'api_key' in config and config['api_key']:
-                        config['api_key'] = ''
-                        modified = True
-                
-                if modified:
-                    with open(settings_file, 'w', encoding='utf-8') as f:
-                        json.dump(user_settings, f, indent=2)
-                    logger.info("Cleared migrated API keys from settings.json")
-                    
+                if not self._save():
+                    logger.error("Failed to save migrated credentials — aborting settings.json cleanup")
+                    return
+
+            # Always clear api_key fields from settings.json (even if already in credentials)
+            modified = False
+            for provider_key, prov_config in providers.items():
+                if prov_config.get('api_key'):
+                    prov_config['api_key'] = ''
+                    modified = True
+
+            if modified:
+                with open(settings_file, 'w', encoding='utf-8') as f:
+                    json.dump(user_settings, f, indent=2)
+                logger.info("Cleared stale API keys from settings.json")
+
+                # Also strip from settings_manager's in-memory config so they
+                # don't get written back on the next settings.set(..., persist=True)
+                try:
+                    from core.settings_manager import settings as sm
+                    mem_providers = sm._config.get('LLM_PROVIDERS', {})
+                    for prov in mem_providers.values():
+                        if isinstance(prov, dict):
+                            prov.pop('api_key', None)
+                except Exception:
+                    pass  # settings_manager may not be loaded yet — save() defense handles it
+
         except Exception as e:
             logger.warning(f"Failed to migrate settings.json API keys: {e}")
     
+    # Settings keys that should live in credentials, mapped to services section
+    _SERVICE_KEY_MAP = {
+        'STT_FIREWORKS_API_KEY': 'stt_fireworks',
+        'TTS_ELEVENLABS_API_KEY': 'tts_elevenlabs',
+        'EMBEDDING_API_KEY': 'embedding',
+    }
+
+    def _migrate_service_api_keys(self):
+        """Migrate standalone API key settings (STT/TTS/Embedding) to credentials."""
+        settings_file = Path(__file__).parent.parent / 'user' / 'settings.json'
+        if not settings_file.exists():
+            return
+
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                user_settings = json.load(f)
+
+            migrated_any = False
+            services = self._credentials.setdefault('services', {})
+
+            # Search all nested sections for service API keys
+            for settings_key, service_name in self._SERVICE_KEY_MAP.items():
+                value = self._find_setting_value(user_settings, settings_key)
+                if not value:
+                    continue
+                svc = services.setdefault(service_name, {})
+                if not svc.get('api_key'):
+                    svc['api_key'] = value
+                    logger.info(f"Migrated {settings_key} to credentials")
+                    migrated_any = True
+
+            if migrated_any:
+                if not self._save():
+                    logger.error("Failed to save migrated service credentials — aborting cleanup")
+                    return
+
+            # Clear from settings.json
+            modified = False
+            for settings_key in self._SERVICE_KEY_MAP:
+                if self._clear_setting_value(user_settings, settings_key):
+                    modified = True
+
+            if modified:
+                with open(settings_file, 'w', encoding='utf-8') as f:
+                    json.dump(user_settings, f, indent=2)
+                logger.info("Cleared service API keys from settings.json")
+
+                # Also strip from in-memory config
+                try:
+                    from core.settings_manager import settings as sm
+                    for settings_key in self._SERVICE_KEY_MAP:
+                        if settings_key in sm._config:
+                            sm._config[settings_key] = ''
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.warning(f"Failed to migrate service API keys: {e}")
+
+    @staticmethod
+    def _find_setting_value(user_settings: dict, key: str) -> str:
+        """Find a setting value in nested or flat settings dict."""
+        # Flat
+        val = user_settings.get(key, '')
+        if val:
+            return val.strip() if isinstance(val, str) else ''
+        # Nested — search all sections
+        for section in user_settings.values():
+            if isinstance(section, dict) and key in section:
+                val = section[key]
+                if val:
+                    return val.strip() if isinstance(val, str) else ''
+        return ''
+
+    @staticmethod
+    def _clear_setting_value(user_settings: dict, key: str) -> bool:
+        """Clear a setting value from nested or flat settings dict. Returns True if modified."""
+        modified = False
+        if user_settings.get(key):
+            user_settings[key] = ''
+            modified = True
+        for section in user_settings.values():
+            if isinstance(section, dict) and section.get(key):
+                section[key] = ''
+                modified = True
+        return modified
+
+    def get_service_api_key(self, service: str) -> str:
+        """Get API key for a service (stt_fireworks, tts_elevenlabs, embedding)."""
+        services = self._credentials.get('services', {})
+        return services.get(service, {}).get('api_key', '').strip()
+
+    def set_service_api_key(self, service: str, api_key: str) -> bool:
+        """Set API key for a service."""
+        try:
+            services = self._credentials.setdefault('services', {})
+            services.setdefault(service, {})['api_key'] = api_key
+            if not self._save():
+                logger.error(f"Failed to persist API key for service '{service}'")
+                return False
+            logger.info(f"Set API key for service '{service}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set API key for service '{service}': {e}")
+            return False
+
     def _parse_legacy_line(self, line: str) -> str:
         """Parse legacy config line, stripping key= prefix if present."""
         line = line.strip()

@@ -103,7 +103,8 @@ class RemoteEmbedder:
             return None
         try:
             import httpx
-            key = getattr(config, 'EMBEDDING_API_KEY', '')
+            from core.credentials_manager import credentials
+            key = credentials.get_service_api_key('embedding') or getattr(config, 'EMBEDDING_API_KEY', '')
             headers = {}
             if key:
                 headers['Authorization'] = f'Bearer {key}'
