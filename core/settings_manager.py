@@ -259,6 +259,13 @@ class SettingsManager:
             return
         with self._lock:
             self._config[key] = value
+
+            # Re-derive _ENABLED flags when provider changes (normally only in _merge_settings)
+            if key == 'STT_PROVIDER':
+                self._config['STT_ENABLED'] = bool(value and value != 'none')
+            elif key == 'TTS_PROVIDER':
+                self._config['TTS_ENABLED'] = bool(value and value != 'none')
+
             if persist:
                 self._user[key] = value
                 self._runtime.pop(key, None)  # Now persisted, no need to preserve
