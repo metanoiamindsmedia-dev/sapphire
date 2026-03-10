@@ -520,19 +520,10 @@ class TestScopeSnapshot:
 # =============================================================================
 
 class TestChatReadsAllScopes:
-    """chat() must read every scope key from settings and apply to function_manager."""
-
-    ALL_SCOPE_SETTERS = [
-        ("memory_scope", "set_memory_scope"),
-        ("goal_scope", "set_goal_scope"),
-        ("knowledge_scope", "set_knowledge_scope"),
-        ("people_scope", "set_people_scope"),
-        ("email_scope", "set_email_scope"),
-        ("bitcoin_scope", "set_bitcoin_scope"),
-    ]
+    """chat() must read every scope key from settings and apply via apply_scopes()."""
 
     def test_chat_reads_all_scope_keys_from_settings(self):
-        """chat() must call every scope setter with the chat settings value."""
+        """chat() must call apply_scopes with chat settings, then set_rag_scope."""
         from core.chat.chat import LLMChat
         from core.chat.function_manager import FunctionManager
 
@@ -547,36 +538,31 @@ class TestChatReadsAllScopes:
             mgr._story_engine = None
             mgr._story_engine_enabled = False
 
-        # Track which setters are called and with what values
-        calls = {}
-        for setting_key, method_name in self.ALL_SCOPE_SETTERS:
-            original = getattr(mgr, method_name)
-            calls[method_name] = []
-            setattr(mgr, method_name, lambda val, mn=method_name: calls[mn].append(val))
-
-        private_calls = []
-        mgr.set_private_chat = lambda val: private_calls.append(val)
+        # Track apply_scopes and set_rag_scope calls
+        apply_calls = []
+        mgr.apply_scopes = lambda settings: apply_calls.append(settings)
         rag_calls = []
         mgr.set_rag_scope = lambda val: rag_calls.append(val)
         mgr.snapshot_scopes = lambda: {}
         mgr._enabled_tools = []
+
+        chat_settings = {
+            "memory_scope": "shared",
+            "goal_scope": "work",
+            "knowledge_scope": "research",
+            "people_scope": "team",
+            "email_scope": "work_email",
+            "bitcoin_scope": "wallet_a",
+            "private_chat": True,
+        }
 
         # Build a mock LLMChat that skips real __init__
         with patch.object(LLMChat, '__init__', lambda self: None):
             chat_obj = LLMChat()
             chat_obj.function_manager = mgr
 
-            # Mock session_manager with settings that have all scopes set
             mock_session = MagicMock()
-            mock_session.get_chat_settings.return_value = {
-                "memory_scope": "shared",
-                "goal_scope": "work",
-                "knowledge_scope": "research",
-                "people_scope": "team",
-                "email_scope": "work_email",
-                "bitcoin_scope": "wallet_a",
-                "private_chat": True,
-            }
+            mock_session.get_chat_settings.return_value = chat_settings
             mock_session.get_active_chat_name.return_value = "test_chat"
             mock_session.get_turn_count.return_value = 1
             mock_session.add_user_message = MagicMock()
@@ -593,7 +579,6 @@ class TestChatReadsAllScopes:
             chat_obj.provider_primary.model = "test-model"
             chat_obj.tool_engine = MagicMock()
 
-            # Make call_llm_with_metrics return a final response (no tool calls)
             mock_response = MagicMock()
             mock_response.has_tool_calls = False
             mock_response.content = "Hello!"
@@ -602,26 +587,25 @@ class TestChatReadsAllScopes:
 
             chat_obj.chat("test input")
 
-        # Verify all scope setters were called
-        for setting_key, method_name in self.ALL_SCOPE_SETTERS:
-            assert len(calls[method_name]) > 0, f"{method_name} was never called"
+        # apply_scopes must have been called with the full settings dict
+        assert len(apply_calls) > 0, "apply_scopes was never called"
+        applied = apply_calls[0]
+        for key in ("memory_scope", "goal_scope", "knowledge_scope",
+                     "people_scope", "email_scope", "bitcoin_scope", "private_chat"):
+            assert key in applied, f"apply_scopes missing key: {key}"
 
-        assert len(private_calls) > 0, "set_private_chat was never called"
-        assert private_calls[0] is True
+        # RAG scope must still be set separately (per-chat, not in settings)
         assert len(rag_calls) > 0, "set_rag_scope was never called"
 
     def test_chat_stream_reads_all_scope_keys(self):
-        """chat_stream (streaming path) must also set all scope keys."""
+        """chat_stream (streaming path) must call apply_scopes then set_rag_scope."""
         from core.chat.chat_streaming import StreamingChat
 
-        # Track calls to function_manager scope setters
         mock_fm = MagicMock()
         mock_fm.snapshot_scopes.return_value = {}
         mock_fm.enabled_tools = []
 
-        mock_main_chat = MagicMock()
-        mock_main_chat.function_manager = mock_fm
-        mock_main_chat.session_manager.get_chat_settings.return_value = {
+        chat_settings = {
             "memory_scope": "private",
             "goal_scope": "personal",
             "knowledge_scope": "default",
@@ -630,6 +614,10 @@ class TestChatReadsAllScopes:
             "bitcoin_scope": "none",
             "private_chat": False,
         }
+
+        mock_main_chat = MagicMock()
+        mock_main_chat.function_manager = mock_fm
+        mock_main_chat.session_manager.get_chat_settings.return_value = chat_settings
         mock_main_chat.session_manager.get_active_chat_name.return_value = "stream_chat"
         mock_main_chat._update_story_engine = MagicMock()
         mock_main_chat._build_base_messages.return_value = [
@@ -637,7 +625,6 @@ class TestChatReadsAllScopes:
             {"role": "user", "content": "hi"},
         ]
 
-        # Provider that returns a simple done event
         mock_provider = MagicMock()
         mock_provider.provider_name = "test"
         mock_provider.model = "test-model"
@@ -646,24 +633,16 @@ class TestChatReadsAllScopes:
             {"type": "done", "response": None},
         ]
         mock_main_chat._select_provider.return_value = ("test", mock_provider, "")
-
-        # Tool engine should not detect any tool calls in this simple response
         mock_main_chat.tool_engine = MagicMock()
         mock_main_chat.tool_engine.extract_function_call_from_text.return_value = None
 
         with patch('core.chat.chat_streaming.get_generation_params', return_value={}):
             sc = StreamingChat(mock_main_chat)
-            # Consume the generator
             list(sc.chat_stream("hello"))
 
-        # All scope setters should have been called
-        mock_fm.set_memory_scope.assert_called()
-        mock_fm.set_goal_scope.assert_called()
-        mock_fm.set_knowledge_scope.assert_called()
-        mock_fm.set_people_scope.assert_called()
-        mock_fm.set_email_scope.assert_called()
-        mock_fm.set_bitcoin_scope.assert_called()
-        mock_fm.set_private_chat.assert_called()
+        # apply_scopes called with the settings dict
+        mock_fm.apply_scopes.assert_called_once_with(chat_settings)
+        # RAG scope still set separately
         mock_fm.set_rag_scope.assert_called()
 
 
@@ -826,12 +805,21 @@ class TestIsolatedChatSetsAllScopes:
         mock_fm.enabled_tools = [{"function": {"name": "test_func"}}]
         mock_fm.snapshot_scopes.return_value = {}
 
+        task_settings = {
+            "toolset": "test_tools",
+            "memory_scope": "shared",
+            "goal_scope": "work",
+            "knowledge_scope": "research",
+            "people_scope": "team",
+            "email_scope": "work_email",
+            "bitcoin_scope": "wallet_a",
+        }
+
         with patch.object(LLMChat, '__init__', lambda self: None):
             chat_obj = LLMChat()
             chat_obj.function_manager = mock_fm
             chat_obj.tool_engine = MagicMock()
 
-            # Make call_llm_with_metrics return a simple final response
             mock_response = MagicMock()
             mock_response.has_tool_calls = False
             mock_response.content = "Response"
@@ -842,26 +830,14 @@ class TestIsolatedChatSetsAllScopes:
             chat_obj.provider_primary.health_check.return_value = True
             chat_obj.provider_primary.provider_name = "test"
             chat_obj.provider_primary.model = "test-model"
+            chat_obj.provider_fallback = None
 
             with patch('core.prompts.get_prompt', return_value={"content": "system prompt"}):
                 with patch('core.chat.chat.get_generation_params', return_value={}):
-                    chat_obj.isolated_chat("hello", {
-                        "toolset": "test_tools",
-                        "memory_scope": "shared",
-                        "goal_scope": "work",
-                        "knowledge_scope": "research",
-                        "people_scope": "team",
-                        "email_scope": "work_email",
-                        "bitcoin_scope": "wallet_a",
-                    })
+                    chat_obj.isolated_chat("hello", task_settings)
 
-        # All scope setters must have been called
-        mock_fm.set_memory_scope.assert_called_once()
-        mock_fm.set_goal_scope.assert_called_once()
-        mock_fm.set_knowledge_scope.assert_called_once()
-        mock_fm.set_people_scope.assert_called_once()
-        mock_fm.set_email_scope.assert_called_once()
-        mock_fm.set_bitcoin_scope.assert_called_once()
+        # apply_scopes must have been called with the task settings
+        mock_fm.apply_scopes.assert_called_once_with(task_settings)
 
         # Toolset must have been restored in finally block
         mock_fm.update_enabled_functions.assert_called()
