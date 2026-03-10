@@ -364,9 +364,9 @@ async def provider_status(request: Request, _=Depends(require_login)):
 async def check_packages(request: Request, _=Depends(require_login)):
     """Check optional packages. Returns format expected by setup wizard UI."""
     checks = {
-        "tts": {"package": "Kokoro TTS", "requirements": "requirements-tts.txt", "mod": "kokoro"},
-        "stt": {"package": "Faster Whisper", "requirements": "requirements-stt.txt", "mod": "faster_whisper"},
-        "wakeword": {"package": "OpenWakeWord", "requirements": "requirements-wakeword.txt", "mod": "openwakeword"},
+        "tts": {"package": "Kokoro TTS", "requirements": "install/requirements-tts.txt", "mod": "kokoro"},
+        "stt": {"package": "Faster Whisper", "requirements": "install/requirements-stt.txt", "mod": "faster_whisper"},
+        "wakeword": {"package": "OpenWakeWord", "requirements": "install/requirements-wakeword.txt", "mod": "openwakeword"},
     }
     packages = {}
     for key, info in checks.items():
