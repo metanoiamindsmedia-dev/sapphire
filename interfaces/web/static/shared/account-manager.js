@@ -91,7 +91,8 @@ function injectBaseStyles(prefix) {
  * @param {string} [config.hint]         - Help text shown above the list
  * @param {string} [config.addLabel]     - Button text (default: '+ Add {entityName}')
  * @param {string} [config.addPrompt]    - Prompt text for scope name
- * @param {Array}  [config.extraButtons] - Additional HTML for list view buttons
+ * @param {string} [config.listHeader]   - HTML rendered above the list (e.g. security banners)
+ * @param {(container, helpers) => void} [config.listFooter] - Render extra buttons/content after Add button
  */
 export function createAccountManager(config) {
     injectBaseStyles(config.prefix);
@@ -127,16 +128,19 @@ export function createAccountManager(config) {
         }).join('');
 
         const hint = config.hint ? `<div class="am-hint">${config.hint}</div>` : '';
+        const listHeader = config.listHeader || '';
         const addLabel = config.addLabel || `+ Add ${config.entityName}`;
         const addPrompt = config.addPrompt || `Name for new ${config.entityName.toLowerCase()} (e.g. "work", "personal"):`;
 
         container.innerHTML = `
             <div class="am-form">
+                ${listHeader}
                 ${hint}
                 <div class="am-list">
                     ${items || `<div class="am-hint">No ${config.entityName.toLowerCase()}s configured.</div>`}
                 </div>
                 <button type="button" class="am-add-btn" id="${config.prefix}-add">${addLabel}</button>
+                <div id="${config.prefix}-list-footer"></div>
             </div>
         `;
 
@@ -155,6 +159,12 @@ export function createAccountManager(config) {
             const existing = _items.find(i => i.scope === scope);
             _renderEditor(container, scope, existing || null);
         });
+
+        // Let plugin render extra list content (e.g. import button)
+        if (config.listFooter) {
+            const footer = container.querySelector(`#${config.prefix}-list-footer`);
+            if (footer) config.listFooter(footer, { csrfHeaders, reloadList: () => { loadItems().then(() => renderList(container)); } });
+        }
     }
 
     function _renderEditor(container, scope, item) {
