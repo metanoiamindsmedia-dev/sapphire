@@ -66,7 +66,7 @@
 
 **Wake word not triggering**
 - Check which wakeword you are using in settings
-- Make sure you pip installed requirements-wakeword.txt
+- Make sure you pip installed install/requirements-wakeword.txt
 - Check wakeword is enabled in settings, reboot app after
 - Turn your mic volume up to 70-100%
 - Set system mic to the mic you want wakeword on

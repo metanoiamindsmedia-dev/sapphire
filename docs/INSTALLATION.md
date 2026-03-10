@@ -73,20 +73,20 @@ For a lighter footprint without voice features:
 ```bash
 git clone https://github.com/ddxfish/sapphire.git
 cd sapphire
-pip install -r requirements-minimal.txt
+pip install -r install/requirements-minimal.txt
 ```
 
 Then add features as needed:
 
 ```bash
 # TTS (Kokoro voice synthesis)
-pip install -r requirements-tts.txt
+pip install -r install/requirements-tts.txt
 
-# STT (Faster Whisper transcription)  
-pip install -r requirements-stt.txt
+# STT (Faster Whisper transcription)
+pip install -r install/requirements-stt.txt
 
 # Wakeword (OpenWakeWord detection)
-pip install -r requirements-wakeword.txt
+pip install -r install/requirements-wakeword.txt
 ```
 
 Enable each in Settings after installing, then restart.
@@ -275,14 +275,14 @@ python main.py
 
 MINIMAL INSTALL (no voice features):
 ```
-pip install -r requirements-minimal.txt
-# Then add: requirements-tts.txt, requirements-stt.txt, requirements-wakeword.txt as needed
+pip install -r install/requirements-minimal.txt
+# Then add: install/requirements-tts.txt, install/requirements-stt.txt, install/requirements-wakeword.txt as needed
 ```
 
 OPTIONAL FEATURES (only for minimal install):
-- TTS: pip install -r requirements-tts.txt
-- STT: pip install -r requirements-stt.txt  
-- Wakeword: pip install -r requirements-wakeword.txt
+- TTS: pip install -r install/requirements-tts.txt
+- STT: pip install -r install/requirements-stt.txt
+- Wakeword: pip install -r install/requirements-wakeword.txt
 (Enable in Settings after install, then restart)
 
 LLM OPTIONS:
