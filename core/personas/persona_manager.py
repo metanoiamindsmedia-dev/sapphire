@@ -12,7 +12,7 @@ PERSONA_SETTINGS_KEYS = [
     "prompt", "toolset", "spice_set", "voice", "pitch", "speed",
     "spice_enabled", "spice_turns", "inject_datetime", "custom_context",
     "llm_primary", "llm_model", "memory_scope", "goal_scope",
-    "knowledge_scope", "people_scope", "email_scope", "bitcoin_scope",
+    "knowledge_scope", "people_scope", "email_scope", "bitcoin_scope", "gcal_scope",
     "trim_color",
     "story_engine_enabled", "story_preset", "story_vars_in_prompt",
     "story_in_prompt"

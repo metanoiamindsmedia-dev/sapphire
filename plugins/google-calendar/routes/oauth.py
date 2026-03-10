@@ -124,9 +124,13 @@ def handle_callback(request=None, query=None, settings=None, **_):
         logger.error(f"[GCAL] Token exchange failed: {resp.text}")
         return {"error": f"Token exchange failed: {resp.status_code}"}
 
-    tokens = resp.json()
+    try:
+        tokens = resp.json()
+        access_token = tokens['access_token']
+    except (ValueError, KeyError) as e:
+        logger.error(f"[GCAL] Invalid token response: {e}")
+        return {"error": f"Invalid token response from Google: {e}"}
     refresh_token = tokens.get('refresh_token', acct.get('refresh_token', ''))
-    access_token = tokens['access_token']
     expires_at = time.time() + tokens.get('expires_in', 3600)
 
     credentials.update_gcal_tokens(scope, refresh_token, access_token, expires_at)

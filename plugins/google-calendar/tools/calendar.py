@@ -226,7 +226,7 @@ def _format_time(dt_str):
         # Handle full datetime
         if 'T' in dt_str:
             dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-            return dt.strftime('%-I:%M %p').lstrip('0')
+            return dt.strftime('%I:%M %p').lstrip('0')
         # Handle date-only (all-day events)
         return 'All day'
     except Exception:
@@ -295,7 +295,7 @@ def execute(function_name, arguments, config, plugin_settings=None):
             return err, False
 
         events = data.get('items', [])
-        day_name = today.strftime('%A %B %-d')
+        day_name = today.strftime('%A %B %d')
         return _format_events(events, f"Today ({day_name}):"), True
 
     elif function_name == 'calendar_range':
@@ -334,14 +334,14 @@ def execute(function_name, arguments, config, plugin_settings=None):
             date_str = e_start.get('dateTime', e_start.get('date', ''))[:10]
             days.setdefault(date_str, []).append(event)
 
-        lines = [f"Schedule: {start.strftime('%b %-d')} – {end.strftime('%b %-d')}"]
+        lines = [f"Schedule: {start.strftime('%b %d')} – {end.strftime('%b %d')}"]
         total_events = 0
 
         # Walk each day in the range, show events or "free"
         current = start
         while current <= end:
             date_key = current.strftime('%Y-%m-%d')
-            day_label = current.strftime('%A %b %-d')
+            day_label = current.strftime('%A %b %d')
             if date_key in days:
                 lines.append(f"\n{day_label}:")
                 for event in days[date_key]:
@@ -428,7 +428,7 @@ def execute(function_name, arguments, config, plugin_settings=None):
             end_display = _format_time(e_end.get('dateTime', ''))
             try:
                 day = datetime.fromisoformat(e_start['dateTime'].replace('Z', '+00:00'))
-                day_str = day.strftime('%A %b %-d')
+                day_str = day.strftime('%A %b %d')
             except Exception:
                 day_str = ''
             return f"Added: \"{title}\" — {day_str}, {start_display}–{end_display}\n(id: {data.get('id', '')})", True

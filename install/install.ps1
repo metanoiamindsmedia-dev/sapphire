@@ -47,8 +47,7 @@ if (Test-Path "$SAPPHIRE_DIR\.git") {
 
     $conda = Find-Conda
     if (-not $conda) { Fail "Could not find conda" }
-    & $conda activate $CONDA_ENV
-    pip install -r requirements.txt
+    & $conda run -n $CONDA_ENV pip install -r requirements.txt
     if ($LASTEXITCODE -ne 0) { Fail "pip install failed" }
 
     Info "Sapphire upgraded!"
@@ -113,7 +112,7 @@ if ($LASTEXITCODE -ne 0) { Fail "Failed to create conda env" }
 
 # Python deps
 Info "Installing Python dependencies (this takes a while)..."
-pip install -r "$SAPPHIRE_DIR\requirements.txt"
+& $conda run -n $CONDA_ENV pip install -r "$SAPPHIRE_DIR\requirements.txt"
 if ($LASTEXITCODE -ne 0) { Fail "pip install failed" }
 
 # Launcher .bat

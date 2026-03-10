@@ -53,7 +53,7 @@ def apply_scopes_from_settings(fm, settings: dict):
             val = settings[key]
             # Bool settings (private_chat) — coerce to bool
             if reg['default'] is False or reg['default'] is True:
-                val = bool(val)
+                val = val not in (False, 0, '', 'false', '0', 'no', 'off', None)
             # String 'none' means disabled
             elif isinstance(val, str) and val == 'none':
                 val = None

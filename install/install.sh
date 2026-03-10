@@ -40,6 +40,8 @@ if [ -d "$SAPPHIRE_DIR/.git" ]; then
     # Activate conda in this script's shell
     if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
         source "$HOME/miniconda3/etc/profile.d/conda.sh"
+    elif [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+        source "$HOME/anaconda3/etc/profile.d/conda.sh"
     fi
     conda activate "$CONDA_ENV" 2>/dev/null || fail "Could not activate conda env '$CONDA_ENV'"
     pip install -r requirements.txt

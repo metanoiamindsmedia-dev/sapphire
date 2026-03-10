@@ -508,14 +508,20 @@ def run():
     if not _tz or _tz == 'UTC':
         try:
             from datetime import datetime
-            _detected = datetime.now().astimezone().tzinfo
-            _tz_name = getattr(_detected, 'key', None)
+            # Try ZoneInfo-based detection first (Python 3.9+)
+            import time as _time
+            _tz_name = _time.tzname[0] if _time.daylight == 0 else None
+            # tzname gives abbreviations like 'EST' — not IANA names. Use /etc/localtime instead.
+            _tz_name = None
+            # Read /etc/localtime symlink (Linux) — gives proper IANA name
+            from pathlib import Path as _P
+            _link = _P('/etc/localtime')
+            if _link.is_symlink() and 'zoneinfo/' in str(_link.resolve()):
+                _tz_name = str(_link.resolve()).split('zoneinfo/')[-1]
             if not _tz_name:
-                # Fallback: read /etc/localtime symlink (Linux)
-                from pathlib import Path as _P
-                _link = _P('/etc/localtime')
-                if _link.is_symlink() and 'zoneinfo/' in str(_link.resolve()):
-                    _tz_name = str(_link.resolve()).split('zoneinfo/')[-1]
+                # Last resort: try tzinfo.key (works with ZoneInfo, not with fixed-offset)
+                _detected = datetime.now().astimezone().tzinfo
+                _tz_name = getattr(_detected, 'key', None)
             if _tz_name and _tz_name != 'UTC':
                 settings.set('USER_TIMEZONE', _tz_name, persist=True)
                 logger.info(f"Auto-detected timezone: {_tz_name}")

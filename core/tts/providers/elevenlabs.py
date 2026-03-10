@@ -41,6 +41,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
     audio_content_type = 'audio/ogg'
 
     def __init__(self):
+        self._last_error = None
         logger.info("ElevenLabs TTS provider initialized")
 
     @property
