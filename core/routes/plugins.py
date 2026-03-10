@@ -1139,6 +1139,85 @@ async def export_bitcoin_wallet(scope: str, request: Request, _=Depends(require_
 
 
 # =============================================================================
+# GOOGLE CALENDAR ACCOUNT ROUTES
+# =============================================================================
+
+@router.get("/api/gcal/accounts")
+async def list_gcal_accounts(request: Request, _=Depends(require_login)):
+    """List all Google Calendar accounts (no secrets).
+    Auto-migrates from legacy plugin_state + plugin_settings if needed."""
+    from core.credentials_manager import credentials
+    accounts = credentials.list_gcal_accounts()
+
+    # One-time migration: if no accounts but old plugin_state/settings exist, migrate
+    if not accounts:
+        try:
+            from core.plugin_loader import plugin_loader
+            import json
+            from pathlib import Path
+            ps = plugin_loader.get_plugin_settings('google-calendar') or {}
+            state_path = Path(__file__).parent.parent.parent / 'user' / 'plugin_state' / 'google-calendar.json'
+            state = json.loads(state_path.read_text(encoding='utf-8')) if state_path.exists() else {}
+
+            client_id = ps.get('GCAL_CLIENT_ID', '').strip()
+            client_secret = ps.get('GCAL_CLIENT_SECRET', '').strip()
+            if client_id:
+                credentials.set_gcal_account(
+                    'default', client_id, client_secret,
+                    ps.get('GCAL_CALENDAR_ID', 'primary').strip() or 'primary',
+                    state.get('refresh_token', ''), 'default'
+                )
+                # Carry over cached access token
+                if state.get('access_token'):
+                    credentials.update_gcal_tokens(
+                        'default', state.get('refresh_token', ''),
+                        state['access_token'], state.get('expires_at', 0)
+                    )
+                accounts = credentials.list_gcal_accounts()
+                logger.info("[GCAL] Migrated legacy settings to credentials manager")
+        except Exception as e:
+            logger.debug(f"[GCAL] Migration check: {e}")
+
+    return {"accounts": accounts}
+
+
+@router.put("/api/gcal/accounts/{scope}")
+async def set_gcal_account(scope: str, request: Request, _=Depends(require_login)):
+    """Create or update a Google Calendar account for a scope."""
+    from core.credentials_manager import credentials
+    data = await request.json() or {}
+    client_id = data.get('client_id', '').strip()
+    client_secret = data.get('client_secret', '').strip()
+    calendar_id = data.get('calendar_id', 'primary').strip()
+    label = data.get('label', '').strip()
+
+    # If no new secret provided, keep existing
+    if not client_secret:
+        existing = credentials.get_gcal_account(scope)
+        client_secret = existing.get('client_secret', '')
+
+    if not client_id:
+        raise HTTPException(status_code=400, detail="Client ID is required")
+
+    # Preserve existing refresh token if present
+    existing = credentials.get_gcal_account(scope)
+    refresh_token = existing.get('refresh_token', '')
+
+    if credentials.set_gcal_account(scope, client_id, client_secret, calendar_id, refresh_token, label):
+        return {"success": True}
+    raise HTTPException(status_code=500, detail="Failed to save gcal account")
+
+
+@router.delete("/api/gcal/accounts/{scope}")
+async def delete_gcal_account(scope: str, request: Request, _=Depends(require_login)):
+    """Delete a Google Calendar account."""
+    from core.credentials_manager import credentials
+    if credentials.delete_gcal_account(scope):
+        return {"success": True}
+    raise HTTPException(status_code=404, detail=f"Google Calendar account '{scope}' not found")
+
+
+# =============================================================================
 # SSH PLUGIN ROUTES
 # =============================================================================
 

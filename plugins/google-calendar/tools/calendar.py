@@ -1,11 +1,9 @@
 # Google Calendar tools
 # Pure REST via requests — no Google client libraries needed.
 
-import json
 import logging
 import time
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import requests
 
@@ -112,41 +110,53 @@ TOOLS = [
 
 # === Auth helpers ===
 
-def _get_state_path():
-    state_dir = Path(__file__).parent.parent.parent.parent / 'user' / 'plugin_state'
-    return state_dir / 'google-calendar.json'
+def _get_gcal_scope():
+    """Get current gcal scope from ContextVar."""
+    try:
+        from core.chat.function_manager import scope_gcal
+        return scope_gcal.get()
+    except Exception:
+        return 'default'
 
 
-def _load_state():
-    path = _get_state_path()
-    if path.exists():
-        return json.loads(path.read_text(encoding='utf-8'))
-    return {}
+def _get_gcal_creds():
+    """Get credentials for current gcal scope."""
+    from core.credentials_manager import credentials
+    scope = _get_gcal_scope()
+    if scope is None:
+        return None, "Google Calendar is disabled for this chat."
+    return credentials.get_gcal_account(scope), None
 
 
-def _save_state(state):
-    path = _get_state_path()
-    path.write_text(json.dumps(state, indent=2), encoding='utf-8')
-
-
-def _get_access_token(plugin_settings):
+def _get_access_token():
     """Get a valid access token, refreshing if expired."""
-    state = _load_state()
-    refresh_token = state.get('refresh_token')
-    if not refresh_token:
-        return None, "Google Calendar not connected. Go to Settings > Google Calendar and click Connect."
+    creds, err = _get_gcal_creds()
+    if err:
+        return None, None, err
 
-    # Check if token is still valid (with 60s buffer)
-    if state.get('access_token') and state.get('expires_at', 0) > time.time() + 60:
-        return state['access_token'], None
+    refresh_token = creds.get('refresh_token', '')
+    if not refresh_token:
+        return None, None, "Google Calendar not connected. Go to Settings > Google Calendar and click Connect."
+
+    client_id = creds.get('client_id', '')
+    client_secret = creds.get('client_secret', '')
+    if not client_id or not client_secret:
+        return None, None, "Google Client ID/Secret not configured in Settings."
+
+    calendar_id = creds.get('calendar_id', 'primary') or 'primary'
+
+    # Check if cached access token is still valid (with 60s buffer)
+    # We use credentials_manager's raw storage for the short-lived access_token cache
+    from core.credentials_manager import credentials
+    scope = _get_gcal_scope()
+    raw = credentials._credentials.get('gcal_accounts', {}).get(scope, {})
+    cached_token = raw.get('access_token', '')
+    expires_at = raw.get('expires_at', 0)
+
+    if cached_token and expires_at > time.time() + 60:
+        return cached_token, calendar_id, None
 
     # Refresh the token
-    s = plugin_settings or {}
-    client_id = s.get('GCAL_CLIENT_ID', '').strip()
-    client_secret = s.get('GCAL_CLIENT_SECRET', '').strip()
-    if not client_id or not client_secret:
-        return None, "Google Client ID/Secret not configured in Settings."
-
     resp = requests.post(GOOGLE_TOKEN_URL, data={
         'refresh_token': refresh_token,
         'client_id': client_id,
@@ -156,13 +166,16 @@ def _get_access_token(plugin_settings):
 
     if resp.status_code != 200:
         logger.error(f"[GCAL] Token refresh failed: {resp.text}")
-        return None, "Token refresh failed. Try reconnecting in Settings > Google Calendar."
+        return None, None, "Token refresh failed. Try reconnecting in Settings > Google Calendar."
 
     tokens = resp.json()
-    state['access_token'] = tokens['access_token']
-    state['expires_at'] = time.time() + tokens.get('expires_in', 3600)
-    _save_state(state)
-    return state['access_token'], None
+    access_token = tokens['access_token']
+    new_expires = time.time() + tokens.get('expires_in', 3600)
+
+    # Cache the short-lived token
+    credentials.update_gcal_tokens(scope, refresh_token, access_token, new_expires)
+
+    return access_token, calendar_id, None
 
 
 def _api_get(token, endpoint, params=None):
@@ -263,10 +276,7 @@ def _format_events(events, title_line):
 # === Tool execution ===
 
 def execute(function_name, arguments, config, plugin_settings=None):
-    s = plugin_settings or {}
-    calendar_id = s.get('GCAL_CALENDAR_ID', 'primary').strip() or 'primary'
-
-    token, err = _get_access_token(s)
+    token, calendar_id, err = _get_access_token()
     if err:
         return err, False
 

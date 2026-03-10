@@ -142,21 +142,9 @@ class StreamingChat:
                 logger.info(f"[THINK] Forced thinking prefill: {force_prefill}")
                 yield {"type": "content", "text": force_prefill}
             
-            # Set memory and goal scopes for this chat context
+            # Set scopes for this chat context
             chat_settings = self.main_chat.session_manager.get_chat_settings()
-            memory_scope = chat_settings.get('memory_scope', 'default')
-            self.main_chat.function_manager.set_memory_scope(memory_scope if memory_scope != 'none' else None)
-            goal_scope = chat_settings.get('goal_scope', 'default')
-            self.main_chat.function_manager.set_goal_scope(goal_scope if goal_scope != 'none' else None)
-            knowledge_scope = chat_settings.get('knowledge_scope', 'default')
-            self.main_chat.function_manager.set_knowledge_scope(knowledge_scope if knowledge_scope != 'none' else None)
-            people_scope = chat_settings.get('people_scope', 'default')
-            self.main_chat.function_manager.set_people_scope(people_scope if people_scope != 'none' else None)
-            email_scope = chat_settings.get('email_scope', 'default')
-            self.main_chat.function_manager.set_email_scope(email_scope if email_scope != 'none' else None)
-            bitcoin_scope = chat_settings.get('bitcoin_scope', 'default')
-            self.main_chat.function_manager.set_bitcoin_scope(bitcoin_scope if bitcoin_scope != 'none' else None)
-            self.main_chat.function_manager.set_private_chat(chat_settings.get('private_chat', False))
+            self.main_chat.function_manager.apply_scopes(chat_settings)
             chat_name = self.main_chat.session_manager.get_active_chat_name()
             self.main_chat.function_manager.set_rag_scope(f"__rag__:{chat_name}")
 

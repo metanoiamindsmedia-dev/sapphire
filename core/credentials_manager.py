@@ -53,6 +53,7 @@ DEFAULT_CREDENTIALS = {
     },
     "email_accounts": {},
     "bitcoin_wallets": {},
+    "gcal_accounts": {},
     "ssh": {
         "servers": []
     },
@@ -780,6 +781,88 @@ class CredentialsManager:
         """Check if bitcoin wallet exists for scope."""
         w = self.get_bitcoin_wallet(scope)
         return bool(w['wif'])
+
+    # =========================================================================
+    # Google Calendar
+    # =========================================================================
+
+    def get_gcal_account(self, scope: str = 'default') -> dict:
+        """Get Google Calendar account for a scope. Tokens are unscrambled on read."""
+        accounts = self._credentials.get('gcal_accounts', {})
+        acct = accounts.get(scope, {})
+        return {
+            'client_id': acct.get('client_id', ''),
+            'client_secret': self._unscramble(acct.get('client_secret', '')),
+            'refresh_token': self._unscramble(acct.get('refresh_token', '')),
+            'calendar_id': acct.get('calendar_id', 'primary'),
+            'label': acct.get('label', scope),
+        }
+
+    def set_gcal_account(self, scope: str, client_id: str, client_secret: str,
+                         calendar_id: str = 'primary', refresh_token: str = '',
+                         label: str = '') -> bool:
+        """Set Google Calendar account for a scope. Secrets are scrambled before save."""
+        try:
+            if 'gcal_accounts' not in self._credentials:
+                self._credentials['gcal_accounts'] = {}
+
+            self._credentials['gcal_accounts'][scope] = {
+                'client_id': client_id,
+                'client_secret': self._scramble(client_secret) if client_secret else '',
+                'refresh_token': self._scramble(refresh_token) if refresh_token else '',
+                'calendar_id': calendar_id or 'primary',
+                'label': label or scope,
+            }
+
+            if not self._save():
+                logger.error(f"Failed to persist gcal account '{scope}' to disk")
+                return False
+
+            logger.info(f"Set gcal account for scope '{scope}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set gcal account '{scope}': {e}")
+            return False
+
+    def update_gcal_tokens(self, scope: str, refresh_token: str, access_token: str = '', expires_at: float = 0) -> bool:
+        """Update OAuth tokens for an existing gcal account (called after OAuth callback)."""
+        accounts = self._credentials.get('gcal_accounts', {})
+        if scope not in accounts:
+            return False
+        accounts[scope]['refresh_token'] = self._scramble(refresh_token) if refresh_token else accounts[scope].get('refresh_token', '')
+        accounts[scope]['access_token'] = access_token  # Short-lived, no need to encrypt
+        accounts[scope]['expires_at'] = expires_at
+        return self._save()
+
+    def delete_gcal_account(self, scope: str) -> bool:
+        """Remove a Google Calendar account by scope."""
+        accounts = self._credentials.get('gcal_accounts', {})
+        if scope not in accounts:
+            return False
+        del accounts[scope]
+        if not self._save():
+            return False
+        logger.info(f"Deleted gcal account '{scope}'")
+        return True
+
+    def list_gcal_accounts(self) -> list:
+        """List all gcal accounts (no secrets)."""
+        accounts = self._credentials.get('gcal_accounts', {})
+        result = []
+        for scope, acct in accounts.items():
+            result.append({
+                'scope': scope,
+                'label': acct.get('label', scope),
+                'client_id': acct.get('client_id', ''),  # Not secret — shown in OAuth URLs
+                'calendar_id': acct.get('calendar_id', 'primary'),
+                'has_token': bool(acct.get('refresh_token', '')),
+            })
+        return result
+
+    def has_gcal_account(self, scope: str = 'default') -> bool:
+        """Check if gcal account exists and has a refresh token."""
+        acct = self.get_gcal_account(scope)
+        return bool(acct['client_id'] and acct['refresh_token'])
 
     # =========================================================================
     # SSH

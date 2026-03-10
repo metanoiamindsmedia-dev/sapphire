@@ -16,14 +16,75 @@ logger = logging.getLogger(__name__)
 
 
 # Per-context scope isolation — each thread/async-task gets its own values
-scope_memory:   ContextVar[str]  = ContextVar('scope_memory',   default='default')
-scope_goal:     ContextVar[str]  = ContextVar('scope_goal',     default='default')
-scope_knowledge:ContextVar[str]  = ContextVar('scope_knowledge',default='default')
-scope_people:   ContextVar[str]  = ContextVar('scope_people',   default='default')
-scope_email:    ContextVar[str]  = ContextVar('scope_email',    default='default')
-scope_bitcoin:  ContextVar[str]  = ContextVar('scope_bitcoin',  default='default')
-scope_rag:      ContextVar       = ContextVar('scope_rag',      default=None)
-scope_private:  ContextVar[bool] = ContextVar('scope_private',  default=False)
+scope_memory:    ContextVar[str]  = ContextVar('scope_memory',    default='default')
+scope_goal:      ContextVar[str]  = ContextVar('scope_goal',      default='default')
+scope_knowledge: ContextVar[str]  = ContextVar('scope_knowledge', default='default')
+scope_people:    ContextVar[str]  = ContextVar('scope_people',    default='default')
+scope_email:     ContextVar[str]  = ContextVar('scope_email',     default='default')
+scope_bitcoin:   ContextVar[str]  = ContextVar('scope_bitcoin',   default='default')
+scope_gcal:      ContextVar[str]  = ContextVar('scope_gcal',      default='default')
+scope_rag:       ContextVar       = ContextVar('scope_rag',       default=None)
+scope_private:   ContextVar[bool] = ContextVar('scope_private',   default=False)
+
+# Scope registry — single source of truth for all scope operations.
+# Adding a new scope = one ContextVar above + one entry here. That's it.
+# 'setting' is the key in chat_settings dict (None = not user-settable via sidebar).
+SCOPE_REGISTRY = {
+    'memory':    {'var': scope_memory,    'default': 'default', 'setting': 'memory_scope'},
+    'goal':      {'var': scope_goal,      'default': 'default', 'setting': 'goal_scope'},
+    'knowledge': {'var': scope_knowledge, 'default': 'default', 'setting': 'knowledge_scope'},
+    'people':    {'var': scope_people,    'default': 'default', 'setting': 'people_scope'},
+    'email':     {'var': scope_email,     'default': 'default', 'setting': 'email_scope'},
+    'bitcoin':   {'var': scope_bitcoin,   'default': 'default', 'setting': 'bitcoin_scope'},
+    'gcal':      {'var': scope_gcal,      'default': 'default', 'setting': 'gcal_scope'},
+    'rag':       {'var': scope_rag,       'default': None,      'setting': None},
+    'private':   {'var': scope_private,   'default': False,     'setting': 'private_chat'},
+}
+
+
+def apply_scopes_from_settings(fm, settings: dict):
+    """Apply scope values from a chat_settings dict to ContextVars.
+    Converts 'none' string to None (disabled). Used by chat.py, chat_streaming.py, api_fastapi.py."""
+    for name, reg in SCOPE_REGISTRY.items():
+        key = reg['setting']
+        if not key:
+            continue
+        if key in settings:
+            val = settings[key]
+            # Bool settings (private_chat) — coerce to bool
+            if reg['default'] is False or reg['default'] is True:
+                val = bool(val)
+            # String 'none' means disabled
+            elif isinstance(val, str) and val == 'none':
+                val = None
+            elif isinstance(val, str) and val == '':
+                val = reg['default']
+            reg['var'].set(val)
+
+
+def reset_scopes():
+    """Reset all scopes to defaults."""
+    for reg in SCOPE_REGISTRY.values():
+        reg['var'].set(reg['default'])
+
+
+def snapshot_all_scopes() -> dict:
+    """Capture all ContextVar scopes as a plain dict."""
+    return {name: reg['var'].get() for name, reg in SCOPE_REGISTRY.items()}
+
+
+def restore_scopes(scopes: dict):
+    """Restore scopes from a snapshot dict."""
+    for name, reg in SCOPE_REGISTRY.items():
+        if name in scopes:
+            reg['var'].set(scopes[name])
+        else:
+            reg['var'].set(reg['default'])
+
+
+def scope_setting_keys() -> list:
+    """Return all setting keys that map to scopes (for defaults/persona reset)."""
+    return [reg['setting'] for reg in SCOPE_REGISTRY.values() if reg['setting'] and reg['setting'] != 'private_chat']
 
 
 class FunctionManager:
@@ -488,78 +549,41 @@ class FunctionManager:
             "story_custom_tools": story_custom_names,
         }
 
-    def set_memory_scope(self, s: str):
-        """Set memory scope for current execution context. None = disabled."""
-        scope_memory.set(s)
-        logger.debug(f"Memory scope set to: {s}")
+    # --- Scope methods (thin wrappers around registry functions) ---
 
-    def get_memory_scope(self) -> str:
-        return scope_memory.get()
+    def set_scope(self, name: str, value):
+        """Generic scope setter. Use for any registered scope."""
+        SCOPE_REGISTRY[name]['var'].set(value)
 
-    def set_goal_scope(self, s: str):
-        """Set goal scope for current execution context. None = disabled."""
-        scope_goal.set(s)
-        logger.debug(f"Goal scope set to: {s}")
+    def get_scope(self, name: str):
+        """Generic scope getter."""
+        return SCOPE_REGISTRY[name]['var'].get()
 
-    def get_goal_scope(self) -> str:
-        return scope_goal.get()
-
-    def set_knowledge_scope(self, s: str):
-        """Set knowledge scope for current execution context. None = disabled."""
-        scope_knowledge.set(s)
-        logger.debug(f"Knowledge scope set to: {s}")
-
-    def get_knowledge_scope(self) -> str:
-        return scope_knowledge.get()
-
-    def set_rag_scope(self, s: str):
-        """Set RAG scope for current chat. None = no RAG docs."""
-        scope_rag.set(s)
-
-    def set_people_scope(self, s: str):
-        """Set people scope for current execution context. None = disabled."""
-        scope_people.set(s)
-        logger.debug(f"People scope set to: {s}")
-
-    def get_people_scope(self) -> str:
-        return scope_people.get()
-
-    def set_email_scope(self, s: str):
-        """Set email scope for current execution context. None = disabled."""
-        scope_email.set(s)
-        logger.debug(f"Email scope set to: {s}")
-
-    def get_email_scope(self) -> str:
-        return scope_email.get()
-
-    def set_bitcoin_scope(self, s: str):
-        """Set bitcoin scope for current execution context. None = disabled."""
-        scope_bitcoin.set(s)
-        logger.debug(f"Bitcoin scope set to: {s}")
-
-    def get_bitcoin_scope(self) -> str:
-        return scope_bitcoin.get()
-
-    def set_private_chat(self, enabled: bool):
-        """Set per-chat privacy enforcement."""
-        scope_private.set(bool(enabled))
+    # Legacy setters/getters — kept for backward compat with direct callers
+    def set_memory_scope(self, s): scope_memory.set(s)
+    def get_memory_scope(self): return scope_memory.get()
+    def set_goal_scope(self, s): scope_goal.set(s)
+    def get_goal_scope(self): return scope_goal.get()
+    def set_knowledge_scope(self, s): scope_knowledge.set(s)
+    def get_knowledge_scope(self): return scope_knowledge.get()
+    def set_people_scope(self, s): scope_people.set(s)
+    def get_people_scope(self): return scope_people.get()
+    def set_email_scope(self, s): scope_email.set(s)
+    def get_email_scope(self): return scope_email.get()
+    def set_bitcoin_scope(self, s): scope_bitcoin.set(s)
+    def get_bitcoin_scope(self): return scope_bitcoin.get()
+    def set_gcal_scope(self, s): scope_gcal.set(s)
+    def get_gcal_scope(self): return scope_gcal.get()
+    def set_rag_scope(self, s): scope_rag.set(s)
+    def set_private_chat(self, enabled): scope_private.set(bool(enabled))
 
     def snapshot_scopes(self) -> dict:
-        """Capture current ContextVar scopes as a plain dict.
+        """Capture current ContextVar scopes as a plain dict."""
+        return snapshot_all_scopes()
 
-        The returned dict can be passed to execute_function(scopes=...)
-        to re-apply scopes after Starlette context resets between yields.
-        """
-        return {
-            'memory': scope_memory.get(),
-            'goal': scope_goal.get(),
-            'knowledge': scope_knowledge.get(),
-            'people': scope_people.get(),
-            'email': scope_email.get(),
-            'bitcoin': scope_bitcoin.get(),
-            'rag': scope_rag.get(),
-            'private': scope_private.get(),
-        }
+    def apply_scopes(self, settings: dict):
+        """Apply scopes from chat_settings dict."""
+        apply_scopes_from_settings(self, settings)
 
     def set_story_engine(self, engine, turn_getter=None):
         """
@@ -651,14 +675,7 @@ class FunctionManager:
                  fresh context copies per generator yield.
         """
         if scopes:
-            scope_memory.set(scopes.get('memory', 'default'))
-            scope_goal.set(scopes.get('goal', 'default'))
-            scope_knowledge.set(scopes.get('knowledge', 'default'))
-            scope_people.set(scopes.get('people', 'default'))
-            scope_email.set(scopes.get('email', 'default'))
-            scope_bitcoin.set(scopes.get('bitcoin', 'default'))
-            scope_rag.set(scopes.get('rag'))
-            scope_private.set(scopes.get('private', False))
+            restore_scopes(scopes)
 
         start_time = time.time()
 

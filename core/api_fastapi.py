@@ -373,26 +373,8 @@ def _apply_chat_settings(system, settings: dict):
 
                 logger.info(f"Applied prompt: {prompt_name}")
 
-        system.llm_chat.function_manager.set_private_chat(settings.get("private_chat", False))
-
-        if "memory_scope" in settings:
-            scope = settings["memory_scope"]
-            system.llm_chat.function_manager.set_memory_scope(scope if scope != "none" else None)
-        if "goal_scope" in settings:
-            scope = settings["goal_scope"]
-            system.llm_chat.function_manager.set_goal_scope(scope if scope != "none" else None)
-        if "knowledge_scope" in settings:
-            scope = settings["knowledge_scope"]
-            system.llm_chat.function_manager.set_knowledge_scope(scope if scope != "none" else None)
-        if "people_scope" in settings:
-            scope = settings["people_scope"]
-            system.llm_chat.function_manager.set_people_scope(scope if scope != "none" else None)
-        if "email_scope" in settings:
-            scope = settings["email_scope"]
-            system.llm_chat.function_manager.set_email_scope(scope if scope != "none" else None)
-        if "bitcoin_scope" in settings:
-            scope = settings["bitcoin_scope"]
-            system.llm_chat.function_manager.set_bitcoin_scope(scope if scope != "none" else None)
+        from core.chat.function_manager import apply_scopes_from_settings
+        apply_scopes_from_settings(system.llm_chat.function_manager, settings)
 
         if "spice_set" in settings:
             from core.spice_sets import spice_set_manager

@@ -605,8 +605,8 @@ async def load_persona(name: str, request: Request, _=Depends(require_login), sy
     settings["persona"] = name
     # Reset scope keys to defaults if persona doesn't specify them,
     # otherwise old persona's scopes persist through dict merge
-    for key in ("memory_scope", "goal_scope", "knowledge_scope", "people_scope",
-                "email_scope", "bitcoin_scope"):
+    from core.chat.function_manager import scope_setting_keys
+    for key in scope_setting_keys():
         if key not in settings:
             settings[key] = "default"
     session_manager = system.llm_chat.session_manager

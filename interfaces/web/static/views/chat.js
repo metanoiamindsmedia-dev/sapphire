@@ -397,7 +397,7 @@ async function loadSidebar() {
     if (!chatName) return;
 
     try {
-        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, presetsResp, spiceSetsResp, personasResp, ttsVoicesResp, toolsetCurrentResp] = await Promise.allSettled([
+        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, gcalAccountsResp, presetsResp, spiceSetsResp, personasResp, ttsVoicesResp, toolsetCurrentResp] = await Promise.allSettled([
             api.getChatSettings(chatName),
             getInitData(),
             fetch('/api/llm/providers').then(r => r.ok ? r.json() : null),
@@ -407,6 +407,7 @@ async function loadSidebar() {
             fetch('/api/knowledge/people/scopes').then(r => r.ok ? r.json() : null),
             fetch('/api/email/accounts').then(r => r.ok ? r.json() : null),
             fetch('/api/bitcoin/wallets').then(r => r.ok ? r.json() : null),
+            fetch('/api/gcal/accounts').then(r => r.ok ? r.json() : null),
             fetch('/api/story/presets').then(r => r.ok ? r.json() : null),
             fetch('/api/spice-sets').then(r => r.ok ? r.json() : null),
             fetch('/api/personas').then(r => r.ok ? r.json() : null),
@@ -431,6 +432,7 @@ async function loadSidebar() {
         const peopleScopesData = peopleScopesResp.status === 'fulfilled' ? peopleScopesResp.value : null;
         const emailAccountsData = emailAccountsResp.status === 'fulfilled' ? emailAccountsResp.value : null;
         const bitcoinWalletsData = bitcoinWalletsResp.status === 'fulfilled' ? bitcoinWalletsResp.value : null;
+        const gcalAccountsData = gcalAccountsResp.status === 'fulfilled' ? gcalAccountsResp.value : null;
         const presetsData = presetsResp.status === 'fulfilled' ? presetsResp.value : null;
         const spiceSetsData = spiceSetsResp.status === 'fulfilled' ? spiceSetsResp.value : null;
         const personasData = personasResp.status === 'fulfilled' ? personasResp.value : null;
@@ -560,6 +562,24 @@ async function loadSidebar() {
                 ).join('');
             setSelect(btcScopeSel, settings.bitcoin_scope || 'default');
         }
+
+        // Populate google calendar scope dropdown
+        const gcalScopeSel = container.querySelector('#sb-gcal-scope');
+        if (gcalScopeSel) {
+            const accounts = gcalAccountsData?.accounts || [];
+            gcalScopeSel.innerHTML = '<option value="none">None</option>' +
+                accounts.map(a =>
+                    `<option value="${a.scope}">${a.label || a.scope}${a.has_token ? ' ✓' : ''}</option>`
+                ).join('');
+            setSelect(gcalScopeSel, settings.gcal_scope || 'default');
+        }
+
+        // Hide plugin scope dropdowns when their plugin is disabled
+        const enabledPlugins = new Set(init?.plugins_config?.enabled || []);
+        container.querySelectorAll('[data-plugin-scope]').forEach(el => {
+            const pluginName = el.dataset.pluginScope;
+            el.style.display = enabledPlugins.has(pluginName) ? '' : 'none';
+        });
 
         // Populate state preset dropdown
         const presetSel = container.querySelector('#sb-story-preset');
@@ -723,6 +743,7 @@ function collectSettings(container) {
         people_scope: getVal(container, '#sb-people-scope') || 'default',
         email_scope: getVal(container, '#sb-email-scope') || 'default',
         bitcoin_scope: getVal(container, '#sb-bitcoin-scope') || 'default',
+        gcal_scope: getVal(container, '#sb-gcal-scope') || 'default',
         story_engine_enabled: getChecked(container, '#sb-story-enabled'),
         story_preset: getVal(container, '#sb-story-preset') || null,
         story_in_prompt: getChecked(container, '#sb-story-in-prompt'),

@@ -451,21 +451,9 @@ class LLMChat:
             messages = self._build_base_messages(user_input)
             self.session_manager.add_user_message(user_input)
             
-            # Set memory and goal scopes for this chat context
+            # Set scopes for this chat context
             chat_settings = self.session_manager.get_chat_settings()
-            memory_scope = chat_settings.get('memory_scope', 'default')
-            self.function_manager.set_memory_scope(memory_scope if memory_scope != 'none' else None)
-            goal_scope = chat_settings.get('goal_scope', 'default')
-            self.function_manager.set_goal_scope(goal_scope if goal_scope != 'none' else None)
-            knowledge_scope = chat_settings.get('knowledge_scope', 'default')
-            self.function_manager.set_knowledge_scope(knowledge_scope if knowledge_scope != 'none' else None)
-            people_scope = chat_settings.get('people_scope', 'default')
-            self.function_manager.set_people_scope(people_scope if people_scope != 'none' else None)
-            email_scope = chat_settings.get('email_scope', 'default')
-            self.function_manager.set_email_scope(email_scope if email_scope != 'none' else None)
-            bitcoin_scope = chat_settings.get('bitcoin_scope', 'default')
-            self.function_manager.set_bitcoin_scope(bitcoin_scope if bitcoin_scope != 'none' else None)
-            self.function_manager.set_private_chat(chat_settings.get('private_chat', False))
+            self.function_manager.apply_scopes(chat_settings)
             chat_name = self.session_manager.get_active_chat_name()
             self.function_manager.set_rag_scope(f"__rag__:{chat_name}")
             _scopes = self.function_manager.snapshot_scopes()
@@ -888,14 +876,8 @@ class LLMChat:
 
     def reset(self):
         self.session_manager.clear()
-        # Reset scopes to defaults so stale values don't leak into the cleared chat
-        self.function_manager.set_memory_scope("default")
-        self.function_manager.set_goal_scope("default")
-        self.function_manager.set_knowledge_scope("default")
-        self.function_manager.set_people_scope("default")
-        self.function_manager.set_email_scope("default")
-        self.function_manager.set_bitcoin_scope("default")
-        self.function_manager.set_private_chat(False)
+        from core.chat.function_manager import reset_scopes
+        reset_scopes()
         self.function_manager.set_story_engine(None)
         return True
 
@@ -974,20 +956,8 @@ class LLMChat:
             toolset = task_settings.get("toolset")
             if toolset and toolset not in ("none", ""):
                 # Temporarily set scopes for tool execution — reset all to prevent stale state
-                memory_scope = task_settings.get("memory_scope", "default")
-                self.function_manager.set_memory_scope(memory_scope if memory_scope != "none" else None)
-                goal_scope = task_settings.get("goal_scope", "default")
-                self.function_manager.set_goal_scope(goal_scope if goal_scope != "none" else None)
-                knowledge_scope = task_settings.get("knowledge_scope", "none")
-                self.function_manager.set_knowledge_scope(knowledge_scope if knowledge_scope != "none" else None)
-                people_scope = task_settings.get("people_scope", "none")
-                self.function_manager.set_people_scope(people_scope if people_scope != "none" else None)
-                email_scope = task_settings.get("email_scope", "default")
-                self.function_manager.set_email_scope(email_scope if email_scope != "none" else None)
-                bitcoin_scope = task_settings.get("bitcoin_scope", "default")
-                self.function_manager.set_bitcoin_scope(bitcoin_scope if bitcoin_scope != "none" else None)
+                self.function_manager.apply_scopes(task_settings)
                 self.function_manager.set_rag_scope(None)
-                self.function_manager.set_private_chat(False)
                 self.function_manager.update_enabled_functions([toolset])
                 tools = self.function_manager.enabled_tools
                 _scopes = self.function_manager.snapshot_scopes()

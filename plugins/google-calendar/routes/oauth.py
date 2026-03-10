@@ -1,11 +1,13 @@
 # Google Calendar OAuth2 routes
 # Handles the authorization flow and token management.
+# Scope-aware: uses credentials_manager for multi-account support.
 
 import json
 import logging
 import secrets
 import time
 import urllib.parse
+from pathlib import Path
 
 import requests
 from fastapi.responses import RedirectResponse
@@ -17,24 +19,21 @@ GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 SCOPES = 'https://www.googleapis.com/auth/calendar'
 CALLBACK_PATH = '/api/plugin/google-calendar/callback'
 
-
-def _get_state_path():
-    from pathlib import Path
+# Temporary CSRF state stored in plugin_state (not credentials — it's ephemeral)
+def _get_csrf_path():
     state_dir = Path(__file__).parent.parent.parent.parent / 'user' / 'plugin_state'
     state_dir.mkdir(parents=True, exist_ok=True)
-    return state_dir / 'google-calendar.json'
+    return state_dir / 'gcal-csrf.json'
 
-
-def _load_state():
-    path = _get_state_path()
+def _load_csrf():
+    path = _get_csrf_path()
     if path.exists():
         return json.loads(path.read_text(encoding='utf-8'))
     return {}
 
-
-def _save_state(state):
-    path = _get_state_path()
-    path.write_text(json.dumps(state, indent=2), encoding='utf-8')
+def _save_csrf(data):
+    path = _get_csrf_path()
+    path.write_text(json.dumps(data), encoding='utf-8')
 
 
 def _get_redirect_uri(request):
@@ -43,18 +42,46 @@ def _get_redirect_uri(request):
     return f"{base}{CALLBACK_PATH}"
 
 
-def start_auth(request=None, settings=None, **_):
-    """GET /api/plugin/google-calendar/auth — redirect to Google consent screen."""
-    s = settings or {}
-    client_id = s.get('GCAL_CLIENT_ID', '').strip()
-    if not client_id:
-        return {"error": "Set Google Client ID in Settings > Google Calendar first"}
+def start_auth(request=None, query=None, settings=None, **_):
+    """GET /api/plugin/google-calendar/auth — redirect to Google consent screen.
+    Accepts ?scope=xxx query param to specify which account scope to connect.
+    Syncs plugin settings to credentials_manager for the target scope."""
+    from core.credentials_manager import credentials
 
-    # Generate CSRF state token
+    q = query or {}
+    scope = q.get('scope', 'default')
+    s = settings or {}
+
+    # Sync plugin manifest settings → credentials_manager for this scope
+    # This bridges the simple "Settings page" UX with the multi-account backend
+    client_id = s.get('GCAL_CLIENT_ID', '').strip()
+    client_secret = s.get('GCAL_CLIENT_SECRET', '').strip()
+    calendar_id = s.get('GCAL_CALENDAR_ID', 'primary').strip()
+
+    if not client_id:
+        # Fall back to credentials_manager if plugin settings empty
+        acct = credentials.get_gcal_account(scope)
+        client_id = acct.get('client_id', '')
+        client_secret = client_secret or acct.get('client_secret', '')
+        calendar_id = calendar_id or acct.get('calendar_id', 'primary')
+
+    if not client_id:
+        return {"error": f"Set Google Client ID in Settings > Google Calendar first"}
+
+    # Save to credentials_manager (preserves existing refresh_token)
+    existing = credentials.get_gcal_account(scope)
+    credentials.set_gcal_account(
+        scope, client_id, client_secret or existing.get('client_secret', ''),
+        calendar_id, existing.get('refresh_token', ''), scope
+    )
+
+    # Generate CSRF state token that encodes the scope
     state_token = secrets.token_urlsafe(32)
-    state = _load_state()
-    state['oauth_state'] = state_token
-    _save_state(state)
+    csrf = _load_csrf()
+    csrf[state_token] = {'scope': scope, 'created': time.time()}
+    # Clean up old CSRF tokens (>10 min)
+    csrf = {k: v for k, v in csrf.items() if time.time() - v.get('created', 0) < 600}
+    _save_csrf(csrf)
 
     params = {
         'client_id': client_id,
@@ -71,6 +98,8 @@ def start_auth(request=None, settings=None, **_):
 
 def handle_callback(request=None, query=None, settings=None, **_):
     """GET /api/plugin/google-calendar/callback — exchange code for tokens."""
+    from core.credentials_manager import credentials
+
     q = query or {}
     code = q.get('code', '')
     state_token = q.get('state', '')
@@ -82,18 +111,21 @@ def handle_callback(request=None, query=None, settings=None, **_):
     if not code:
         return {"error": "No authorization code received"}
 
-    # Verify CSRF state
-    state = _load_state()
-    if state_token != state.get('oauth_state'):
-        return {"error": "State mismatch — possible CSRF attack"}
-    state.pop('oauth_state', None)
+    # Verify CSRF state and extract scope
+    csrf = _load_csrf()
+    csrf_entry = csrf.pop(state_token, None)
+    _save_csrf(csrf)
 
-    s = settings or {}
-    client_id = s.get('GCAL_CLIENT_ID', '').strip()
-    client_secret = s.get('GCAL_CLIENT_SECRET', '').strip()
+    if not csrf_entry:
+        return {"error": "State mismatch — possible CSRF attack"}
+
+    scope = csrf_entry.get('scope', 'default')
+    acct = credentials.get_gcal_account(scope)
+    client_id = acct.get('client_id', '')
+    client_secret = acct.get('client_secret', '')
 
     if not client_id or not client_secret:
-        return {"error": "Missing client ID or secret in settings"}
+        return {"error": "Missing client ID or secret in account settings"}
 
     # Exchange code for tokens
     resp = requests.post(GOOGLE_TOKEN_URL, data={
@@ -109,25 +141,40 @@ def handle_callback(request=None, query=None, settings=None, **_):
         return {"error": f"Token exchange failed: {resp.status_code}"}
 
     tokens = resp.json()
-    state['access_token'] = tokens['access_token']
-    state['refresh_token'] = tokens.get('refresh_token', state.get('refresh_token', ''))
-    state['expires_at'] = time.time() + tokens.get('expires_in', 3600)
-    _save_state(state)
+    refresh_token = tokens.get('refresh_token', acct.get('refresh_token', ''))
+    access_token = tokens['access_token']
+    expires_at = time.time() + tokens.get('expires_in', 3600)
 
-    logger.info("[GCAL] OAuth2 authorization successful")
+    credentials.update_gcal_tokens(scope, refresh_token, access_token, expires_at)
+
+    logger.info(f"[GCAL] OAuth2 authorization successful for scope '{scope}'")
     return RedirectResponse(url="/#settings", status_code=302)
 
 
-def get_status(settings=None, **_):
-    """GET /api/plugin/google-calendar/status — check if connected."""
-    state = _load_state()
-    return {"connected": bool(state.get('refresh_token'))}
+def get_status(query=None, settings=None, **_):
+    """GET /api/plugin/google-calendar/status — check if connected.
+    Accepts ?scope=xxx to check a specific account."""
+    from core.credentials_manager import credentials
+
+    q = query or {}
+    scope = q.get('scope', 'default')
+    return {"connected": credentials.has_gcal_account(scope)}
 
 
-def disconnect(settings=None, **_):
-    """POST /api/plugin/google-calendar/disconnect — remove stored tokens."""
-    state = _load_state()
-    for key in ('access_token', 'refresh_token', 'expires_at', 'oauth_state'):
-        state.pop(key, None)
-    _save_state(state)
-    return {"status": "disconnected"}
+def disconnect(query=None, body=None, settings=None, **_):
+    """POST /api/plugin/google-calendar/disconnect — remove stored tokens for a scope."""
+    from core.credentials_manager import credentials
+
+    # Scope can come from body or query
+    scope = 'default'
+    if body and isinstance(body, dict):
+        scope = body.get('scope', scope)
+    elif query:
+        scope = query.get('scope', scope)
+
+    acct = credentials.get_gcal_account(scope)
+    if acct.get('client_id'):
+        # Keep the account config, just clear the tokens
+        credentials.update_gcal_tokens(scope, '', '', 0)
+        return {"status": "disconnected"}
+    return {"status": "no_account"}
