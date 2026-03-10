@@ -41,20 +41,29 @@ MANAGED_BLOCKED_ATTRS = {
 # Strict mode allowlist — covers HTTP clients, data processing, crypto, text, math
 ALLOWED_STRICT = {
     # HTTP & data interchange
-    'requests', 'urllib', 'json', 'xml', 'html', 'csv', 'base64',
+    'requests', 'urllib', 'urllib3', 'http', 'ssl', 'json', 'xml', 'html', 'csv', 'base64',
+    # LLM SDKs (no more dangerous than requests — user provides keys via settings)
+    'openai', 'anthropic',
     # Text & pattern processing
-    're', 'string', 'textwrap', 'difflib', 'unicodedata',
+    're', 'string', 'textwrap', 'difflib', 'unicodedata', 'codecs', 'fnmatch',
     # Date, time, math
     'datetime', 'zoneinfo', 'calendar', 'time',
-    'math', 'decimal', 'fractions', 'numbers', 'statistics', 'random',
+    'math', 'cmath', 'decimal', 'fractions', 'numbers', 'statistics', 'random',
     # Data structures & functional
     'collections', 'itertools', 'functools', 'operator', 'copy',
+    'bisect', 'heapq',
     # Crypto & encoding
     'hashlib', 'hmac', 'secrets', 'binascii', 'struct',
+    # Compression (pure data transform)
+    'gzip', 'zlib',
     # Type system & boilerplate
     'typing', 'enum', 'dataclasses', 'abc',
     # Misc safe stdlib
-    'uuid', 'logging', 'pprint', 'textwrap', 'contextlib',
+    'uuid', 'logging', 'pprint', 'contextlib',
+    'traceback', 'warnings', 'weakref', 'ipaddress',
+    'platform', 'locale',
+    # Data processing & media (installed via requirements)
+    'numpy', 'PIL', 'bs4', 'pypdf', 'tiktoken', 'croniter',
     # Allowed but managed-blocked (belt + suspenders)
     'os', 'io', 'pathlib',
 }
