@@ -42,6 +42,48 @@ export function renderSettingsForm(container, schema, values = {}, { onChange, m
         if (field.confirm) attachConfirmGate(container, field, managed);
     }
 
+    // Wire up action buttons
+    for (const field of schema) {
+        if ((field.widget || inferWidget(field)) !== 'button') continue;
+        const btn = container.querySelector(`#ps-${field.key}`);
+        if (!btn) continue;
+
+        // Check status on render if status URL provided
+        if (field.status) {
+            fetch(field.status).then(r => r.json()).then(data => {
+                if (data.connected) {
+                    btn.textContent = field.button_label_connected || 'Connected ✓';
+                    btn.dataset.connected = 'true';
+                    btn.classList.add('btn-connected');
+                    // Add disconnect button if disconnect URL provided
+                    if (field.disconnect) {
+                        let discBtn = btn.parentElement.querySelector('.btn-disconnect');
+                        if (!discBtn) {
+                            discBtn = document.createElement('button');
+                            discBtn.type = 'button';
+                            discBtn.className = 'btn-action btn-disconnect';
+                            discBtn.textContent = 'Disconnect';
+                            discBtn.style.marginLeft = '8px';
+                            discBtn.addEventListener('click', async () => {
+                                await fetch(field.disconnect, { method: 'POST' });
+                                btn.textContent = field.button_label || 'Connect';
+                                btn.dataset.connected = 'false';
+                                btn.classList.remove('btn-connected');
+                                discBtn.remove();
+                            });
+                            btn.parentElement.appendChild(discBtn);
+                        }
+                    }
+                }
+            }).catch(() => {});
+        }
+
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.actionUrl;
+            if (url) window.location.href = url;
+        });
+    }
+
     if (onChange) {
         container.addEventListener('change', e => {
             const key = e.target.closest('[data-key]')?.dataset.key;
@@ -83,6 +125,9 @@ function renderWidget(field, value) {
         case 'number':
             return `<input type="number" id="${id}" value="${value}" step="any" placeholder="${escapeHtml(field.placeholder || '')}">`;
 
+        case 'button':
+            return `<button type="button" id="${id}" class="btn-action" data-action-url="${escapeHtml(field.action || '')}" data-status-url="${escapeHtml(field.status || '')}">${escapeHtml(field.button_label || field.label || 'Action')}</button>`;
+
         default: // text
             return `<input type="text" id="${id}" value="${escapeHtml(String(value))}" placeholder="${escapeHtml(field.placeholder || '')}">`;
     }
@@ -101,6 +146,8 @@ function inferWidget(field) {
 export function readSettingsForm(container, schema) {
     const result = {};
     for (const field of schema) {
+        // Skip action buttons — they're not settings
+        if ((field.widget || inferWidget(field)) === 'button') continue;
         result[field.key] = getFieldValue(container, field.key, field);
     }
     return result;
