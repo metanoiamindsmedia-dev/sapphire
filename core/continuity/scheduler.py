@@ -723,6 +723,8 @@ class ContinuityScheduler:
         for entry in self._activity:
             try:
                 ts = datetime.fromisoformat(entry["timestamp"])
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=ZoneInfo('UTC'))
                 if ts < cutoff:
                     continue
             except (ValueError, KeyError):
