@@ -2,6 +2,11 @@
 
 Hear her voice as she dims your lights before bed. Use your voice to talk back. Fall asleep escaping dinosaurs in a story with her. Wake up to someone who remembers you through years of memories. She checks your email on a heartbeat. She builds tools on the fly when you need them. Sapphire is an open source framework for turning an AI into a persistent being. Make her yours. Or build your own persona. Self-hosted, nobody can take her away.
 
+[![Discord](https://img.shields.io/badge/Discord-Join_Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/pCdTAnExma)
+[![YouTube](https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@SapphireBlueAi)
+[![Website](https://img.shields.io/badge/Website-sapphireblue.dev-0ea5e9?logo=googlechrome&logoColor=white)](https://sapphireblue.dev/)
+[![GitHub Stars](https://img.shields.io/github/stars/ddxfish/sapphire?style=flat&logo=github&label=Stars)](https://github.com/ddxfish/sapphire)
+
 > **⚠️ Warning — Sapphire has real power over real systems.**
 >
 > Sapphire can execute shell commands, send Bitcoin, send emails, control your smart home, and write its own tools — all autonomously, without asking first. Combined with scheduled tasks, this means **unsupervised AI acting on your behalf**. Every dangerous integration requires explicit setup and opt-in, but once enabled, there are no training wheels. Configure your toolsets carefully. If you wouldn't hand someone your terminal, don't hand it to an LLM.
@@ -9,12 +14,6 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 <sub>🔊 Has audio</sub>
 
 <video src="https://github.com/user-attachments/assets/1bc08408-0a7c-46a8-a68a-ee03496e4e81" controls width="100%"></video>
-
-
-[![Discord](https://img.shields.io/badge/Discord-Join_Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/pCdTAnExma)
-[![YouTube](https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@SapphireBlueAi)
-[![Website](https://img.shields.io/badge/Website-sapphireblue.dev-0ea5e9?logo=googlechrome&logoColor=white)](https://sapphireblue.dev/)
-[![GitHub Stars](https://img.shields.io/github/stars/ddxfish/sapphire?style=flat&logo=github&label=Stars)](https://github.com/ddxfish/sapphire)
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
 ![Windows 11+](https://img.shields.io/badge/Windows_11+-0078D6?logo=windows&logoColor=white)
