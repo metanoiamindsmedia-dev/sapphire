@@ -1,3 +1,10 @@
+# 2.2.5 - Toolmaker cleanup
+- It was janky
+- Single tool settings now
+- Removed instructions from toolmaker def, put it in docs
+- Delt with collisions of func names and dup settings names
+- Strict mode is default, moderate adds subprocess, SYSTEM KILLER mode is unchecked
+- Plugins can be made, loaded, run in one chat message
 # 2.2.4 - Split API into files
 - Major api refactor of back end into files
 - Improved themes - light theme contrast, other themes added missing colors
