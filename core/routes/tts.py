@@ -124,7 +124,8 @@ async def test_tts(request: Request, _=Depends(require_login), system=Depends(ge
         return {"success": False, "provider": prov_name, "error": str(e)}
     elapsed = round((time.time() - t0) * 1000)
     if not available:
-        return {"success": False, "provider": prov_name, "error": "Provider not available", "ms": elapsed}
+        error = getattr(provider, '_last_error', None) or "Provider not available"
+        return {"success": False, "provider": prov_name, "error": error, "ms": elapsed}
     return {"success": True, "provider": prov_name, "ms": elapsed}
 
 

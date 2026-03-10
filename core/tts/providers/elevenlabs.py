@@ -16,6 +16,25 @@ ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 
 
+def _parse_error(response) -> str:
+    """Extract human-readable error from ElevenLabs API response."""
+    try:
+        data = response.json()
+        detail = data.get('detail', {})
+        if isinstance(detail, dict):
+            msg = detail.get('message', '')
+            status = detail.get('status', '')
+            if 'missing_permission' in status or 'missing_permission' in msg:
+                return f"API key missing permissions — check key permissions on ElevenLabs dashboard"
+            if msg:
+                return msg
+        if isinstance(detail, str):
+            return detail
+    except Exception:
+        pass
+    return f"HTTP {response.status_code}: {response.text[:200]}"
+
+
 class ElevenLabsTTSProvider(BaseTTSProvider):
     """Generates audio via the ElevenLabs cloud API."""
 
@@ -76,7 +95,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
                 })
 
                 if response.status_code != 200:
-                    logger.error(f"ElevenLabs error {response.status_code}: {response.text[:200]}")
+                    logger.error(f"ElevenLabs TTS error: {_parse_error(response)}")
                     return None
 
                 return response.content
@@ -86,7 +105,24 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             return None
 
     def is_available(self) -> bool:
-        return bool(self._api_key)
+        """Validate API key by hitting a lightweight endpoint."""
+        key = self._api_key
+        if not key:
+            return False
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                r = client.get("https://api.elevenlabs.io/v1/voices",
+                               headers={'xi-api-key': key}, params={'page_size': 1})
+                if r.status_code != 200:
+                    err = _parse_error(r)
+                    logger.error(f"ElevenLabs availability check failed: {err}")
+                    self._last_error = err
+                    return False
+                self._last_error = None
+                return True
+        except Exception as e:
+            self._last_error = str(e)
+            return False
 
     def list_voices(self) -> list:
         """Fetch available voices from ElevenLabs API."""
@@ -104,7 +140,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
                 }, params={'page_size': 100})
 
                 if response.status_code != 200:
-                    logger.error(f"ElevenLabs voices error: {response.status_code}")
+                    logger.error(f"ElevenLabs voices error: {_parse_error(response)}")
                     return []
 
                 data = response.json()

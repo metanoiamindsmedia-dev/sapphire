@@ -503,6 +503,25 @@ def run():
     if hasattr(signal, 'SIGHUP'):
         signal.signal(signal.SIGHUP, handle_shutdown_signal)
     
+    # Auto-detect timezone if unset (upgrades skip setup wizard)
+    _tz = getattr(config, 'USER_TIMEZONE', '') or ''
+    if not _tz or _tz == 'UTC':
+        try:
+            from datetime import datetime
+            _detected = datetime.now().astimezone().tzinfo
+            _tz_name = getattr(_detected, 'key', None)
+            if not _tz_name:
+                # Fallback: read /etc/localtime symlink (Linux)
+                from pathlib import Path as _P
+                _link = _P('/etc/localtime')
+                if _link.is_symlink() and 'zoneinfo/' in str(_link.resolve()):
+                    _tz_name = str(_link.resolve()).split('zoneinfo/')[-1]
+            if _tz_name and _tz_name != 'UTC':
+                settings.set('USER_TIMEZONE', _tz_name, persist=True)
+                logger.info(f"Auto-detected timezone: {_tz_name}")
+        except Exception:
+            pass
+
     print("Starting Sapphire Voice Chat System")
     try:
         voice_chat = VoiceChatSystem()
