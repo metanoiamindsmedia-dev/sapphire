@@ -1,552 +1,186 @@
-// index.js - Email settings plugin (multi-account)
-// Settings tab for email configuration
+// Email settings plugin (multi-account)
+// Uses shared account-manager for list/navigation, custom editor for IMAP/SMTP config.
 
 import { registerPluginSettings } from '/static/shared/plugin-registry.js';
+import { createAccountManager } from '/static/shared/account-manager.js';
 
-function csrfHeaders(extra = {}) {
-  const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
-  return { 'X-CSRF-Token': token, ...extra };
-}
-
-function injectStyles() {
-  if (document.getElementById('email-plugin-styles')) return;
-
-  const style = document.createElement('style');
-  style.id = 'email-plugin-styles';
-  style.textContent = `
-    .email-form {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .email-account-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .email-account-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg-secondary);
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .email-account-item:hover {
-      border-color: var(--accent-blue);
-      background: var(--bg-hover);
-    }
-
-    .email-account-item.active {
-      border-color: var(--accent-blue);
-    }
-
-    .email-account-scope {
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--text);
-      min-width: 80px;
-    }
-
-    .email-account-addr {
-      font-size: 12px;
-      color: var(--text-muted);
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .email-add-btn {
-      padding: 8px 16px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.15s ease;
-    }
-
-    .email-add-btn:hover {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-    }
-
-    .email-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .email-group label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .email-group input {
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-primary);
-      color: var(--text);
-      font-size: 13px;
-      font-family: inherit;
-    }
-
-    .email-group input:focus {
-      outline: none;
-      border-color: var(--accent-blue);
-    }
-
-    .email-hint {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .email-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-
-    .email-row input {
-      flex: 1;
-    }
-
-    .email-test-btn {
-      padding: 8px 14px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-tertiary);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 13px;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-    }
-
-    .email-test-btn:hover {
-      background: var(--bg-hover);
-    }
-
-    .email-test-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .email-test-btn.success {
-      background: var(--success-light, #d4edda);
-      border-color: var(--success, #28a745);
-      color: var(--success, #28a745);
-    }
-
-    .email-test-btn.error {
-      background: var(--error-light, #f8d7da);
-      border-color: var(--error, #dc3545);
-      color: var(--error, #dc3545);
-    }
-
-    .email-pw-status {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
-    .email-pw-status.stored {
-      background: var(--success-light, #d4edda);
-      color: var(--success, #28a745);
-    }
-
-    .email-pw-status.missing {
-      background: var(--warning-light, #fff3cd);
-      color: var(--warning, #856404);
-    }
-
-    .email-servers {
-      border-top: 1px solid var(--border);
-      padding-top: 16px;
-      margin-top: 8px;
-    }
-
-    .email-servers-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 12px;
-    }
-
-    .email-clear-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--error, #dc3545);
-      border-radius: 6px;
-      background: transparent;
-      color: var(--error, #dc3545);
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.15s ease;
-    }
-
-    .email-clear-btn:hover {
-      background: var(--error-light, #f8d7da);
-    }
-
-    .email-back-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: transparent;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.15s ease;
-    }
-
-    .email-back-btn:hover {
-      background: var(--bg-hover);
-    }
-
-    .email-editor-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .email-test-result {
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-
-    .email-test-result.success {
-      background: var(--success-light, #d4edda);
-      border: 1px solid var(--success, #28a745);
-      color: var(--success, #28a745);
-    }
-
-    .email-test-result.error {
-      background: var(--error-light, #f8d7da);
-      border: 1px solid var(--error, #dc3545);
-      color: var(--error, #dc3545);
-    }
-
-    .email-test-detail {
-      margin-top: 4px;
-      font-size: 11px;
-      opacity: 0.85;
-    }
-  `;
-  document.head.appendChild(style);
-}
+const manager = createAccountManager({
+    prefix: 'email',
+    entityName: 'Account',
+    listEndpoint: '/api/email/accounts',
+    listKey: 'accounts',
+    deleteEndpoint: (scope) => `/api/email/accounts/${encodeURIComponent(scope)}`,
+    formatItem: (item) => ({
+        name: item.scope,
+        detail: item.address || '(no address)'
+    }),
+    hint: 'Each scope maps to a chat. Select which email to use per-chat in the sidebar.',
+    addLabel: '+ Add Account',
+    addPrompt: 'Scope name for new account (e.g. "sapphire", "anita"):',
+    renderEditor: renderEmailEditor,
+});
 
 
-// ─── State ───────────────────────────────────────────────────────────────────
+function renderEmailEditor(body, scope, item, helpers) {
+    const s = item || {};
 
-let _container = null;
-let _accounts = [];
-let _editingScope = null;
+    body.innerHTML = `
+        <div class="am-group">
+            <label for="email-address">Email Address</label>
+            <input type="email" id="email-address" value="${s.address || ''}" placeholder="you@example.com">
+        </div>
 
+        <div class="am-group">
+            <label for="email-password">App Password</label>
+            <div class="am-row">
+                <input type="password" id="email-password" placeholder="${item ? 'Leave blank to keep existing...' : 'Enter app password'}">
+                <span class="am-action-btn${item ? ' success' : ''}" style="cursor:default;padding:6px 12px;font-size:12px" id="email-pw-status">
+                    ${item ? '\u2713 Stored' : 'Not set'}
+                </span>
+            </div>
+            <div class="am-hint">
+                For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--accent-blue)">App Password</a> (2FA required).<br>
+                For self-hosted (Dovecot etc.), use the account password. Encrypted on disk.
+            </div>
+        </div>
 
-async function loadAccounts() {
-  try {
-    const res = await fetch('/api/email/accounts');
-    if (res.ok) {
-      const data = await res.json();
-      _accounts = data.accounts || [];
-    }
-  } catch (e) {
-    console.warn('Failed to load email accounts:', e);
-    _accounts = [];
-  }
-  return _accounts;
-}
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px">
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px">Server Settings</div>
+            <div class="am-group">
+                <label for="email-imap">IMAP Server</label>
+                <div class="am-row">
+                    <input type="text" id="email-imap" value="${s.imap_server || 'imap.gmail.com'}" placeholder="imap.gmail.com">
+                    <input type="number" id="email-imap-port" value="${s.imap_port || 993}" placeholder="993" style="max-width:80px" min="1" max="65535">
+                </div>
+            </div>
+            <div class="am-group" style="margin-top:12px">
+                <label for="email-smtp">SMTP Server</label>
+                <div class="am-row">
+                    <input type="text" id="email-smtp" value="${s.smtp_server || 'smtp.gmail.com'}" placeholder="smtp.gmail.com">
+                    <input type="number" id="email-smtp-port" value="${s.smtp_port || 465}" placeholder="465" style="max-width:80px" min="1" max="65535">
+                </div>
+            </div>
+            <div class="am-hint" style="margin-top:8px">
+                Gmail defaults shown. Change for other providers (e.g. mail.yourdomain.com).
+            </div>
+        </div>
 
+        <div class="am-row" style="gap:12px;margin-top:8px">
+            <button type="button" class="am-action-btn" id="email-save-btn">Save</button>
+            <button type="button" class="am-action-btn" id="email-test-btn">Test</button>
+        </div>
+    `;
 
-// ─── Account List View ──────────────────────────────────────────────────────
+    // Save
+    body.querySelector('#email-save-btn').addEventListener('click', async () => {
+        const btn = body.querySelector('#email-save-btn');
+        const address = body.querySelector('#email-address').value.trim();
+        if (!address) { helpers.showResult(false, 'Email address is required'); return; }
 
-function renderAccountList(container) {
-  _container = container;
-  _editingScope = null;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
 
-  const items = _accounts.map(a => `
-    <div class="email-account-item" data-scope="${a.scope}">
-      <span class="email-account-scope">${a.scope}</span>
-      <span class="email-account-addr">${a.address || '(no address)'}</span>
-    </div>
-  `).join('');
+        const payload = {
+            address,
+            imap_server: body.querySelector('#email-imap').value.trim() || 'imap.gmail.com',
+            smtp_server: body.querySelector('#email-smtp').value.trim() || 'smtp.gmail.com',
+            imap_port: parseInt(body.querySelector('#email-imap-port').value) || 993,
+            smtp_port: parseInt(body.querySelector('#email-smtp-port').value) || 465,
+        };
+        const pw = body.querySelector('#email-password').value.trim();
+        if (pw) payload.app_password = pw;
 
-  container.innerHTML = `
-    <div class="email-form">
-      <div class="email-hint">
-        Each scope name maps to a chat's email scope setting. Accounts are managed in Settings, scopes are selected per-chat in the sidebar.
-      </div>
-      <div class="email-account-list">
-        ${items || '<div class="email-hint">No email accounts configured.</div>'}
-      </div>
-      <button type="button" class="email-add-btn" id="email-add-account">+ Add Account</button>
-    </div>
-  `;
-
-  // Click handlers
-  container.querySelectorAll('.email-account-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const scope = el.dataset.scope;
-      const acct = _accounts.find(a => a.scope === scope);
-      renderAccountEditor(container, scope, acct);
+        try {
+            const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}`, {
+                method: 'PUT',
+                headers: helpers.csrfHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                btn.textContent = 'Saved';
+                btn.className = 'am-action-btn success';
+                const status = body.querySelector('#email-pw-status');
+                if (status) { status.textContent = '\u2713 Stored'; status.className = 'am-action-btn success'; }
+                await manager.loadItems();
+            } else {
+                throw new Error(data.detail || 'Save failed');
+            }
+        } catch (e) {
+            btn.textContent = 'Error';
+            btn.className = 'am-action-btn error';
+            helpers.showResult(false, e.message);
+        }
+        setTimeout(() => { btn.textContent = 'Save'; btn.className = 'am-action-btn'; btn.disabled = false; }, 3000);
     });
-  });
 
-  container.querySelector('#email-add-account').addEventListener('click', () => {
-    const name = prompt('Scope name for new account (e.g. "sapphire", "anita"):');
-    if (!name || !name.trim()) return;
-    const scope = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    if (_accounts.find(a => a.scope === scope)) {
-      renderAccountEditor(container, scope, _accounts.find(a => a.scope === scope));
-      return;
-    }
-    renderAccountEditor(container, scope, null);
-  });
-}
+    // Test
+    body.querySelector('#email-test-btn').addEventListener('click', async () => {
+        const btn = body.querySelector('#email-test-btn');
+        const address = body.querySelector('#email-address').value.trim();
+        const app_password = body.querySelector('#email-password').value.trim();
 
+        if (!address && !app_password) {
+            btn.textContent = 'No credentials';
+            btn.className = 'am-action-btn error';
+            setTimeout(() => { btn.textContent = 'Test'; btn.className = 'am-action-btn'; }, 3000);
+            return;
+        }
 
-// ─── Account Editor View ────────────────────────────────────────────────────
+        btn.disabled = true;
+        btn.textContent = 'Testing...';
+        btn.className = 'am-action-btn';
 
-function renderAccountEditor(container, scope, acct) {
-  _editingScope = scope;
-  const s = acct || {};
+        try {
+            const payload = {};
+            if (address) payload.address = address;
+            if (app_password) payload.app_password = app_password;
+            payload.imap_server = body.querySelector('#email-imap').value.trim() || 'imap.gmail.com';
+            payload.imap_port = parseInt(body.querySelector('#email-imap-port').value) || 993;
 
-  container.innerHTML = `
-    <div class="email-form">
-      <div class="email-row" style="align-items:center;gap:12px">
-        <button type="button" class="email-back-btn" id="email-back">\u2190 Back</button>
-        <div class="email-editor-title">${scope}</div>
-      </div>
+            const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}/test`, {
+                method: 'POST',
+                headers: helpers.csrfHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
 
-      <div class="email-group">
-        <label for="email-address">Email Address</label>
-        <input type="email" id="email-address" value="${s.address || ''}" placeholder="you@example.com">
-      </div>
+            if (data.success) {
+                btn.textContent = `\u2713 Connected (${data.message_count} msgs)`;
+                btn.className = 'am-action-btn success';
+                helpers.showResult(true, `Connected to ${data.server || 'server'} \u2014 ${data.message_count} messages in inbox`);
+            } else {
+                btn.textContent = '\u2717 Failed';
+                btn.className = 'am-action-btn error';
+                helpers.showResult(false, data.error || 'Connection failed', data.detail);
+            }
+        } catch (e) {
+            btn.textContent = '\u2717 Error';
+            btn.className = 'am-action-btn error';
+            helpers.showResult(false, `Request failed: ${e.message}`);
+        }
 
-      <div class="email-group">
-        <label for="email-password">App Password</label>
-        <div class="email-row">
-          <input type="password" id="email-password" placeholder="${acct ? 'Leave blank to keep existing...' : 'Enter app password'}">
-          <span class="email-pw-status ${acct ? 'stored' : 'missing'}" id="email-pw-status">${acct ? '\u2713 Stored' : 'Not set'}</span>
-        </div>
-        <div class="email-hint">
-          For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--accent-blue)">App Password</a> (2FA required).<br>
-          For self-hosted (Dovecot etc.), use the account password. Encrypted on disk.
-        </div>
-      </div>
-
-      <div class="email-servers">
-        <div class="email-servers-title">Server Settings</div>
-        <div class="email-group">
-          <label for="email-imap">IMAP Server</label>
-          <div class="email-row">
-            <input type="text" id="email-imap" value="${s.imap_server || 'imap.gmail.com'}" placeholder="imap.gmail.com">
-            <input type="number" id="email-imap-port" value="${s.imap_port || 993}" placeholder="993" style="max-width:80px" min="1" max="65535">
-          </div>
-        </div>
-        <div class="email-group" style="margin-top:12px">
-          <label for="email-smtp">SMTP Server</label>
-          <div class="email-row">
-            <input type="text" id="email-smtp" value="${s.smtp_server || 'smtp.gmail.com'}" placeholder="smtp.gmail.com">
-            <input type="number" id="email-smtp-port" value="${s.smtp_port || 465}" placeholder="465" style="max-width:80px" min="1" max="65535">
-          </div>
-        </div>
-        <div class="email-hint" style="margin-top:8px">
-          Gmail defaults shown. Change for other providers (e.g. mail.yourdomain.com).
-        </div>
-      </div>
-
-      <div class="email-row" style="gap:12px">
-        <button type="button" class="email-test-btn" id="email-test-btn">Test</button>
-        ${acct ? '<button type="button" class="email-clear-btn" id="email-delete-btn">Delete</button>' : ''}
-      </div>
-    </div>
-  `;
-
-  container.querySelector('#email-back').addEventListener('click', () => renderAccountList(container));
-  container.querySelector('#email-test-btn').addEventListener('click', () => testAccount(container, scope));
-  container.querySelector('#email-delete-btn')?.addEventListener('click', () => deleteAccount(container, scope));
-}
-
-
-async function testAccount(container, scope) {
-  const btn = container.querySelector('#email-test-btn');
-  const address = container.querySelector('#email-address')?.value?.trim() || '';
-  const app_password = container.querySelector('#email-password')?.value?.trim() || '';
-  const imap_server = container.querySelector('#email-imap')?.value?.trim() || '';
-  const imap_port = parseInt(container.querySelector('#email-imap-port')?.value) || 993;
-
-  if (!address && !app_password) {
-    btn.textContent = 'No credentials';
-    btn.className = 'email-test-btn error';
-    setTimeout(() => { btn.textContent = 'Test'; btn.className = 'email-test-btn'; }, 3000);
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'Testing...';
-  btn.className = 'email-test-btn';
-
-  try {
-    const payload = {};
-    if (address) payload.address = address;
-    if (app_password) payload.app_password = app_password;
-    if (imap_server) payload.imap_server = imap_server;
-    payload.imap_port = imap_port;
-
-    const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}/test`, {
-      method: 'POST',
-      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload)
+        btn.disabled = false;
+        setTimeout(() => { btn.textContent = 'Test'; btn.className = 'am-action-btn'; }, 5000);
     });
-    const data = await res.json();
-
-    // Clear any previous result
-    container.querySelector('#email-test-result')?.remove();
-
-    if (data.success) {
-      btn.textContent = `\u2713 Connected (${data.message_count} msgs)`;
-      btn.className = 'email-test-btn success';
-      showTestResult(container, true, `Connected to ${data.server || 'server'} — ${data.message_count} messages in inbox`);
-    } else {
-      btn.textContent = '\u2717 Failed';
-      btn.className = 'email-test-btn error';
-      showTestResult(container, false, data.error || 'Connection failed', data.detail);
-    }
-  } catch (e) {
-    container.querySelector('#email-test-result')?.remove();
-    btn.textContent = '\u2717 Error';
-    btn.className = 'email-test-btn error';
-    showTestResult(container, false, `Request failed: ${e.message}`);
-  }
-
-  btn.disabled = false;
-  setTimeout(() => { btn.textContent = 'Test'; btn.className = 'email-test-btn'; }, 5000);
-}
-
-
-function showTestResult(container, success, message, detail) {
-  container.querySelector('#email-test-result')?.remove();
-  const div = document.createElement('div');
-  div.id = 'email-test-result';
-  div.className = `email-test-result ${success ? 'success' : 'error'}`;
-  div.innerHTML = `<div class="email-test-msg">${message}</div>${detail ? `<div class="email-test-detail">${detail}</div>` : ''}`;
-  // Insert after the button row
-  const btnRow = container.querySelector('#email-test-btn')?.closest('.email-row');
-  if (btnRow) btnRow.after(div);
-  else container.querySelector('.email-form')?.appendChild(div);
-}
-
-
-async function deleteAccount(container, scope) {
-  if (!confirm(`Delete email account "${scope}"? This cannot be undone.`)) return;
-
-  try {
-    const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}`, {
-      method: 'DELETE',
-      headers: csrfHeaders()
-    });
-    if (res.ok) {
-      await loadAccounts();
-      renderAccountList(container);
-    } else {
-      const data = await res.json();
-      alert(data.detail || 'Delete failed');
-    }
-  } catch (e) {
-    console.error('Failed to delete email account:', e);
-    alert('Delete failed: ' + e.message);
-  }
-}
-
-
-// ─── Plugin Registration ────────────────────────────────────────────────────
-
-function renderForm(container, settings) {
-  renderAccountList(container);
-}
-
-
-async function saveSettings(settings) {
-  if (!settings || !settings.scope) return { success: true };
-  const { scope, ...payload } = settings;
-
-  const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}`, {
-    method: 'PUT',
-    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!data.success) throw new Error(data.detail || 'Save failed');
-
-  // Update password status badge
-  if (_container) {
-    const status = _container.querySelector('#email-pw-status');
-    if (status) { status.textContent = '\u2713 Stored'; status.className = 'email-pw-status stored'; }
-  }
-  await loadAccounts();
-  return data;
-}
-
-
-function getFormSettings(container) {
-  if (!_editingScope) return null;
-  const address = container.querySelector('#email-address')?.value?.trim() || '';
-  if (!address) return null;
-
-  const payload = {
-    scope: _editingScope,
-    address,
-    imap_server: container.querySelector('#email-imap')?.value?.trim() || 'imap.gmail.com',
-    smtp_server: container.querySelector('#email-smtp')?.value?.trim() || 'smtp.gmail.com',
-    imap_port: parseInt(container.querySelector('#email-imap-port')?.value) || 993,
-    smtp_port: parseInt(container.querySelector('#email-smtp-port')?.value) || 465
-  };
-  const pw = container.querySelector('#email-password')?.value?.trim();
-  if (pw) payload.app_password = pw;
-  return payload;
 }
 
 
 export default {
-  name: 'email',
+    name: 'email',
 
-  init(container) {
-    injectStyles();
+    init(container) {
+        registerPluginSettings({
+            id: 'email',
+            name: 'Email',
+            icon: '\uD83D\uDCE7',
+            helpText: 'Configure email accounts for each persona/scope. Each chat can select which email account to use via the sidebar. Supports Gmail (app passwords), Dovecot, and any IMAP/SMTP server.',
+            render: (c) => manager.renderList(c),
+            load: async () => { await manager.loadItems(); return {}; },
+            save: async () => ({ success: true }),
+            getSettings: () => ({})
+        });
+    },
 
-    registerPluginSettings({
-      id: 'email',
-      name: 'Email',
-      icon: '\uD83D\uDCE7',
-      helpText: 'Configure email accounts for each persona/scope. Each chat can select which email account to use via the sidebar. Supports Gmail (app passwords), Dovecot, and any IMAP/SMTP server.',
-      render: renderForm,
-      load: async () => {
-        await loadAccounts();
-        return {};
-      },
-      save: saveSettings,
-      getSettings: getFormSettings
-    });
-
-    console.log('\u2714 Email settings registered');
-  },
-
-  destroy() {
-    _container = null;
-    _accounts = [];
-  }
+    destroy() {}
 };

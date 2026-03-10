@@ -50,30 +50,14 @@ def start_auth(request=None, query=None, settings=None, **_):
 
     q = query or {}
     scope = q.get('scope', 'default')
-    s = settings or {}
 
-    # Sync plugin manifest settings → credentials_manager for this scope
-    # This bridges the simple "Settings page" UX with the multi-account backend
-    client_id = s.get('GCAL_CLIENT_ID', '').strip()
-    client_secret = s.get('GCAL_CLIENT_SECRET', '').strip()
-    calendar_id = s.get('GCAL_CALENDAR_ID', 'primary').strip()
-
-    if not client_id:
-        # Fall back to credentials_manager if plugin settings empty
-        acct = credentials.get_gcal_account(scope)
-        client_id = acct.get('client_id', '')
-        client_secret = client_secret or acct.get('client_secret', '')
-        calendar_id = calendar_id or acct.get('calendar_id', 'primary')
+    # Read credentials from per-scope account (saved via Settings editor)
+    acct = credentials.get_gcal_account(scope)
+    client_id = acct.get('client_id', '')
+    client_secret = acct.get('client_secret', '')
 
     if not client_id:
         return {"error": f"Set Google Client ID in Settings > Google Calendar first"}
-
-    # Save to credentials_manager (preserves existing refresh_token)
-    existing = credentials.get_gcal_account(scope)
-    credentials.set_gcal_account(
-        scope, client_id, client_secret or existing.get('client_secret', ''),
-        calendar_id, existing.get('refresh_token', ''), scope
-    )
 
     # Generate CSRF state token that encodes the scope
     state_token = secrets.token_urlsafe(32)
