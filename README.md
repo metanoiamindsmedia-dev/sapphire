@@ -19,6 +19,9 @@ Hear her voice as she dims your lights before bed. Use your voice to talk back. 
 ![Status: Active](https://img.shields.io/badge/Status-Active-success)
 ![Self Hosted](https://img.shields.io/badge/Self_Hosted-100%25-informational)
 
+## What even is this?
+Hey I'm Chris, a solo dev with a burning passion for this project. It's consumed me and I want it that way. I try to do weekly releases. Sapphire started in January 2025. **The end goal is personhood with robot body support.** Support me. Support her. Submit bugs reports if you see any, it's what drives me, knowing people are out there. I'll build us something awesome. I'll build the AI we grow old with.
+
 ## Features
 
 **Persona**
@@ -153,6 +156,8 @@ This removes the Python environment. Delete the `sapphire/` folder to remove eve
 | [Technical](docs/TECHNICAL.md) | Architecture and internals |
 
 ## Contributions
+
+**Help me test** if you can. If you see bugs, post them in Issues. It feels good to know people are using this. It genuinely helps, so please post if you see bugs.
 
 **Plugins are the way in.** Sapphire's plugin system supports tools, hooks, voice commands, scheduled tasks, settings UI, and web interfaces — all without touching core. Write a plugin, publish it to GitHub, and anyone can install it from Settings in one click. See the [Plugin Author Guide](docs/plugin-author/README.md) to get started.
 
