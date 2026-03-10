@@ -7,11 +7,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Always blocked — dangerous operations regardless of mode
+# Always blocked in strict + moderate — dangerous operations
 BLOCKED_IMPORTS = {
-    'subprocess', 'shutil', 'ctypes', 'multiprocessing',
+    'shutil', 'ctypes', 'multiprocessing',
     'socket', 'signal', 'importlib',
 }
+
+# Blocked in strict only — moderate unlocks these
+STRICT_BLOCKED_IMPORTS = {'subprocess'}
 
 BLOCKED_CALLS = {
     'eval', 'exec', '__import__', 'compile',
@@ -67,12 +70,13 @@ def validate_code(code, strictness='strict'):
 
     Args:
         code: Python source string
-        strictness: 'strict' (allowlist), 'moderate' (blocklist), or 'trust' (syntax only)
+        strictness: 'strict' (allowlist), 'moderate' (blocklist + subprocess),
+                    or 'system_killer' (syntax only — no restrictions)
 
     Returns:
         (ok: bool, error_msg: str)
     """
-    if strictness == 'trust':
+    if strictness == 'system_killer':
         try:
             ast.parse(code)
             return True, ""
@@ -86,6 +90,8 @@ def validate_code(code, strictness='strict'):
 
     blocked_imports = BLOCKED_IMPORTS
     blocked_attrs = BLOCKED_ATTRS
+    if strictness == 'strict':
+        blocked_imports = blocked_imports | STRICT_BLOCKED_IMPORTS
     if is_managed():
         blocked_imports = blocked_imports | MANAGED_BLOCKED_IMPORTS
         blocked_attrs = blocked_attrs | MANAGED_BLOCKED_ATTRS

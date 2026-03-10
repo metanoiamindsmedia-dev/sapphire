@@ -63,6 +63,23 @@ export default {
             chatSelect.addEventListener('chat-list-ready', () => loadSidebar());
         }
 
+        // Refresh toolset dropdown count when tools change (e.g. tool_load)
+        eventBus.on(eventBus.Events.TOOLSET_CHANGED, async () => {
+            await refreshInitData();
+            const container = document.getElementById('view-chat');
+            const toolsetSel = container?.querySelector('#sb-toolset');
+            if (!toolsetSel) return;
+            const currentVal = toolsetSel.value;
+            const init = await getInitData();
+            if (init?.toolsets?.list) {
+                toolsetSel.innerHTML = init.toolsets.list
+                    .filter(t => t.type !== 'module')
+                    .map(t => `<option value="${t.name}">${t.name} (${t.function_count})</option>`)
+                    .join('');
+                toolsetSel.value = currentVal;
+            }
+        });
+
         // Refresh voice dropdown when TTS provider changes
         eventBus.on('settings_changed', (data) => {
             if (data?.key === 'TTS_PROVIDER') refreshVoiceDropdown();

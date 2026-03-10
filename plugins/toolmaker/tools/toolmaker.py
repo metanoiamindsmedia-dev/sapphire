@@ -38,7 +38,11 @@ def _get_validation_level():
         return 'strict'
     try:
         from core.plugin_loader import plugin_loader
-        return plugin_loader.get_plugin_settings('toolmaker').get('validation', 'strict')
+        level = plugin_loader.get_plugin_settings('toolmaker').get('validation', 'strict')
+        # Migrate legacy "trust" → "system_killer"
+        if level == 'trust':
+            level = 'system_killer'
+        return level
     except Exception:
         return 'strict'
 
@@ -231,6 +235,11 @@ def _generate_manifest(name, module, code):
             "tools": [f"tools/{name}.py"]
         }
     }
+
+    # Pull emoji from module if defined
+    emoji = getattr(module, 'EMOJI', None)
+    if emoji and isinstance(emoji, str):
+        manifest["icon"] = emoji
 
     # Convert SETTINGS dict to manifest schema
     settings_dict = getattr(module, 'SETTINGS', None)
