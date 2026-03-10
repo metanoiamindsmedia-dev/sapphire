@@ -19,7 +19,7 @@
           {"label": "Moderate — subprocess + any non-dangerous import", "value": "moderate"},
           {"label": "System Killer — no restrictions, syntax check only", "value": "system_killer"}
         ],
-        "help": "How strictly to validate AI-written tool code. Strict allows 40+ safe modules including requests, json, datetime. Moderate adds subprocess and any import not explicitly dangerous.",
+        "help": "How strictly to validate AI-written tool code. Strict allows ~60 safe modules including requests, json, numpy, openai, anthropic, PIL, datetime. Moderate adds subprocess.",
         "confirm": {
           "values": ["moderate", "system_killer"],
           "title": "Reduced Validation",

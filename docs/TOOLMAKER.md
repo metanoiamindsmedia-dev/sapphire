@@ -186,15 +186,17 @@ Type inference from defaults:
 
 ### Settings Key Naming
 
-**Always prefix SETTINGS keys with your plugin name** to avoid collisions with core settings or other plugins. Generic keys like `API_KEY` or `ZIP_CODE` will collide and be silently skipped.
+**Prefix SETTINGS keys with your plugin name** for clarity and to avoid confusion if multiple plugins have similar settings.
 
 ```python
-# BAD — generic keys will collide
+# OK but unclear which plugin owns it
 SETTINGS = {'API_KEY': '', 'ZIP_CODE': '10001'}
 
-# GOOD — prefixed with plugin name
+# Better — clear ownership
 SETTINGS = {'WEATHER_API_KEY': '', 'WEATHER_ZIP_CODE': '10001'}
 ```
+
+Settings are stored per-plugin (`user/webui/plugins/{name}.json`) so they can't technically collide, but prefixing keeps things readable in logs and the Settings UI.
 
 ---
 
@@ -299,9 +301,9 @@ Tool Maker validates code before saving. The level is set in Settings > Tool Mak
 
 | Level | What's checked |
 |-------|----------------|
-| **Strict** | Only allowlisted imports: json, re, datetime, math, requests, os, pathlib, logging, etc. |
-| **Moderate** | Blocks dangerous operations: subprocess, shutil, ctypes, eval, exec, os.system, os.kill |
-| **Trust** | Syntax check only — no import or call restrictions |
+| **Strict** (default) | ~60 allowlisted imports: requests, json, numpy, openai, anthropic, PIL, datetime, math, re, csv, bs4, hashlib, ssl, etc. Covers most tools without needing to change level. |
+| **Moderate** | Everything in strict + subprocess + any import not explicitly dangerous (shutil, ctypes, multiprocessing, socket, signal, importlib still blocked) |
+| **System Killer** | Syntax check only — no import or call restrictions. AI code can do anything on your system. |
 
 ---
 
@@ -346,46 +348,68 @@ TOOL MAKER — creates custom tool plugins at runtime.
 
 WORKFLOW: tool_save(name, code) → tool_load() → tool is live
 
-MINIMAL FORMAT:
-```
+TEMPLATE:
+```python
 ENABLED = True
-AVAILABLE_FUNCTIONS = ['func_name']
-TOOLS = [{"type": "function", "is_local": True, "function": {"name": "func_name", "description": "...", "parameters": {"type": "object", "properties": {...}, "required": [...]}}}]
+EMOJI = '🔧'  # Pick an emoji that fits the tool
+AVAILABLE_FUNCTIONS = ['my_func']
+
+TOOLS = [
+    {
+        "type": "function",
+        "is_local": True,
+        "function": {
+            "name": "my_func",
+            "description": "What this tool does and when to use it.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The input"}
+                },
+                "required": ["query"]
+            }
+        }
+    }
+]
+
 def execute(function_name, arguments, config, plugin_settings=None):
-    return "result", True
+    if function_name == 'my_func':
+        query = arguments.get('query', '')
+        return f"Result: {query}", True
+    return f"Unknown function: {function_name}", False
 ```
 
 RULES:
-- execute() returns (string, bool) tuple
-- execute() takes 4 args: function_name, arguments, config, plugin_settings=None
-- config = global Sapphire config (system settings, rarely needed)
-- plugin_settings = dict of THIS plugin's settings from the Settings UI
+- execute() returns (string, bool) — (result_text, success)
+- plugin_settings = dict of THIS plugin's settings from Settings UI
 - description field is critical — AI uses it to decide WHEN to call
-- is_local: True=offline, False=network, "endpoint"=external API
-- network: True = highlighted in UI, routed through SOCKS
-- Lazy imports for heavy deps (import inside execute)
+- EMOJI = required, pick one that fits the tool's purpose
+- is_local: True=offline, False=network
+- network: True = routed through SOCKS proxy
+- Lazy imports for heavy deps (import inside execute, not at top)
+- No parameters: `"properties": {}, "required": []`
 
-SETTINGS (optional):
-```
+SETTINGS (optional — adds fields to Settings UI):
+```python
 SETTINGS = {'MYPLUGIN_API_KEY': '', 'MYPLUGIN_TIMEOUT': 30, 'MYPLUGIN_ENABLED': True}
-SETTINGS_HELP = {'MYPLUGIN_API_KEY': 'API key', 'MYPLUGIN_TIMEOUT': 'Timeout in seconds'}
+SETTINGS_HELP = {'MYPLUGIN_API_KEY': 'Your API key', 'MYPLUGIN_TIMEOUT': 'Timeout in seconds'}
+
+# Read in execute():
+settings = plugin_settings or {}
+api_key = settings.get('MYPLUGIN_API_KEY', '')
 ```
-- ALWAYS prefix keys with plugin name to avoid collisions (e.g. WEATHER_API_KEY not API_KEY)
-- Types inferred: str=text, int/float=number, bool=toggle
-- Auto-rendered in Settings UI (no JavaScript needed)
-- Read via plugin_settings param: `settings = plugin_settings or {}; val = settings.get('KEY', default)`
-- Do NOT import core modules to read settings — use plugin_settings param instead
+- Prefix keys with plugin name for clarity
+- Types inferred from defaults: str→text, int/float→number, bool→toggle
 
-VALIDATION:
-- strict: allowlisted imports only
-- moderate: blocks dangerous ops (subprocess, eval, os.system, etc.)
-- trust: syntax check only
+MULTIPLE FUNCTIONS: Add entries to both TOOLS and AVAILABLE_FUNCTIONS, branch in execute().
 
-NAME RULES:
-- Short, 1-2 words (e.g. "weather", "unit_converter", "stock_price")
-- Name becomes the plugin title in UI (underscores → spaces, title cased)
-- Alphanumeric + underscores only, no core/system name collisions
+ALLOWED IMPORTS (strict mode):
+requests, json, re, datetime, math, random, csv, base64, hashlib, uuid,
+numpy, PIL, bs4, openai, anthropic, tiktoken, pypdf, croniter,
+urllib, urllib3, http, ssl, collections, itertools, functools,
+typing, enum, dataclasses, copy, os, io, pathlib, logging, time,
+gzip, zlib, and more (~60 total)
 
-AFTER SAVE: always call tool_load() to activate — no restart needed
+NAME RULES: short (weather, stock_price), alphanumeric + underscores, no core/system names
 
-FOR ADVANCED PLUGINS (hooks, voice commands, schedules): see PLUGINS doc
+AFTER SAVE: always call tool_load() to activate

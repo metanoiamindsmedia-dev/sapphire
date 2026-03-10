@@ -52,39 +52,6 @@ AVAILABLE_FUNCTIONS = ['tool_load', 'tool_read', 'tool_save']
 # Validation uses shared code_validator (single source of truth for blocklists/allowlists)
 from core.code_validator import validate_code
 
-# Minimal tool format — embedded in tool_save description so AI always has it
-_TOOL_FORMAT = """ENABLED = True
-AVAILABLE_FUNCTIONS = ['my_func']
-TOOLS = [
-    {
-        "type": "function",
-        "is_local": True,
-        "function": {
-            "name": "my_func",
-            "description": "What this tool does and when to use it.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "The input"}
-                },
-                "required": ["query"]
-            }
-        }
-    }
-]
-
-# Optional: settings editable in Settings UI (prefix keys with plugin name!)
-# SETTINGS = {'MYFUNC_API_KEY': ''}
-# SETTINGS_HELP = {'MYFUNC_API_KEY': 'Your API key'}
-
-def execute(function_name, arguments, config, plugin_settings=None):
-    # config = global Sapphire config (system settings)
-    # plugin_settings = dict of THIS plugin's settings from the Settings UI
-    if function_name == 'my_func':
-        query = arguments.get('query', '')
-        # Read plugin settings: plugin_settings.get('MYFUNC_API_KEY', '')
-        return f"Result: {query}", True
-    return f"Unknown function: {function_name}", False"""
 
 TOOLS = [
     {
@@ -123,7 +90,7 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "tool_save",
-            "description": f"Create or update a custom tool plugin. Validates code (AST + smoke test) before saving as a plugin. Overwrites if exists. After saving, call tool_load to activate live.\n\nFor settings, multi-function tools, and advanced features: call search_help_docs(\"TOOLMAKER\")\n\nMinimal format:\n{_TOOL_FORMAT}",
+            "description": "Create or update a custom tool plugin. Validates code before saving. After saving, call tool_load to activate. IMPORTANT: call search_help_docs(\"TOOLMAKER\") first for the required format and template.",
             "parameters": {
                 "type": "object",
                 "properties": {
