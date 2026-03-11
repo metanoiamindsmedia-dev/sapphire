@@ -452,6 +452,28 @@ class ConversationHistory:
             if context_limit > 0:
                 total_tokens -= count_tokens(str(removed.get("content", "")))
 
+        # Clean up orphaned tool_use blocks.
+        # If server shuts down mid-tool-call, an assistant message with tool_calls
+        # gets saved but the matching tool_result never arrives. Claude (and others)
+        # reject the conversation. Strip tool_calls from any assistant message
+        # whose tool IDs don't have matching tool results immediately after.
+        for i, msg in enumerate(msgs):
+            if msg.get("role") != "assistant" or not msg.get("tool_calls"):
+                continue
+            # Collect tool_result IDs in the messages immediately following
+            result_ids = set()
+            for j in range(i + 1, len(msgs)):
+                if msgs[j].get("role") == "tool":
+                    result_ids.add(msgs[j].get("tool_call_id", ""))
+                else:
+                    break
+            # Check if every tool_call has a matching result
+            call_ids = {tc.get("id", "") for tc in msg["tool_calls"]}
+            if not call_ids.issubset(result_ids):
+                # Orphaned — strip tool_calls so it's just a text message
+                del msg["tool_calls"]
+                msg.pop("thinking_raw", None)
+
         return msgs
 
     def clear_thinking_raw(self):
