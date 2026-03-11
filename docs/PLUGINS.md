@@ -1,5 +1,8 @@
 # Plugins
 
+<img width="1549" height="449" alt="image" src="https://github.com/user-attachments/assets/a4e4c033-08a4-499e-8453-183969039900" />
+
+
 This documentation has been reorganized. See the **[Plugin Author Guide](plugin-author/README.md)**.
 
 | Guide | What's Inside |
