@@ -1,3 +1,7 @@
+# 2.2.6 - Bug fix + calendar
+- Fixed timezone offset issues in heartbeat (emergency patch)
+- Added Google calendar - not easy but easy as we get
+- Chat > Settings sidebar > Mind dropdown has unified structure, ready to expand
 # 2.2.5 - Toolmaker cleanup
 - It was janky
 - Single tool settings now
