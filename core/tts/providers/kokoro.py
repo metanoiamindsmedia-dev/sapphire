@@ -1,5 +1,6 @@
 """Kokoro TTS provider — local HTTP server on port 5012."""
 import logging
+import time
 from typing import Optional
 
 import requests
@@ -24,24 +25,35 @@ class KokoroTTSProvider(BaseTTSProvider):
         logger.info(f"Kokoro TTS provider: {self.primary_server}")
 
     def generate(self, text: str, voice: str, speed: float, **kwargs) -> Optional[bytes]:
-        """POST to Kokoro server, return OGG bytes."""
-        try:
-            server_url = self._get_server_url()
-            clamped_speed = max(self.SPEED_MIN, min(self.SPEED_MAX, speed))
-            if clamped_speed != speed:
-                logger.warning(f"Kokoro: clamped speed {speed} -> {clamped_speed} (range {self.SPEED_MIN}-{self.SPEED_MAX})")
-            response = requests.post(f"{server_url}/tts", json={
-                'text': text.replace("*", ""),
-                'voice': voice,
-                'speed': clamped_speed,
-            }, timeout=60)
-            if response.status_code != 200:
+        """POST to Kokoro server, return OGG bytes. Retries on transient failures."""
+        clamped_speed = max(self.SPEED_MIN, min(self.SPEED_MAX, speed))
+        if clamped_speed != speed:
+            logger.warning(f"Kokoro: clamped speed {speed} -> {clamped_speed} (range {self.SPEED_MIN}-{self.SPEED_MAX})")
+
+        delays = [0.5, 1.0, 2.0]  # 3 retries, 3.5s total backoff
+        last_error = None
+
+        for attempt in range(1 + len(delays)):
+            try:
+                server_url = self._get_server_url()
+                response = requests.post(f"{server_url}/tts", json={
+                    'text': text.replace("*", ""),
+                    'voice': voice,
+                    'speed': clamped_speed,
+                }, timeout=60)
+                if response.status_code == 200:
+                    return response.content
                 logger.error(f"Kokoro server error: {response.status_code}")
-                return None
-            return response.content
-        except Exception as e:
-            logger.error(f"Kokoro generate failed: {e}")
-            return None
+                last_error = f"HTTP {response.status_code}"
+            except Exception as e:
+                last_error = e
+
+            if attempt < len(delays):
+                logger.warning(f"Kokoro TTS attempt {attempt + 1} failed, retrying in {delays[attempt]}s...")
+                time.sleep(delays[attempt])
+
+        logger.error(f"Kokoro generate failed after {1 + len(delays)} attempts: {last_error}")
+        return None
 
     def is_available(self) -> bool:
         """Check if Kokoro server is reachable."""
