@@ -1,15 +1,17 @@
 # Sapphire Consumer Docker Image
 # Self-contained: Kokoro TTS + Faster Whisper STT + Nomic Embeddings (all CPU)
-# Web UI only — no wakeword, no audio passthrough
+# GPU: docker build --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-runtime-ubuntu22.04 -t sapphire:gpu .
 
 # ============================================================
 # Stage 1: Base + system deps
 # ============================================================
-FROM python:3.11-slim AS base
+ARG BASE_IMAGE=python:3.11
+FROM ${BASE_IMAGE} AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     libportaudio2 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -81,8 +83,8 @@ ENV WEB_UI_PORT=8073
 # Copy application code
 COPY . /app
 
-# Create user data directory (will be overridden by volume mount)
-RUN mkdir -p /app/user && chown -R sapphire:sapphire /app
+# Create mount point directories (bind mounts override these)
+RUN mkdir -p /app/user /app/user_backups && chown -R sapphire:sapphire /app
 
 # Switch to non-root
 USER sapphire
@@ -90,6 +92,6 @@ USER sapphire
 EXPOSE 8073
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('https://localhost:8073/api/health', context=__import__('ssl').create_default_context() if False else __import__('ssl')._create_unverified_context())" || exit 1
+    CMD curl -fsk https://localhost:8073/api/health || exit 1
 
 CMD ["python", "main.py"]

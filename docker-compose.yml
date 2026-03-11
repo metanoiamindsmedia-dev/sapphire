@@ -5,6 +5,7 @@
 #   docker compose down      (stop)
 #
 # First run: open https://localhost:8073 and complete setup wizard
+# Data is stored in ./sapphire-data/ next to this file
 
 services:
   sapphire:
@@ -14,10 +15,12 @@ services:
     ports:
       - "8073:8073"
     volumes:
-      # User data — persists across updates
-      - sapphire-data:/app/user
+      # User data — chats, memories, settings, plugins (visible on your machine)
+      - ./sapphire-data:/app/user
+      # Backups — separate from user data for safety
+      - ./sapphire-backups:/app/user_backups
       # Credentials — API keys, secrets
-      - sapphire-config:/home/sapphire/.config/sapphire
+      - ./sapphire-config:/home/sapphire/.config/sapphire
     environment:
       # Timezone — find yours: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       TZ: "America/New_York"
@@ -35,7 +38,3 @@ services:
     extra_hosts:
       # Allows container to reach host services (LM Studio, etc.)
       - "host.docker.internal:host-gateway"
-
-volumes:
-  sapphire-data:
-  sapphire-config:
