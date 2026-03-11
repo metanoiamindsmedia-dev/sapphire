@@ -16,7 +16,7 @@ export async function checkPackages() {
  */
 export async function getWizardStep() {
   const data = await fetchWithTimeout('/api/setup/wizard-step');
-  return { step: data.step || 0, managed: data.managed || false };
+  return { step: data.step || 0, managed: data.managed || false, docker: data.docker || false };
 }
 
 /**

@@ -236,6 +236,9 @@ class SettingsManager:
     def is_managed(self):
         return bool(os.environ.get('SAPPHIRE_MANAGED'))
 
+    def is_docker(self):
+        return bool(os.environ.get('SAPPHIRE_DOCKER'))
+
     def is_unrestricted(self):
         return bool(os.environ.get('SAPPHIRE_UNRESTRICTED'))
 

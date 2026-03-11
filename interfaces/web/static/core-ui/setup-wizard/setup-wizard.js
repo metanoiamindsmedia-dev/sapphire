@@ -9,6 +9,8 @@ import identityTab from './tabs/identity.js';
 
 const ALL_TABS = [voiceTab, audioTab, llmTab, identityTab];
 const ALL_STEP_NAMES = ['Voice', 'Audio', 'AI Brain', 'Identity'];
+const DOCKER_TABS = [voiceTab, llmTab, identityTab];
+const DOCKER_STEP_NAMES = ['Voice', 'AI Brain', 'Identity'];
 const MANAGED_TABS = [llmTab, identityTab];
 const MANAGED_STEP_NAMES = ['AI Brain', 'Identity'];
 
@@ -43,10 +45,15 @@ class SetupWizard {
       this.completedStep = wizardState.step;
 
       // Managed mode: skip Voice + Audio tabs (router handles those)
+      // Docker mode: skip Audio tab, hide wakeword in Voice tab
       this.managed = wizardState.managed || false;
+      this.docker = wizardState.docker || false;
       if (this.managed) {
         TABS = MANAGED_TABS;
         STEP_NAMES = MANAGED_STEP_NAMES;
+      } else if (this.docker) {
+        TABS = DOCKER_TABS;
+        STEP_NAMES = DOCKER_STEP_NAMES;
       } else {
         TABS = ALL_TABS;
         STEP_NAMES = ALL_STEP_NAMES;
@@ -142,7 +149,7 @@ class SetupWizard {
     if (!container) return;
 
     // Render tab content
-    const html = await tab.render(this.settings, { managed: this.managed });
+    const html = await tab.render(this.settings, { managed: this.managed, docker: this.docker });
     container.innerHTML = html;
 
     // Attach tab-specific listeners

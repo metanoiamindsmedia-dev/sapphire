@@ -295,8 +295,12 @@ class VoiceChatSystem:
             if provider_name == 'sapphire_router':
                 self.whisper_recorder = NullAudioRecorder()
             elif isinstance(self.whisper_recorder, NullAudioRecorder):
-                from core.stt.recorder import AudioRecorder as RealAudioRecorder
-                self.whisper_recorder = RealAudioRecorder()
+                try:
+                    from core.stt.recorder import AudioRecorder as RealAudioRecorder
+                    self.whisper_recorder = RealAudioRecorder()
+                except Exception as mic_err:
+                    logger.warning(f"No mic available — STT will work via web UI only: {mic_err}")
+                    self.whisper_recorder = NullAudioRecorder()
             logger.info(f"STT provider switched to {provider_name}")
             return True
         except Exception as e:
@@ -449,8 +453,13 @@ class VoiceChatSystem:
                     from core.stt.stt_null import NullAudioRecorder
                     self.whisper_recorder = NullAudioRecorder()
                 else:
-                    from core.stt.recorder import AudioRecorder as RealAudioRecorder
-                    self.whisper_recorder = RealAudioRecorder()
+                    try:
+                        from core.stt.recorder import AudioRecorder as RealAudioRecorder
+                        self.whisper_recorder = RealAudioRecorder()
+                    except Exception as mic_err:
+                        logger.warning(f"No mic available — STT will work via web UI only: {mic_err}")
+                        from core.stt.stt_null import NullAudioRecorder
+                        self.whisper_recorder = NullAudioRecorder()
             except ImportError as e:
                 logger.error(f"STT provider '{provider}' not available: {e}")
                 self.whisper_client = NullWhisperClient()

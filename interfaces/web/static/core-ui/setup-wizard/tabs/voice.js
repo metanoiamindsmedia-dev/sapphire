@@ -65,16 +65,12 @@ export default {
   name: 'Voice',
   icon: '\uD83D\uDDE3\uFE0F',
 
-  async render(settings) {
+  async render(settings, opts = {}) {
     const sttProvider = settings.STT_PROVIDER || 'none';
     const ttsProvider = settings.TTS_PROVIDER || 'none';
     const wakewordEnabled = settings.WAKE_WORD_ENABLED || false;
 
-    return `
-      ${renderProviderCard('\uD83C\uDFA4', 'Speech Recognition', 'Talk to Sapphire using your voice', 'STT_PROVIDER', sttProvider, STT_PROVIDERS)}
-
-      ${renderProviderCard('\uD83D\uDD0A', 'Voice Responses', 'Sapphire speaks back to you', 'TTS_PROVIDER', ttsProvider, TTS_PROVIDERS)}
-
+    const wakewordCard = opts.docker ? '' : `
       <!-- Wake Word -->
       <div class="feature-card ${wakewordEnabled ? 'enabled' : ''}" data-feature="wakeword">
         <div class="feature-card-header">
@@ -92,6 +88,14 @@ export default {
           <span class="spinner">&midcir;</span> Checking OpenWakeWord...
         </div>
       </div>
+    `;
+
+    return `
+      ${renderProviderCard('\uD83C\uDFA4', 'Speech Recognition', 'Talk to Sapphire using your voice', 'STT_PROVIDER', sttProvider, STT_PROVIDERS)}
+
+      ${renderProviderCard('\uD83D\uDD0A', 'Voice Responses', 'Sapphire speaks back to you', 'TTS_PROVIDER', ttsProvider, TTS_PROVIDERS)}
+
+      ${wakewordCard}
     `;
   },
 
