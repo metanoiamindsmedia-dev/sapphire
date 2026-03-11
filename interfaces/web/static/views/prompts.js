@@ -798,7 +798,13 @@ function openImportExport() {
 
     // Export — only pieces used by this prompt
     function buildExport() {
-        const bundle = { name: selected, prompt: selectedData };
+        // Strip computed fields (content is rebuilt from components on import)
+        const prompt = { ...selectedData };
+        if (prompt.type === 'assembled') delete prompt.content;
+        delete prompt.compiled;
+        delete prompt.char_count;
+        delete prompt.token_count;
+        const bundle = { name: selected, prompt };
         if (modal.querySelector('#io-export-pieces').checked) bundle.components = getUsedPieces();
         return bundle;
     }
