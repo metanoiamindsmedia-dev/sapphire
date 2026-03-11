@@ -42,6 +42,7 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
 
     def __init__(self):
         self._last_error = None
+        self._validated = None  # None=unchecked, True/False=cached result
         logger.info("ElevenLabs TTS provider initialized")
 
     @property
@@ -106,14 +107,19 @@ class ElevenLabsTTSProvider(BaseTTSProvider):
             return None
 
     def is_available(self) -> bool:
-        """Validate API key by hitting a lightweight endpoint."""
-        key = self._api_key
-        if not key:
+        """Quick check — uses cached result after first validation."""
+        if not self._api_key:
             return False
+        if self._validated is None:
+            self._validated = self._validate_key()
+        return self._validated
+
+    def _validate_key(self) -> bool:
+        """Validate API key by hitting a lightweight endpoint."""
         try:
             with httpx.Client(timeout=10.0) as client:
                 r = client.get("https://api.elevenlabs.io/v1/voices",
-                               headers={'xi-api-key': key}, params={'page_size': 1})
+                               headers={'xi-api-key': self._api_key}, params={'page_size': 1})
                 if r.status_code != 200:
                     err = _parse_error(r)
                     logger.error(f"ElevenLabs availability check failed: {err}")

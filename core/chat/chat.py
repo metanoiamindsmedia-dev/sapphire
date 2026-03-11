@@ -955,9 +955,14 @@ class LLMChat:
             tools = None
             toolset = task_settings.get("toolset")
             if toolset and toolset not in ("none", ""):
-                # Temporarily set scopes for tool execution — reset all to prevent stale state
+                # Temporarily set scopes for tool execution
+                # First reset all to defaults so stale chat state doesn't leak into tasks,
+                # then apply task-specific overrides on top
+                from core.chat.function_manager import reset_scopes
+                reset_scopes()
                 self.function_manager.apply_scopes(task_settings)
                 self.function_manager.set_rag_scope(None)
+                self.function_manager.set_private_chat(False)
                 self.function_manager.update_enabled_functions([toolset])
                 tools = self.function_manager.enabled_tools
                 _scopes = self.function_manager.snapshot_scopes()
