@@ -108,20 +108,20 @@ class PluginLoader:
 
         # Load enabled plugins
         loaded = 0
-        blocked_unsigned = []
+        blocked = []
         for name, info in self._plugins.items():
             if info["enabled"]:
                 if self._load_plugin(name):
                     loaded += 1
-                elif info.get("verify_msg") == "unsigned":
-                    # Unsigned plugin blocked — mark disabled so UI reflects reality
+                else:
+                    # Plugin failed to load (unsigned, tampered, validation fail) — disable it
                     info["enabled"] = False
-                    blocked_unsigned.append(name)
+                    blocked.append(name)
 
-        # Clean up enabled list on disk for blocked unsigned plugins
-        if blocked_unsigned:
-            self._remove_from_enabled_list(blocked_unsigned)
-            logger.info(f"[PLUGINS] Unsigned plugins disabled (sideloading off): {blocked_unsigned}")
+        # Clean up enabled list on disk for blocked plugins
+        if blocked:
+            self._remove_from_enabled_list(blocked)
+            logger.info(f"[PLUGINS] Blocked plugins auto-disabled: {blocked}")
 
         logger.info(f"[PLUGINS] Scan complete: {len(self._plugins)} found, {loaded} loaded")
 
@@ -602,7 +602,10 @@ class PluginLoader:
                     if self._load_plugin(name):
                         logger.info(f"[PLUGINS] Rescan: loaded new plugin '{name}'")
                     else:
-                        logger.warning(f"[PLUGINS] Rescan: plugin '{name}' discovered but failed to load")
+                        # Failed verification — disable so UI reflects reality
+                        self._plugins[name]["enabled"] = False
+                        self._remove_from_enabled_list([name])
+                        logger.warning(f"[PLUGINS] Rescan: plugin '{name}' failed to load, auto-disabled")
 
         # Detect removed plugins (folder deleted while running)
         with self._lock:
