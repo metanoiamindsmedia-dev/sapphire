@@ -119,6 +119,9 @@ async def test_tts(request: Request, _=Depends(require_login), system=Depends(ge
         return {"success": False, "provider": prov_name, "error": "No TTS provider loaded"}
     t0 = time.time()
     try:
+        # Force fresh validation for explicit test (bypass cache)
+        if hasattr(provider, '_validated'):
+            provider._validated = None
         available = await asyncio.to_thread(provider.is_available)
     except Exception as e:
         return {"success": False, "provider": prov_name, "error": str(e)}
