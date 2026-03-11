@@ -906,10 +906,11 @@ async def test_email_connection(request: Request, _=Depends(require_login)):
     if not address or not app_password:
         missing = []
         if not address: missing.append("email address")
-        if not app_password: missing.append("app password")
+        if not app_password: missing.append("password")
         return {"success": False, "error": f"Missing {' and '.join(missing)}"}
 
-    imap_server = imap_server or 'imap.gmail.com'
+    if not imap_server:
+        return {"success": False, "error": "IMAP server address is required"}
     imap_port = int(imap_port) or 993
     target = f"{imap_server}:{imap_port}"
 
@@ -921,7 +922,7 @@ async def test_email_connection(request: Request, _=Depends(require_login)):
         imap.logout()
         return {"success": True, "message_count": msg_count, "server": target}
     except imaplib.IMAP4.error as e:
-        return {"success": False, "error": f"Login failed for {address} — check app password", "detail": str(e), "server": target}
+        return {"success": False, "error": f"Login failed for {address} — check password", "detail": str(e), "server": target}
     except socket.timeout:
         return {"success": False, "error": f"Connection timed out to {target}", "detail": "Server didn't respond within 10s — check server address and port"}
     except ConnectionRefusedError:
@@ -952,17 +953,21 @@ async def set_email_account(scope: str, request: Request, _=Depends(require_logi
     data = await request.json() or {}
     address = data.get('address', '').strip()
     app_password = data.get('app_password', '').strip()
-    imap_server = data.get('imap_server', 'imap.gmail.com').strip()
-    smtp_server = data.get('smtp_server', 'smtp.gmail.com').strip()
+    imap_server = data.get('imap_server', '').strip()
+    smtp_server = data.get('smtp_server', '').strip()
     imap_port = int(data.get('imap_port', 993))
     smtp_port = int(data.get('smtp_port', 465))
 
     if not address:
         raise HTTPException(status_code=400, detail="Email address is required")
 
+    # Don't overwrite an OAuth account with password-based save
+    existing = credentials.get_email_account(scope)
+    if existing.get('auth_type') == 'oauth2':
+        raise HTTPException(status_code=400, detail="This is an OAuth account managed by the O365 plugin. Disconnect it there first.")
+
     # If no new password provided, keep existing
     if not app_password:
-        existing = credentials.get_email_account(scope)
         app_password = existing.get('app_password', '')
 
     if credentials.set_email_account(scope, address, app_password, imap_server, smtp_server, imap_port, smtp_port):
@@ -1004,10 +1009,11 @@ async def test_email_account(scope: str, request: Request, _=Depends(require_log
     if not address or not app_password:
         missing = []
         if not address: missing.append("email address")
-        if not app_password: missing.append("app password")
+        if not app_password: missing.append("password")
         return {"success": False, "error": f"Missing {' and '.join(missing)}"}
 
-    imap_server = imap_server or 'imap.gmail.com'
+    if not imap_server:
+        return {"success": False, "error": "IMAP server address is required"}
     imap_port = int(imap_port) or 993
     target = f"{imap_server}:{imap_port}"
 
@@ -1019,7 +1025,7 @@ async def test_email_account(scope: str, request: Request, _=Depends(require_log
         imap.logout()
         return {"success": True, "message_count": msg_count, "server": target}
     except imaplib.IMAP4.error as e:
-        return {"success": False, "error": f"Login failed for {address} — check app password", "detail": str(e), "server": target}
+        return {"success": False, "error": f"Login failed for {address} — check password", "detail": str(e), "server": target}
     except socket.timeout:
         return {"success": False, "error": f"Connection timed out to {target}", "detail": "Server didn't respond within 10s — check server address and port"}
     except ConnectionRefusedError:

@@ -2,9 +2,11 @@
 """
 Email tool — AI can read inbox and send email to whitelisted contacts.
 Privacy-first: AI never sees email addresses in get_inbox/get_recipients.
-Uses IMAP for reading, SMTP for sending. Gmail app passwords recommended.
+Uses IMAP for reading, SMTP for sending.
+Supports password auth and OAuth2 (XOAUTH2) for O365/Exchange.
 """
 
+import base64
 import imaplib
 import smtplib
 import email
@@ -309,15 +311,104 @@ def _get_current_email_scope():
         return None
 
 def _get_email_creds():
-    """Get email credentials for current scope."""
+    """Get email credentials for current scope. Refreshes OAuth tokens if needed."""
     from core.credentials_manager import credentials
     scope = _get_current_email_scope()
     if scope is None:
         return None
     creds = credentials.get_email_account(scope)
-    if not creds['address'] or not creds['app_password']:
+    if not creds['address']:
+        return None
+    if creds.get('auth_type') == 'oauth2':
+        if not creds.get('oauth_refresh_token'):
+            return None
+        # Refresh token if expired or expiring within 5 minutes
+        if creds.get('oauth_expires_at', 0) < time.time() + 300:
+            creds = _refresh_oauth_token(scope, creds)
+            if not creds:
+                return None
+        return creds
+    # Password auth
+    if not creds.get('app_password'):
         return None
     return creds
+
+
+def _refresh_oauth_token(scope, creds):
+    """Refresh an OAuth2 access token inline. Returns updated creds or None."""
+    import requests as http_requests
+    from core.credentials_manager import credentials
+
+    tenant = creds.get('oauth_tenant_id', 'common')
+    token_url = f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'
+
+    try:
+        resp = http_requests.post(token_url, data={
+            'client_id': creds['oauth_client_id'],
+            'client_secret': creds['oauth_client_secret'],
+            'refresh_token': creds['oauth_refresh_token'],
+            'grant_type': 'refresh_token',
+            'scope': 'https://outlook.office365.com/IMAP.AccessAsUser.All https://outlook.office365.com/SMTP.Send offline_access',
+        }, timeout=15)
+
+        if resp.status_code != 200:
+            logger.error(f"[EMAIL] OAuth token refresh failed: {resp.status_code} {resp.text[:200]}")
+            return None
+
+        tokens = resp.json()
+        access_token = tokens['access_token']
+        expires_at = time.time() + tokens.get('expires_in', 3600)
+        new_refresh = tokens.get('refresh_token', '')
+
+        credentials.update_email_oauth_tokens(scope, access_token, expires_at, new_refresh)
+
+        creds['oauth_access_token'] = access_token
+        creds['oauth_expires_at'] = expires_at
+        if new_refresh:
+            creds['oauth_refresh_token'] = new_refresh
+        logger.info(f"[EMAIL] OAuth token refreshed for scope '{scope}'")
+        return creds
+    except Exception as e:
+        logger.error(f"[EMAIL] OAuth token refresh error: {e}")
+        return None
+
+
+def _build_xoauth2(user, access_token):
+    """Build XOAUTH2 authentication string."""
+    return f"user={user}\x01auth=Bearer {access_token}\x01\x01"
+
+
+def _imap_connect(creds):
+    """Connect and authenticate to IMAP. Handles both password and OAuth2."""
+    imap = imaplib.IMAP4_SSL(creds['imap_server'], int(creds.get('imap_port', 993)))
+    if creds.get('auth_type') == 'oauth2':
+        auth_string = _build_xoauth2(creds['address'], creds['oauth_access_token'])
+        imap.authenticate('XOAUTH2', lambda x: auth_string.encode())
+    else:
+        imap.login(creds['address'], creds['app_password'])
+    return imap
+
+
+def _smtp_connect(creds):
+    """Connect and authenticate to SMTP. Handles both password and OAuth2."""
+    smtp_port = int(creds.get('smtp_port', 465))
+    if smtp_port == 465:
+        smtp = smtplib.SMTP_SSL(creds['smtp_server'], smtp_port)
+    else:
+        smtp = smtplib.SMTP(creds['smtp_server'], smtp_port)
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+
+    if creds.get('auth_type') == 'oauth2':
+        auth_string = _build_xoauth2(creds['address'], creds['oauth_access_token'])
+        encoded = base64.b64encode(auth_string.encode()).decode()
+        code, msg = smtp.docmd('AUTH', f'XOAUTH2 {encoded}')
+        if code not in (235, 250):
+            raise smtplib.SMTPAuthenticationError(code, msg)
+    else:
+        smtp.login(creds['address'], creds['app_password'])
+    return smtp
 
 
 # ─── Tool Implementations ────────────────────────────────────────────────────
@@ -343,8 +434,7 @@ def _get_inbox(count=20, folder="inbox"):
         return "Email not configured. Set up email credentials in Settings → Plugins → Email.", False
 
     try:
-        imap = imaplib.IMAP4_SSL(creds['imap_server'], int(creds.get('imap_port', 993)))
-        imap.login(creds['address'], creds['app_password'])
+        imap = _imap_connect(creds)
 
         # Resolve IMAP folder name (also selects it)
         imap_folder = _resolve_folder(imap, folder)
@@ -477,8 +567,7 @@ def _mark_as_read(index):
     if not creds:
         return
     try:
-        imap = imaplib.IMAP4_SSL(creds['imap_server'], int(creds.get('imap_port', 993)))
-        imap.login(creds['address'], creds['app_password'])
+        imap = _imap_connect(creds)
         imap.select('INBOX')  # read-write
         imap.uid('store', cache["msg_ids"][index - 1], '+FLAGS', '\\Seen')
         imap.logout()
@@ -510,8 +599,7 @@ def _archive_emails(indices):
         return "Email not configured.", False
 
     try:
-        imap = imaplib.IMAP4_SSL(creds['imap_server'], int(creds.get('imap_port', 993)))
-        imap.login(creds['address'], creds['app_password'])
+        imap = _imap_connect(creds)
 
         # Create Archive folder (no-op if exists)
         imap.create('Archive')
@@ -644,14 +732,8 @@ def _send_email(recipient_id=None, subject=None, body='', reply_to_index=None):
         for k, v in reply_headers.items():
             msg[k] = v
 
-        smtp_port = int(creds.get('smtp_port', 465))
-        if smtp_port == 465:
-            smtp = smtplib.SMTP_SSL(creds['smtp_server'], smtp_port)
-        else:
-            smtp = smtplib.SMTP(creds['smtp_server'], smtp_port)
-            smtp.starttls()
+        smtp = _smtp_connect(creds)
         with smtp:
-            smtp.login(creds['address'], creds['app_password'])
             smtp.send_message(msg)
 
         logger.info(f"Email sent to {to_name}: {subject}")

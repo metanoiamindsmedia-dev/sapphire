@@ -12,7 +12,9 @@ const manager = createAccountManager({
     deleteEndpoint: (scope) => `/api/email/accounts/${encodeURIComponent(scope)}`,
     formatItem: (item) => ({
         name: item.scope,
-        detail: item.address || '(no address)'
+        detail: item.auth_type === 'oauth2'
+            ? `${item.address || '(no address)'} \u2022 O365`
+            : item.address || '(no address)'
     }),
     hint: 'Each scope maps to a chat. Select which email to use per-chat in the sidebar.',
     addLabel: '+ Add Account',
@@ -23,6 +25,20 @@ const manager = createAccountManager({
 
 function renderEmailEditor(body, scope, item, helpers) {
     const s = item || {};
+
+    // OAuth accounts are managed by the O365 plugin
+    if (s.auth_type === 'oauth2') {
+        body.innerHTML = `
+            <div style="padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary)">
+                <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Microsoft 365 Account</div>
+                <div style="font-size:13px;color:var(--text-muted)">
+                    <strong>${s.address || scope}</strong> is connected via OAuth.<br>
+                    Manage this account in <strong>Settings → O365 Email</strong>.
+                </div>
+            </div>
+        `;
+        return;
+    }
 
     body.innerHTML = `
         <div class="am-group">
