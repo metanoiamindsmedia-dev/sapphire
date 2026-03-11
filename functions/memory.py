@@ -505,7 +505,8 @@ def _format_time_ago(timestamp_str: str) -> str:
         from zoneinfo import ZoneInfo
         import config
         tz_name = getattr(config, 'USER_TIMEZONE', 'UTC') or 'UTC'
-        user_tz = ZoneInfo(tz_name)
+        try: user_tz = ZoneInfo(tz_name)
+        except Exception: user_tz = ZoneInfo('UTC')
         ts = datetime.fromisoformat(timestamp_str)
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=ZoneInfo('UTC'))

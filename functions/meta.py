@@ -689,7 +689,8 @@ def execute(function_name, arguments, config):
             from datetime import datetime
             from zoneinfo import ZoneInfo
             tz_name = getattr(app_config, 'USER_TIMEZONE', 'UTC') or 'UTC'
-            user_tz = ZoneInfo(tz_name)
+            try: user_tz = ZoneInfo(tz_name)
+            except Exception: user_tz = ZoneInfo('UTC')
             now = datetime.now(user_tz)
             tz_label = tz_name if tz_name != 'UTC' else 'UTC'
             return f"{now.strftime('%A, %B %d, %Y at %I:%M:%S %p')} ({tz_label})", True

@@ -65,7 +65,14 @@ export function renderSettingsForm(container, schema, values = {}, { onChange, m
                             discBtn.textContent = 'Disconnect';
                             discBtn.style.marginLeft = '8px';
                             discBtn.addEventListener('click', async () => {
-                                await fetch(field.disconnect, { method: 'POST' });
+                                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                                try {
+                                    const res = await fetch(field.disconnect, {
+                                        method: 'POST',
+                                        headers: { 'X-CSRF-Token': csrf }
+                                    });
+                                    if (!res.ok) { console.error('Disconnect failed:', res.status); return; }
+                                } catch (e) { console.error('Disconnect failed:', e); return; }
                                 btn.textContent = field.button_label || 'Connect';
                                 btn.dataset.connected = 'false';
                                 btn.classList.remove('btn-connected');
