@@ -56,17 +56,26 @@ export default {
       try {
         await updateSetting('DEFAULT_USERNAME', userInput.value.trim());
         settings.DEFAULT_USERNAME = userInput.value.trim();
-      } catch (e) { /* non-blocking */ }
+      } catch (e) {
+        console.error('[Setup] Failed to save username:', e);
+      }
     }
 
     // Save browser timezone if not already set
-    if (!settings.USER_TIMEZONE || settings.USER_TIMEZONE === 'UTC') {
-      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const currentTz = settings.USER_TIMEZONE;
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log('[Setup] TZ check — current:', currentTz, 'browser:', browserTz);
+    const isDefaultTz = !currentTz || currentTz === 'UTC' || currentTz === 'Etc/UTC';
+    if (isDefaultTz) {
       if (browserTz && browserTz !== 'UTC') {
         try {
+          console.log('[Setup] Saving timezone:', browserTz);
           await updateSetting('USER_TIMEZONE', browserTz);
           settings.USER_TIMEZONE = browserTz;
-        } catch (e) { /* non-blocking */ }
+          console.log('[Setup] Timezone saved successfully');
+        } catch (e) {
+          console.error('[Setup] Failed to save timezone:', e);
+        }
       }
     }
 
