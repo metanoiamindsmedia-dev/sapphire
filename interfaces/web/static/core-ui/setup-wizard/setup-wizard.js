@@ -201,9 +201,9 @@ class SetupWizard {
   async handleNext() {
     const tab = TABS[this.currentStep];
     
-    // Validate current step
+    // Validate current step (may be async for saves before advancing)
     if (tab.validate) {
-      const result = tab.validate(this.settings);
+      const result = await tab.validate(this.settings);
       if (!result.valid) {
         this.showValidationError(result.message);
         return;

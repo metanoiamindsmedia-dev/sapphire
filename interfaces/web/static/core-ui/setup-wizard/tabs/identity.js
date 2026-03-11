@@ -47,17 +47,29 @@ export default {
         saveField('DEFAULT_USERNAME', userInput.value.trim());
       }
     });
+  },
 
-    // Auto-save browser timezone on first setup
+  async validate(settings) {
+    // Save username
+    const userInput = document.querySelector('#setup-user-name');
+    if (userInput?.value.trim()) {
+      try {
+        await updateSetting('DEFAULT_USERNAME', userInput.value.trim());
+        settings.DEFAULT_USERNAME = userInput.value.trim();
+      } catch (e) { /* non-blocking */ }
+    }
+
+    // Save browser timezone if not already set
     if (!settings.USER_TIMEZONE || settings.USER_TIMEZONE === 'UTC') {
       const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (browserTz && browserTz !== 'UTC') {
-        saveField('USER_TIMEZONE', browserTz);
+        try {
+          await updateSetting('USER_TIMEZONE', browserTz);
+          settings.USER_TIMEZONE = browserTz;
+        } catch (e) { /* non-blocking */ }
       }
     }
-  },
 
-  validate(settings) {
     return { valid: true };
   }
 };

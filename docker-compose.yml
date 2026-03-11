@@ -19,6 +19,9 @@ services:
       # Credentials — API keys, secrets
       - sapphire-config:/home/sapphire/.config/sapphire
     environment:
+      # Timezone — find yours: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      TZ: "America/New_York"
+
       # LLM API Keys — uncomment and fill in what you use
       # ANTHROPIC_API_KEY: "your-key-here"
       # OPENAI_API_KEY: "your-key-here"
