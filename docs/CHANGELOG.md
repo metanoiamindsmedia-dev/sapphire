@@ -1,3 +1,7 @@
+# 2.2.7 - Plugin store
+- Sapphire can browse plugin store
+- Can install plugins
+- Authors can publish on Sapphire's Plugins
 # 2.2.6 - Bug fix + calendar
 - Fixed timezone offset issues in heartbeat (emergency patch)
 - Added Google calendar - not easy but easy as we get
