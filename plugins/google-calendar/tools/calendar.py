@@ -92,13 +92,13 @@ TOOLS = [
         "network": True,
         "function": {
             "name": "calendar_delete",
-            "description": "Delete a calendar event by its ID. Get the ID from calendar_today or calendar_range first.",
+            "description": "Delete a calendar event by its number. Get the number from calendar_today or calendar_range first.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "event_id": {
                         "type": "string",
-                        "description": "The event ID to delete (shown in parentheses in calendar results)"
+                        "description": "The event number to delete (e.g. '1' or '#1' from calendar results)"
                     }
                 },
                 "required": ["event_id"]
@@ -233,38 +233,50 @@ def _format_time(dt_str):
         return dt_str
 
 
-def _format_events(events, title_line):
-    """Format a list of events into AI-digestible text."""
+# Short ID map — maps #1, #2 etc to real Google event IDs within a session
+_id_map = {}
+
+
+def _format_events(events, title_line, now=None):
+    """Format a list of events into AI-digestible text. Labels past/current if now is provided."""
+    global _id_map
     if not events:
         return f"{title_line}\nNo events scheduled."
 
+    _id_map.clear()
     lines = [title_line]
     total_minutes = 0
 
-    for event in events:
+    for i, event in enumerate(events, 1):
         summary = event.get('summary', '(No title)')
-        event_id = event.get('id', '')
+        real_id = event.get('id', '')
+        _id_map[str(i)] = real_id
         start = event.get('start', {})
         end = event.get('end', {})
 
         start_str = start.get('dateTime', start.get('date', ''))
         end_str = end.get('dateTime', end.get('date', ''))
 
+        label = ''
         if start.get('dateTime') and end.get('dateTime'):
             start_time = _format_time(start_str)
             end_time = _format_time(end_str)
             time_str = f"{start_time}–{end_time}"
-            # Calculate duration
             try:
                 s = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
                 e = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
                 total_minutes += (e - s).total_seconds() / 60
+                if now:
+                    if e <= now:
+                        label = ' [past]'
+                    elif s <= now < e:
+                        label = ' [NOW]'
             except Exception:
                 pass
         else:
             time_str = "All day"
 
-        lines.append(f"  {time_str}  {summary}  (id: {event_id})")
+        lines.append(f"  #{i}  {time_str}  {summary}{label}")
 
     # Summary line
     hours_busy = total_minutes / 60
@@ -281,12 +293,20 @@ def execute(function_name, arguments, config, plugin_settings=None):
         return err, False
 
     if function_name == 'calendar_today':
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tz = _get_local_tz()
+        try:
+            from zoneinfo import ZoneInfo
+            user_tz = ZoneInfo(tz)
+        except Exception:
+            user_tz = None
+        now = datetime.now(user_tz) if user_tz else datetime.now().astimezone()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         tomorrow = today + timedelta(days=1)
 
         data, err = _api_get(token, f'/calendars/{calendar_id}/events', {
-            'timeMin': today.isoformat() + 'Z',
-            'timeMax': tomorrow.isoformat() + 'Z',
+            'timeMin': today.isoformat(),
+            'timeMax': tomorrow.isoformat(),
+            'timeZone': tz,
             'singleEvents': 'true',
             'orderBy': 'startTime',
             'maxResults': 50,
@@ -296,11 +316,12 @@ def execute(function_name, arguments, config, plugin_settings=None):
 
         events = data.get('items', [])
         day_name = today.strftime('%A %B %d')
-        return _format_events(events, f"Today ({day_name}):"), True
+        return _format_events(events, f"Today ({day_name}):", now=now), True
 
     elif function_name == 'calendar_range':
         start_str = arguments.get('start_date', '')
         end_str = arguments.get('end_date', '')
+        tz = _get_local_tz()
 
         try:
             start = datetime.strptime(start_str, '%Y-%m-%d') if start_str else datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -316,8 +337,9 @@ def execute(function_name, arguments, config, plugin_settings=None):
         end = end.replace(hour=23, minute=59, second=59)
 
         data, err = _api_get(token, f'/calendars/{calendar_id}/events', {
-            'timeMin': start.isoformat() + 'Z',
-            'timeMax': end.isoformat() + 'Z',
+            'timeMin': start.isoformat(),
+            'timeMax': end.isoformat(),
+            'timeZone': tz,
             'singleEvents': 'true',
             'orderBy': 'startTime',
             'maxResults': 100,
@@ -436,9 +458,11 @@ def execute(function_name, arguments, config, plugin_settings=None):
             return f"Added: \"{title}\" — all day event\n(id: {data.get('id', '')})", True
 
     elif function_name == 'calendar_delete':
-        event_id = arguments.get('event_id', '').strip()
+        event_id = arguments.get('event_id', '').strip().lstrip('#')
         if not event_id:
             return "Event ID is required. Use calendar_today or calendar_range to find IDs.", False
+        # Resolve short ID (#1, #2) to real Google ID
+        event_id = _id_map.get(event_id, event_id)
 
         _, err = _api_delete(token, f'/calendars/{calendar_id}/events/{event_id}')
         if err:
@@ -452,6 +476,11 @@ def execute(function_name, arguments, config, plugin_settings=None):
 def _get_local_tz():
     """Get local IANA timezone name (e.g. America/New_York)."""
     try:
+        # Prefer Sapphire's configured timezone
+        import config as cfg
+        tz_name = getattr(cfg, 'USER_TIMEZONE', '') or ''
+        if tz_name and tz_name != 'UTC':
+            return tz_name
         # Python 3.9+: tzinfo.key gives IANA name
         tz = datetime.now().astimezone().tzinfo
         if hasattr(tz, 'key'):

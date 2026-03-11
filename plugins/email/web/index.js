@@ -31,16 +31,16 @@ function renderEmailEditor(body, scope, item, helpers) {
         </div>
 
         <div class="am-group">
-            <label for="email-password">App Password</label>
+            <label for="email-password">Password</label>
             <div class="am-row">
-                <input type="password" id="email-password" placeholder="${item ? 'Leave blank to keep existing...' : 'Enter app password'}">
+                <input type="password" id="email-password" placeholder="${item ? 'Leave blank to keep existing...' : 'Enter password'}">
                 <span class="am-action-btn${item ? ' success' : ''}" style="cursor:default;padding:6px 12px;font-size:12px" id="email-pw-status">
                     ${item ? '\u2713 Stored' : 'Not set'}
                 </span>
             </div>
             <div class="am-hint">
-                For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--accent-blue)">App Password</a> (2FA required).<br>
-                For self-hosted (Dovecot etc.), use the account password. Encrypted on disk.
+                Your IMAP/SMTP account password. Encrypted on disk.<br>
+                Gmail users: requires an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--accent-blue)">App Password</a> (2FA must be enabled).
             </div>
         </div>
 
@@ -49,19 +49,19 @@ function renderEmailEditor(body, scope, item, helpers) {
             <div class="am-group">
                 <label for="email-imap">IMAP Server</label>
                 <div class="am-row">
-                    <input type="text" id="email-imap" value="${s.imap_server || 'imap.gmail.com'}" placeholder="imap.gmail.com">
+                    <input type="text" id="email-imap" value="${s.imap_server || ''}" placeholder="imap.example.com">
                     <input type="number" id="email-imap-port" value="${s.imap_port || 993}" placeholder="993" style="max-width:80px" min="1" max="65535">
                 </div>
             </div>
             <div class="am-group" style="margin-top:12px">
                 <label for="email-smtp">SMTP Server</label>
                 <div class="am-row">
-                    <input type="text" id="email-smtp" value="${s.smtp_server || 'smtp.gmail.com'}" placeholder="smtp.gmail.com">
+                    <input type="text" id="email-smtp" value="${s.smtp_server || ''}" placeholder="smtp.example.com">
                     <input type="number" id="email-smtp-port" value="${s.smtp_port || 465}" placeholder="465" style="max-width:80px" min="1" max="65535">
                 </div>
             </div>
             <div class="am-hint" style="margin-top:8px">
-                Gmail defaults shown. Change for other providers (e.g. mail.yourdomain.com).
+                Enter your mail server addresses (e.g. mail.yourdomain.com, imap.gmail.com).
             </div>
         </div>
 
@@ -82,8 +82,8 @@ function renderEmailEditor(body, scope, item, helpers) {
 
         const payload = {
             address,
-            imap_server: body.querySelector('#email-imap').value.trim() || 'imap.gmail.com',
-            smtp_server: body.querySelector('#email-smtp').value.trim() || 'smtp.gmail.com',
+            imap_server: body.querySelector('#email-imap').value.trim(),
+            smtp_server: body.querySelector('#email-smtp').value.trim(),
             imap_port: parseInt(body.querySelector('#email-imap-port').value) || 993,
             smtp_port: parseInt(body.querySelector('#email-smtp-port').value) || 465,
         };
@@ -135,7 +135,7 @@ function renderEmailEditor(body, scope, item, helpers) {
             const payload = {};
             if (address) payload.address = address;
             if (app_password) payload.app_password = app_password;
-            payload.imap_server = body.querySelector('#email-imap').value.trim() || 'imap.gmail.com';
+            payload.imap_server = body.querySelector('#email-imap').value.trim();
             payload.imap_port = parseInt(body.querySelector('#email-imap-port').value) || 993;
 
             const res = await fetch(`/api/email/accounts/${encodeURIComponent(scope)}/test`, {
@@ -174,7 +174,7 @@ export default {
             id: 'email',
             name: 'Email',
             icon: '\uD83D\uDCE7',
-            helpText: 'Configure email accounts for each persona/scope. Each chat can select which email account to use via the sidebar. Supports Gmail (app passwords), Dovecot, and any IMAP/SMTP server.',
+            helpText: 'Configure email accounts for each persona/scope. Each chat can select which email account to use via the sidebar. Works with any IMAP/SMTP server.',
             render: (c) => manager.renderList(c),
             load: async () => { await manager.loadItems(); return {}; },
             save: async () => ({ success: true }),
