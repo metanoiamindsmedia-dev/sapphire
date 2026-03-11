@@ -384,7 +384,8 @@ async def get_wizard_step(request: Request, _=Depends(require_login)):
     """Get wizard step."""
     from core.settings_manager import settings as sm
     managed = sm.is_managed()
-    return {"step": getattr(config, 'SETUP_WIZARD_STEP', 'complete'), "managed": managed}
+    docker = sm.is_docker()
+    return {"step": getattr(config, 'SETUP_WIZARD_STEP', 'complete'), "managed": managed, "docker": docker}
 
 
 @router.put("/api/setup/wizard-step")
