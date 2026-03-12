@@ -10,6 +10,7 @@ import config
 from .history import ConversationHistory, ChatSessionManager, count_tokens
 from .function_manager import FunctionManager
 from core.hooks import hook_runner, HookEvent
+from core.metrics import metrics as token_metrics
 from .chat_streaming import StreamingChat
 from .chat_tool_calling import ToolCallingEngine, filter_to_thinking_only
 from .llm_providers import get_provider, get_provider_for_url, get_provider_by_key, get_first_available_provider, get_generation_params
@@ -660,11 +661,13 @@ class LLMChat:
                         "content": response_msg.usage.get("completion_tokens", 0),
                         "total": response_msg.usage.get("total_tokens", 0),
                     }
+                    for k in ("cache_read_tokens", "cache_write_tokens"):
+                        if response_msg.usage.get(k):
+                            tokens_info[k] = response_msg.usage[k]
                 else:
-                    # Estimate from content length
                     est_tokens = len(final_response_content) // 4
                     tokens_info = {"content": est_tokens, "total": est_tokens, "estimated": True}
-                
+
                 metadata = {
                     "provider": provider_key,
                     "model": effective_model,
@@ -674,6 +677,15 @@ class LLMChat:
                     "tokens": tokens_info,
                     "tokens_per_second": round(tokens_info.get("content", 0) / duration, 1) if duration > 0 else 0
                 }
+
+                # Record metrics
+                try:
+                    chat_name = self.session_manager.get_active_chat_name()
+                    token_metrics.record(chat_name, provider_key, effective_model,
+                                         "conversation", metadata,
+                                         estimated=tokens_info.get("estimated", False))
+                except Exception:
+                    pass
                 
                 # post_llm hook — plugins can mutate response before save + TTS
                 if hook_runner.has_handlers("post_llm"):
@@ -728,10 +740,13 @@ class LLMChat:
                     "content": final_response_msg.usage.get("completion_tokens", 0),
                     "total": final_response_msg.usage.get("total_tokens", 0),
                 }
+                for k in ("cache_read_tokens", "cache_write_tokens"):
+                    if final_response_msg.usage.get(k):
+                        tokens_info[k] = final_response_msg.usage[k]
             else:
                 est_tokens = len(final_response_content) // 4
                 tokens_info = {"content": est_tokens, "total": est_tokens, "estimated": True}
-            
+
             metadata = {
                 "provider": provider_key,
                 "model": effective_model,
@@ -741,6 +756,14 @@ class LLMChat:
                 "tokens": tokens_info,
                 "tokens_per_second": round(tokens_info.get("content", 0) / duration, 1) if duration > 0 else 0
             }
+
+            try:
+                chat_name = self.session_manager.get_active_chat_name()
+                token_metrics.record(chat_name, provider_key, effective_model,
+                                     "conversation", metadata,
+                                     estimated=tokens_info.get("estimated", False))
+            except Exception:
+                pass
 
             # post_llm hook — plugins can mutate forced-final response
             if hook_runner.has_handlers("post_llm"):

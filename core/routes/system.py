@@ -533,3 +533,31 @@ async def do_update(request: Request, _=Depends(require_login)):
         callback()
 
     return {"status": "updated", "message": message}
+
+
+# =============================================================================
+# METRICS ROUTES
+# =============================================================================
+
+@router.get("/api/metrics/summary")
+async def metrics_summary(request: Request, _=Depends(require_login)):
+    """Aggregate token usage summary."""
+    from core.metrics import metrics
+    days = int(request.query_params.get("days", 30))
+    return metrics.summary(days=days)
+
+
+@router.get("/api/metrics/breakdown")
+async def metrics_breakdown(request: Request, _=Depends(require_login)):
+    """Token usage broken down by model."""
+    from core.metrics import metrics
+    days = int(request.query_params.get("days", 30))
+    return {"models": metrics.breakdown_by_model(days=days)}
+
+
+@router.get("/api/metrics/daily")
+async def metrics_daily(request: Request, _=Depends(require_login)):
+    """Daily token usage for charting."""
+    from core.metrics import metrics
+    days = int(request.query_params.get("days", 30))
+    return {"daily": metrics.daily_usage(days=days)}

@@ -218,15 +218,17 @@ const createMessage = (msg, idx = null, total = null, isHistoryRender = false) =
     if (role === 'assistant' && msg.metadata) {
         const meta = msg.metadata;
         const parts = [];
+        const tok = meta.tokens || {};
+        const cumTok = meta.cumulative_tokens || null;
 
         if (meta.duration_seconds) {
             parts.push(`${meta.duration_seconds}s`);
         }
         if (meta.tokens_per_second) {
-            parts.push(`${meta.tokens_per_second} tok/s`);
+            const label = tok.estimated ? 'tok/s est' : 'tok/s';
+            parts.push(`${meta.tokens_per_second} ${label}`);
         }
         if (meta.model) {
-            // Show "provider / model" when provider isn't obvious from model name
             const provider = meta.provider || '';
             const model = meta.model;
             const modelLower = model.toLowerCase();
@@ -234,15 +236,35 @@ const createMessage = (msg, idx = null, total = null, isHistoryRender = false) =
                 modelLower.startsWith(provider.toLowerCase()) ||
                 modelLower.includes(provider.toLowerCase())
             );
-            if (provider && !providerInModel) {
-                parts.push(`${provider} / ${model}`);
-            } else {
-                parts.push(model);
-            }
+            parts.push(provider && !providerInModel ? `${provider} / ${model}` : model);
+        }
+
+        // Token counts: in / out
+        const prompt = tok.prompt || 0;
+        const content = tok.content || 0;
+        if (prompt || content) {
+            const fmt = n => n >= 1000 ? `${(n/1000).toFixed(1)}k` : n;
+            parts.push(`${fmt(prompt)} in / ${fmt(content)} out`);
+        }
+
+        // Cache indicator
+        const cacheRead = tok.cache_read_tokens || 0;
+        const cacheWrite = tok.cache_write_tokens || 0;
+        if (cacheRead > 0 && prompt > 0) {
+            const pct = Math.round((cacheRead / prompt) * 100);
+            parts.push(`cache ${pct}%`);
+        } else if (cacheWrite > 0) {
+            parts.push('cache miss');
+        }
+
+        // Cumulative (multi-tool) summary
+        if (cumTok && cumTok.iterations > 1) {
+            const fmt = n => n >= 1000 ? `${(n/1000).toFixed(1)}k` : n;
+            parts.push(`${cumTok.iterations} calls · ${fmt(cumTok.total)} total`);
         }
 
         if (parts.length > 0) {
-            const metaDiv = createElem('div', { class: 'message-metadata' }, parts.join(' • '));
+            const metaDiv = createElem('div', { class: 'message-metadata' }, parts.join(' · '));
             contentDiv.appendChild(metaDiv);
         }
     }

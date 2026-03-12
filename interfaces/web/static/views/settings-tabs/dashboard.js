@@ -1,4 +1,4 @@
-// settings-tabs/dashboard.js - Dashboard with system controls and update checker
+// settings-tabs/dashboard.js - Dashboard with system controls, update checker, and token metrics
 import * as ui from '../../ui.js';
 
 let updateStatus = null;
@@ -10,7 +10,6 @@ export default {
     description: 'System status, updates, and controls',
 
     render(ctx) {
-        const isDocker = ctx.settings?.SAPPHIRE_DOCKER || ctx.docker;
         return `
             <div class="dashboard-grid">
                 <div class="dash-card">
@@ -27,6 +26,18 @@ export default {
                         <span class="text-muted">Checking...</span>
                     </div>
                     <div class="dash-update-actions" id="dash-update-actions"></div>
+                </div>
+                <div class="dash-card dash-card-wide">
+                    <h4>Token Usage <span class="text-muted" style="font-size:var(--font-xs);font-weight:normal">(30 days)</span></h4>
+                    <div id="dash-metrics-summary" class="dash-metrics">
+                        <span class="text-muted">Loading...</span>
+                    </div>
+                </div>
+                <div class="dash-card dash-card-wide">
+                    <h4>Usage by Model</h4>
+                    <div id="dash-metrics-breakdown" class="dash-metrics">
+                        <span class="text-muted">Loading...</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -54,9 +65,16 @@ export default {
 
         // Check for updates
         checkForUpdate(el);
+
+        // Load metrics
+        loadMetrics(el);
     }
 };
 
+
+// =============================================================================
+// UPDATE CHECKER
+// =============================================================================
 
 async function checkForUpdate(el) {
     const statusEl = el.querySelector('#dash-update-status');
@@ -83,7 +101,6 @@ async function checkForUpdate(el) {
                 actionsEl.innerHTML = `<p class="text-muted" style="font-size:var(--font-xs);margin:0">Download the latest release from <a href="https://github.com/ddxfish/sapphire/releases" target="_blank">GitHub</a></p>`;
             }
 
-            // Signal nav badge
             window.dispatchEvent(new CustomEvent('update-available', { detail: updateStatus }));
         } else {
             statusEl.innerHTML = `<span class="text-muted">\u2713 Up to date (v${updateStatus.current})</span>`;
@@ -98,7 +115,6 @@ async function checkForUpdate(el) {
         statusEl.innerHTML = `<span class="text-muted">Could not check for updates</span>`;
     }
 }
-
 
 async function doUpdate(el) {
     const actionsEl = el.querySelector('#dash-update-actions');
@@ -127,7 +143,6 @@ async function doUpdate(el) {
     }
 }
 
-
 function pollForRestart() {
     let attempts = 0;
     const poll = async () => {
@@ -139,4 +154,116 @@ function pollForRestart() {
         if (attempts < 30) setTimeout(poll, 1000);
     };
     poll();
+}
+
+
+// =============================================================================
+// TOKEN METRICS
+// =============================================================================
+
+const fmt = n => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+    return String(n);
+};
+
+async function loadMetrics(el) {
+    const summaryEl = el.querySelector('#dash-metrics-summary');
+    const breakdownEl = el.querySelector('#dash-metrics-breakdown');
+
+    try {
+        const [sumRes, brkRes] = await Promise.all([
+            fetch('/api/metrics/summary?days=30'),
+            fetch('/api/metrics/breakdown?days=30')
+        ]);
+
+        if (!sumRes.ok || !brkRes.ok) throw new Error('Metrics fetch failed');
+
+        const summary = await sumRes.json();
+        const breakdown = await brkRes.json();
+
+        renderSummary(summaryEl, summary);
+        renderBreakdown(breakdownEl, breakdown.models || []);
+    } catch (e) {
+        if (summaryEl) summaryEl.innerHTML = '<span class="text-muted">No metrics data yet</span>';
+        if (breakdownEl) breakdownEl.innerHTML = '<span class="text-muted">Send some messages to start collecting metrics</span>';
+    }
+}
+
+function renderSummary(el, s) {
+    if (!el || !s.total_calls) {
+        if (el) el.innerHTML = '<span class="text-muted">No data yet — metrics start recording from this version</span>';
+        return;
+    }
+
+    const cacheRate = s.total_prompt > 0 && s.total_cache_read > 0
+        ? Math.round((s.total_cache_read / s.total_prompt) * 100) : null;
+
+    el.innerHTML = `
+        <div class="metrics-grid">
+            <div class="metric-item">
+                <div class="metric-value">${fmt(s.total_calls)}</div>
+                <div class="metric-label">LLM Calls</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-value">${fmt(s.total_tokens)}</div>
+                <div class="metric-label">Total Tokens</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-value">${fmt(s.total_prompt)}</div>
+                <div class="metric-label">Input</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-value">${fmt(s.total_completion)}</div>
+                <div class="metric-label">Output</div>
+            </div>
+            ${s.total_thinking > 0 ? `
+            <div class="metric-item">
+                <div class="metric-value">${fmt(s.total_thinking)}</div>
+                <div class="metric-label">Thinking</div>
+            </div>` : ''}
+            ${cacheRate !== null ? `
+            <div class="metric-item">
+                <div class="metric-value">${cacheRate}%</div>
+                <div class="metric-label">Cache Hit</div>
+            </div>` : ''}
+        </div>
+    `;
+}
+
+function renderBreakdown(el, models) {
+    if (!el || !models.length) {
+        if (el) el.innerHTML = '<span class="text-muted">No model data yet</span>';
+        return;
+    }
+
+    const rows = models.slice(0, 8).map(m => {
+        const cacheInfo = m.cache_read > 0
+            ? `<span class="text-muted" style="font-size:var(--font-xs)">cache ${Math.round((m.cache_read / (m.prompt || 1)) * 100)}%</span>`
+            : '';
+        return `
+            <tr>
+                <td>${m.model}</td>
+                <td class="text-right">${fmt(m.calls)}</td>
+                <td class="text-right">${fmt(m.total)}</td>
+                <td class="text-right">${m.duration > 0 ? `${m.duration.toFixed(0)}s` : '-'}</td>
+                <td class="text-right">${cacheInfo}</td>
+            </tr>
+        `;
+    }).join('');
+
+    el.innerHTML = `
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th class="text-right">Calls</th>
+                    <th class="text-right">Tokens</th>
+                    <th class="text-right">Time</th>
+                    <th class="text-right">Cache</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
 }

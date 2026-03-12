@@ -158,7 +158,11 @@ async def get_history(request: Request, _=Depends(require_login), system=Depends
     display_messages = format_messages_for_display(raw_messages)
 
     context_limit = getattr(config, 'CONTEXT_LIMIT', 32000)
-    history_tokens = sum(count_message_tokens(m.get("content", ""), include_images=False) for m in raw_messages)
+    history_tokens = sum(
+        count_message_tokens(m.get("content", ""), include_images=False)
+        + count_tokens(m.get("thinking", "") or "")
+        for m in raw_messages
+    )
 
     try:
         prompt_content = system.llm_chat.current_system_prompt or ""
@@ -360,7 +364,11 @@ async def get_unified_status(request: Request, _=Depends(require_login), system=
         context_limit = getattr(config, 'CONTEXT_LIMIT', 32000)
         raw_messages = system.llm_chat.session_manager.get_messages()
         message_count = len(raw_messages)
-        history_tokens = sum(count_message_tokens(m.get("content", ""), include_images=False) for m in raw_messages)
+        history_tokens = sum(
+            count_message_tokens(m.get("content", ""), include_images=False)
+            + count_tokens(m.get("thinking", "") or "")
+            for m in raw_messages
+        )
 
         try:
             prompt_content = system.llm_chat.current_system_prompt or ""

@@ -496,18 +496,25 @@ class ClaudeProvider(BaseProvider):
         duration = round(end_time - start_time, 2)
         completion_tokens = usage.get("completion_tokens", 0) if usage else 0
         
+        tokens_dict = {
+            "thinking": len(full_thinking.split()) if full_thinking else 0,  # Rough estimate
+            "content": completion_tokens,
+            "total": usage.get("total_tokens", 0) if usage else 0,
+            "prompt": usage.get("prompt_tokens", 0) if usage else 0
+        }
+        # Forward cache stats from usage
+        if usage:
+            for k in ("cache_read_tokens", "cache_write_tokens"):
+                if usage.get(k):
+                    tokens_dict[k] = usage[k]
+
         metadata = {
             "provider": "claude",
             "model": params.get('model') or self.model,
             "start_time": time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(start_time)),
             "end_time": time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(end_time)),
             "duration_seconds": duration,
-            "tokens": {
-                "thinking": len(full_thinking.split()) if full_thinking else 0,  # Rough estimate
-                "content": completion_tokens,
-                "total": usage.get("total_tokens", 0) if usage else 0,
-                "prompt": usage.get("prompt_tokens", 0) if usage else 0
-            },
+            "tokens": tokens_dict,
             "tokens_per_second": round(completion_tokens / duration, 1) if duration > 0 else 0
         }
         
