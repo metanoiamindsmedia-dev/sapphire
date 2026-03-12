@@ -225,14 +225,22 @@ async def test_audio_output(request: Request, _=Depends(require_login), system=D
 
 @router.get("/api/continuity/tasks")
 async def list_continuity_tasks(request: Request, _=Depends(require_login), system=Depends(get_system)):
-    """List continuity tasks. Optional ?heartbeat=true/false filter."""
+    """List continuity tasks. Optional ?heartbeat=true/false or ?type=daemon/webhook filter."""
     if not hasattr(system, 'continuity_scheduler') or not system.continuity_scheduler:
         return {"tasks": []}
     tasks = system.continuity_scheduler.list_tasks()
+
+    # Type filter (new)
+    type_filter = request.query_params.get("type")
+    if type_filter:
+        tasks = [t for t in tasks if t.get("type", "task") == type_filter]
+
+    # Legacy heartbeat filter (backward compat) — excludes daemon/webhook types
     hb_filter = request.query_params.get("heartbeat")
     if hb_filter is not None:
         want_hb = hb_filter.lower() in ("true", "1", "yes")
-        tasks = [t for t in tasks if t.get("heartbeat", False) == want_hb]
+        tasks = [t for t in tasks if t.get("heartbeat", False) == want_hb
+                 and t.get("type", "task") in ("task", "heartbeat")]
     return {"tasks": tasks}
 
 
@@ -577,3 +585,60 @@ async def metrics_daily(request: Request, _=Depends(require_login)):
     from core.metrics import metrics
     days = int(request.query_params.get("days", 30))
     return {"daily": metrics.daily_usage(days=days)}
+
+
+# =============================================================================
+# EVENT ROUTES (Daemons + Webhooks)
+# =============================================================================
+
+@router.get("/api/events/sources")
+async def get_event_sources(request: Request, _=Depends(require_login)):
+    """Get available daemon event sources from loaded plugins."""
+    from core.plugin_loader import plugin_loader
+    return {"sources": plugin_loader.get_event_sources()}
+
+
+@router.post("/api/events/emit/{source_name}")
+async def emit_event(source_name: str, request: Request, _=Depends(require_login), system=Depends(get_system)):
+    """Emit a daemon event to trigger matching tasks. Used by daemon plugins."""
+    if not hasattr(system, 'continuity_scheduler') or not system.continuity_scheduler:
+        raise HTTPException(status_code=503, detail="Scheduler not available")
+    data = await request.json()
+    event_data = json.dumps(data) if isinstance(data, dict) else str(data)
+
+    from core.plugin_loader import plugin_loader
+    plugin_loader.emit_daemon_event(source_name, event_data)
+    return {"status": "emitted", "source": source_name}
+
+
+@router.api_route("/api/events/webhook/{path:path}", methods=["GET", "POST", "PUT"])
+async def webhook_endpoint(path: str, request: Request, system=Depends(get_system)):
+    """Webhook endpoint — no auth required. Matches path to webhook tasks."""
+    if not hasattr(system, 'continuity_scheduler') or not system.continuity_scheduler:
+        raise HTTPException(status_code=503, detail="Scheduler not available")
+
+    method = request.method
+    task = system.continuity_scheduler.find_webhook_task(path, method)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"No webhook configured for {method} /{path}")
+
+    # Build event data from request
+    content_type = request.headers.get("content-type", "")
+    if "json" in content_type:
+        try:
+            body = await request.json()
+            event_data = json.dumps(body, indent=2)
+        except Exception:
+            event_data = (await request.body()).decode("utf-8", errors="replace")
+    elif method in ("POST", "PUT"):
+        event_data = (await request.body()).decode("utf-8", errors="replace")
+    else:
+        # GET — use query params
+        event_data = json.dumps(dict(request.query_params))
+
+    result = system.continuity_scheduler.fire_event_task(task["id"], event_data)
+
+    from core.event_bus import publish, Events
+    publish(Events.WEBHOOK_FIRED, {"path": path, "method": method, "task_id": task["id"]})
+
+    return {"status": "triggered", "task": task["name"], "queued": result.get("queued", False)}

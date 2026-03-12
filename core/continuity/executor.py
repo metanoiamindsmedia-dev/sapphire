@@ -22,12 +22,15 @@ class ContinuityExecutor:
         """
         self.system = system
     
-    def run(self, task: Dict[str, Any], progress_callback=None, response_callback=None) -> Dict[str, Any]:
+    def run(self, task: Dict[str, Any], event_data: str = None,
+            progress_callback=None, response_callback=None) -> Dict[str, Any]:
         """
         Execute a continuity task.
 
         Args:
             task: Task definition dict
+            event_data: Optional event payload (for daemon/webhook triggered tasks).
+                        When present, initial_message is prepended as instructions.
             progress_callback: Optional callable(iteration, total) for progress updates
             response_callback: Optional callable(response_text) called before TTS
 
@@ -38,6 +41,15 @@ class ContinuityExecutor:
         source = task.get("source", "")
         if source.startswith("plugin:"):
             return self._run_plugin_task(task, progress_callback, response_callback)
+
+        # For event-triggered tasks, build message from instructions + event data
+        if event_data is not None:
+            task = dict(task)  # don't mutate original
+            instructions = task.get("initial_message", "").strip()
+            if instructions:
+                task["initial_message"] = f"{instructions}\n\n--- Event Data ---\n{event_data}"
+            else:
+                task["initial_message"] = event_data
 
         # Resolve persona defaults into task (task-level fields override persona)
         task = self._resolve_persona(task)

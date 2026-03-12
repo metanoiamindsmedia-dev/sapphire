@@ -105,7 +105,8 @@ class ContinuityScheduler:
     # =========================================================================
     
     def _load_tasks(self):
-        """Load tasks from JSON file. Purges plugin-sourced tasks (they re-register on load)."""
+        """Load tasks from JSON file. Purges plugin-sourced tasks (they re-register on load).
+        Migrates legacy heartbeat bool to type field."""
         if not self._tasks_path.exists():
             self._tasks = {}
             return
@@ -117,15 +118,27 @@ class ContinuityScheduler:
 
             # Purge plugin-sourced tasks — plugins re-register theirs via set_scheduler()
             plugin_count = 0
+            migrated = 0
             for tid in list(all_tasks):
                 if all_tasks[tid].get("source", "").startswith("plugin:"):
                     del all_tasks[tid]
                     plugin_count += 1
+                    continue
+                # Migrate: heartbeat bool → type field
+                if "type" not in all_tasks[tid]:
+                    all_tasks[tid]["type"] = "heartbeat" if all_tasks[tid].get("heartbeat") else "task"
+                    migrated += 1
+                # Ensure trigger_config exists
+                if "trigger_config" not in all_tasks[tid]:
+                    all_tasks[tid]["trigger_config"] = {}
 
             self._tasks = all_tasks
-            if plugin_count:
+            if plugin_count or migrated:
                 self._save_tasks()
-                logger.info(f"[Continuity] Purged {plugin_count} plugin task(s) from previous session")
+                if plugin_count:
+                    logger.info(f"[Continuity] Purged {plugin_count} plugin task(s) from previous session")
+                if migrated:
+                    logger.info(f"[Continuity] Migrated {migrated} task(s) to type field")
             logger.info(f"[Continuity] Loaded {len(self._tasks)} tasks")
         except Exception as e:
             logger.error(f"[Continuity] Failed to load tasks: {e}")
@@ -214,28 +227,39 @@ class ContinuityScheduler:
     
     MAX_TASKS = 25
     MAX_HEARTBEATS = 4
+    MAX_DAEMONS = 10
+    MAX_WEBHOOKS = 10
 
     def create_task(self, data: Dict) -> Dict:
         """Create new task, returns the created task."""
+        task_type = data.get("type", "heartbeat" if data.get("heartbeat") else "task")
+
         with self._lock:
             total = len(self._tasks)
-            heartbeats = sum(1 for t in self._tasks.values() if t.get('heartbeat'))
-            if data.get('heartbeat') and heartbeats >= self.MAX_HEARTBEATS:
-                raise ValueError(f"Maximum heartbeat tasks reached ({self.MAX_HEARTBEATS})")
+            type_counts = {}
+            for t in self._tasks.values():
+                tt = t.get("type", "heartbeat" if t.get("heartbeat") else "task")
+                type_counts[tt] = type_counts.get(tt, 0) + 1
+
+            limits = {"heartbeat": self.MAX_HEARTBEATS, "daemon": self.MAX_DAEMONS, "webhook": self.MAX_WEBHOOKS}
+            if task_type in limits and type_counts.get(task_type, 0) >= limits[task_type]:
+                raise ValueError(f"Maximum {task_type} tasks reached ({limits[task_type]})")
             if total >= self.MAX_TASKS:
                 raise ValueError(f"Maximum tasks reached ({self.MAX_TASKS})")
 
         task = {
             "id": str(uuid.uuid4()),
+            "type": task_type,
             "name": data.get("name", "Unnamed Task"),
             "enabled": data.get("enabled", True),
             "schedule": data.get("schedule", "0 9 * * *"),
+            "trigger_config": data.get("trigger_config", {}),
             "chance": data.get("chance", 100),
             "provider": data.get("provider", "auto"),
             "model": data.get("model", ""),
             "prompt": data.get("prompt", "default"),
             "toolset": data.get("toolset", "none"),
-            "chat_target": data.get("chat_target", ""),  # blank = ephemeral (no chat, no UI)
+            "chat_target": data.get("chat_target", ""),
             "initial_message": data.get("initial_message", "Hello."),
             "tts_enabled": data.get("tts_enabled", True),
             "browser_tts": data.get("browser_tts", False),
@@ -255,9 +279,9 @@ class ContinuityScheduler:
             "max_tool_rounds": data.get("max_tool_rounds", 0),
             "active_hours_start": data.get("active_hours_start", None),
             "active_hours_end": data.get("active_hours_end", None),
-            "source": data.get("source", ""),  # "plugin:{name}" for plugin-sourced tasks
-            "handler": data.get("handler", ""),  # handler path for plugin tasks
-            "plugin_dir": data.get("plugin_dir", ""),  # plugin directory for handler resolution
+            "source": data.get("source", ""),
+            "handler": data.get("handler", ""),
+            "plugin_dir": data.get("plugin_dir", ""),
             "last_run": None,
             "last_response": None,
             "created": _user_now().isoformat()
@@ -293,7 +317,7 @@ class ContinuityScheduler:
             
             # Update allowed fields
             allowed = {
-                "name", "enabled", "schedule", "chance",
+                "name", "type", "enabled", "schedule", "trigger_config", "chance",
                 "provider", "model", "prompt", "toolset", "chat_target",
                 "initial_message", "tts_enabled", "browser_tts", "inject_datetime",
                 "persona", "voice", "pitch", "speed",
@@ -461,6 +485,11 @@ class ContinuityScheduler:
             if not task.get("enabled", True):
                 continue
 
+            # Event-triggered tasks don't fire via cron
+            task_type = task.get("type", "task")
+            if task_type in ("daemon", "webhook"):
+                continue
+
             task_id = task["id"]
             task_name = task.get("name", "Unnamed")
             schedule = task.get("schedule", "")
@@ -567,6 +596,109 @@ class ContinuityScheduler:
                 self._task_progress.pop(task_id, None)
     
     # =========================================================================
+    # EVENT-TRIGGERED EXECUTION
+    # =========================================================================
+
+    def fire_event_task(self, task_id: str, event_data: str) -> Dict[str, Any]:
+        """Fire an event-triggered task (daemon or webhook) with event data.
+        Runs on a worker thread, returns immediately."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+
+        if not task:
+            return {"success": False, "error": "Task not found"}
+
+        if not task.get("enabled", True):
+            return {"success": False, "error": "Task is disabled"}
+
+        task_type = task.get("type", "task")
+        if task_type not in ("daemon", "webhook"):
+            return {"success": False, "error": f"Task type '{task_type}' is not event-triggered"}
+
+        task_name = task.get("name", "Unnamed")
+
+        # Check filter (daemon tasks only)
+        if task_type == "daemon":
+            trigger_config = task.get("trigger_config", {})
+            task_filter = trigger_config.get("filter")
+            if task_filter and isinstance(task_filter, dict):
+                try:
+                    event_obj = json.loads(event_data) if isinstance(event_data, str) else event_data
+                    if isinstance(event_obj, dict):
+                        for key, val in task_filter.items():
+                            if event_obj.get(key) != val:
+                                logger.debug(f"[Continuity] '{task_name}' filter mismatch on '{key}'")
+                                return {"success": False, "error": "Event filtered out"}
+                except (json.JSONDecodeError, TypeError):
+                    pass  # Can't parse as JSON, skip filter check
+
+        # If already running, queue
+        with self._lock:
+            if self._task_running.get(task_id, False):
+                self._task_pending[task_id] = self._task_pending.get(task_id, 0) + 1
+                logger.info(f"[Continuity] '{task_name}' busy — queued event")
+                return {"success": True, "queued": True}
+            self._task_running[task_id] = True
+
+        # Run on worker thread
+        def _run():
+            self._log_activity(task_id, task_name, "started", {"trigger": task_type})
+            try:
+                result = self.executor.run(
+                    task,
+                    event_data=event_data,
+                    progress_callback=self._make_progress_callback(task_id),
+                    response_callback=self._make_response_callback(task_id),
+                )
+                with self._lock:
+                    if task_id in self._tasks:
+                        self._tasks[task_id]["last_run"] = _user_now().isoformat()
+                        self._save_tasks()
+                    self._task_progress.pop(task_id, None)
+                    self._task_running[task_id] = False
+
+                status = "complete" if result.get("success") else "error"
+                self._log_activity(task_id, task_name, status, {
+                    "trigger": task_type,
+                    "responses": len(result.get("responses", [])),
+                })
+            except Exception as e:
+                logger.error(f"[Continuity] Event task '{task_name}' failed: {e}", exc_info=True)
+                self._log_activity(task_id, task_name, "error", {"exception": str(e)})
+                with self._lock:
+                    self._task_running[task_id] = False
+                    self._task_progress.pop(task_id, None)
+
+        thread = threading.Thread(target=_run, daemon=True, name=f"Event-{task_name}")
+        thread.start()
+
+        logger.info(f"[Continuity] Event-triggered: {task_name} ({task_type})")
+        return {"success": True, "queued": False}
+
+    def find_tasks_by_event(self, source: str) -> List[Dict]:
+        """Find enabled daemon tasks that listen to a specific event source."""
+        results = []
+        with self._lock:
+            for task in self._tasks.values():
+                if task.get("type") != "daemon" or not task.get("enabled", True):
+                    continue
+                tc = task.get("trigger_config", {})
+                if tc.get("source") == source:
+                    results.append(dict(task))
+        return results
+
+    def find_webhook_task(self, path: str, method: str = "POST") -> Optional[Dict]:
+        """Find an enabled webhook task matching path and method."""
+        with self._lock:
+            for task in self._tasks.values():
+                if task.get("type") != "webhook" or not task.get("enabled", True):
+                    continue
+                tc = task.get("trigger_config", {})
+                if tc.get("path") == path and tc.get("method", "POST") == method:
+                    return dict(task)
+        return None
+
+    # =========================================================================
     # THREAD CONTROL
     # =========================================================================
     
@@ -648,11 +780,13 @@ class ContinuityScheduler:
             for task in self._tasks.values():
                 if not task.get("enabled"):
                     continue
-                
+                if task.get("type", "task") in ("daemon", "webhook"):
+                    continue
+
                 try:
                     cron = _get_croniter()(task.get("schedule", ""), now)
                     task_next = cron.get_next(datetime)
-                    
+
                     if next_time is None or task_next < next_time:
                         next_time = task_next
                         next_task = {
@@ -679,10 +813,12 @@ class ContinuityScheduler:
             for task in self._tasks.values():
                 if not task.get("enabled"):
                     continue
-                
+                if task.get("type", "task") in ("daemon", "webhook"):
+                    continue
+
                 try:
                     cron = _get_croniter()(task.get("schedule", ""), now)
-                    
+
                     # Get next occurrences within window
                     for _ in range(10):  # Max 10 per task
                         next_time = cron.get_next(datetime)
@@ -699,6 +835,7 @@ class ContinuityScheduler:
                             "chance": task.get("chance", 100),
                             "heartbeat": task.get("heartbeat", False),
                             "emoji": task.get("emoji", ""),
+                            "task_type": task.get("type", "task"),
                             "type": "upcoming"
                         })
                 except Exception:
