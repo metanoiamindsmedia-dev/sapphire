@@ -111,7 +111,7 @@ The setup wizard walks you through LLM configuration on first run.
 
 ## Docker Quick Start (Alternative)
 
-No conda, no pip, no dependencies. Web UI only — no wake word or local microphone.
+No conda, no pip, no dependencies. Web UI only — no wake word. Benefit is isolation, the AI can't reach your host system.
 
 **Linux / Mac:**
 ```bash

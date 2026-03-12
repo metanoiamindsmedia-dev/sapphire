@@ -496,3 +496,40 @@ async def request_system_shutdown(request: Request, _=Depends(require_login)):
         raise HTTPException(status_code=503, detail="Shutdown not available")
     callback()
     return {"status": "shutting_down", "message": "Shutdown initiated"}
+
+
+# =============================================================================
+# UPDATE ROUTES
+# =============================================================================
+
+@router.get("/api/system/update-check")
+async def check_for_update(request: Request, _=Depends(require_login)):
+    """Check GitHub for a newer Sapphire version."""
+    from core.updater import updater
+    from core.settings_manager import settings
+    status = updater.check_for_update(force=True)
+    status['docker'] = settings.is_docker()
+    status['managed'] = settings.is_managed()
+    return status
+
+
+@router.post("/api/system/update")
+async def do_update(request: Request, _=Depends(require_login)):
+    """Run git pull to update Sapphire, then restart."""
+    from core.updater import updater
+    from core.settings_manager import settings
+
+    if settings.is_docker() or settings.is_managed():
+        raise HTTPException(status_code=403, detail="Use docker compose pull to update Docker installations")
+
+    success, message = updater.do_update()
+    if not success:
+        raise HTTPException(status_code=500, detail=message)
+
+    # Trigger restart to load new code
+    from core.api_fastapi import get_restart_callback
+    callback = get_restart_callback()
+    if callback:
+        callback()
+
+    return {"status": "updated", "message": message}

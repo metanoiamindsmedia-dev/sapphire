@@ -155,6 +155,7 @@ async function init() {
         // Init nav rail + router (after data so chat sidebar loads with correct chat)
         initNavRail();
         initRouter('chat');
+        initVersionBadge();
 
         // Hide nav items for disabled plugins (non-blocking)
         syncNavWithPlugins();
@@ -403,6 +404,22 @@ function cleanup() {
     stopMicIconPolling();
     eventBus.disconnect();
     audio.stop();
+}
+
+function initVersionBadge() {
+    const badge = document.getElementById('nav-version');
+    if (!badge) return;
+
+    // Click → navigate to settings dashboard
+    badge.addEventListener('click', () => {
+        import('./core/router.js').then(r => r.switchView('settings'));
+    });
+
+    // Listen for update-available event from dashboard tab
+    window.addEventListener('update-available', e => {
+        badge.classList.add('update-available');
+        badge.title = `Update available: v${e.detail?.latest}`;
+    });
 }
 
 // Boot

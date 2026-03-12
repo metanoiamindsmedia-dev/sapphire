@@ -180,6 +180,18 @@ body {
     font-size: 9px;
     color: var(--text-dim);
     padding: 4px 0 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: border-color 0.3s, color 0.3s;
+    border: 1px solid transparent;
+}
+.nav-version:hover {
+    color: var(--text);
+}
+.nav-version.update-available {
+    color: var(--warning-color, #f0ad4e);
+    border-color: var(--warning-color, #f0ad4e);
+    padding: 3px 6px 3px;
 }
 
 /* Mobile overflow */
@@ -2539,6 +2551,48 @@ div.hb-response-summary {
 .danger-zone h4 { margin: 0 0 12px; color: var(--error, #ef4444); font-size: var(--font-base); }
 .danger-section { margin-bottom: 16px; }
 .danger-section:last-child { margin-bottom: 0; }
+
+/* Dashboard grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    max-width: 600px;
+}
+.dash-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+}
+.dash-card h4 {
+    margin: 0 0 10px;
+    font-size: var(--font-sm);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.dash-version {
+    font-size: var(--font-lg, 1.1rem);
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.dash-controls {
+    display: flex;
+    gap: 8px;
+}
+.dash-update-badge {
+    display: inline-block;
+    background: var(--warning-color, #f0ad4e);
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: var(--font-xs);
+    font-weight: 600;
+}
+.dash-update-status {
+    margin-bottom: 8px;
+}
 .danger-section h5 { margin: 0 0 6px; font-size: var(--font-sm); color: var(--text-secondary); }
 
 /* Network sections */

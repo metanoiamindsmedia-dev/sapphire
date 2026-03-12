@@ -4,6 +4,7 @@ import * as api from '../shared/settings-api.js';
 import * as ui from '../ui.js';
 
 // Tab registry
+import dashboardTab from './settings-tabs/dashboard.js';
 import appearanceTab from './settings-tabs/appearance.js';
 import audioTab from './settings-tabs/audio.js';
 import ttsTab from './settings-tabs/tts.js';
@@ -20,10 +21,10 @@ import systemTab from './settings-tabs/system.js';
 
 import { getRegisteredTabs } from '../shared/plugin-registry.js';
 
-const STATIC_TABS = [appearanceTab, audioTab, ttsTab, sttTab, embeddingTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
+const STATIC_TABS = [dashboardTab, appearanceTab, audioTab, ttsTab, sttTab, embeddingTab, llmTab, toolsTab, networkTab, wakewordTab, pluginsTab, backupTab, systemTab];
 
 let container = null;
-let activeTab = 'appearance';
+let activeTab = 'dashboard';
 let settings = {};
 let help = {};
 let overrides = [];
@@ -37,6 +38,7 @@ let pluginList = [];
 let lockedPlugins = [];
 let mobileMenuCleanup = null;
 let managed = false;
+let docker = false;
 let unrestricted = false;
 
 export default {
@@ -60,6 +62,7 @@ async function loadData() {
         overrides = settingsData.user_overrides || [];
         help = helpData.help || {};
         managed = settingsData.managed || false;
+        docker = settingsData.docker || false;
         unrestricted = settingsData.unrestricted || false;
 
         await Promise.all([loadThemes(), loadWakewordModels(), loadProviderMeta(), loadPluginList()]);
@@ -275,7 +278,7 @@ function renderTabContent() {
 
 function createCtx() {
     return {
-        settings, help, overrides, pendingChanges, managed, unrestricted,
+        settings, help, overrides, pendingChanges, managed, docker, unrestricted,
         wakewordModels, availableThemes, avatarPaths, providerMeta,
         pluginList, lockedPlugins,
         renderFields, renderAccordion, renderInput, formatLabel,

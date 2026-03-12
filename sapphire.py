@@ -571,6 +571,10 @@ def run():
         from core.plugin_loader import plugin_loader
         plugin_loader.set_scheduler(continuity_scheduler)
 
+        # Background update checker (checks GitHub every 24h)
+        from core.updater import updater as app_updater
+        app_updater.start_background_checker()
+
         # Dev mode: auto-reload plugins on file changes
         import os
         if os.environ.get("SAPPHIRE_DEV"):

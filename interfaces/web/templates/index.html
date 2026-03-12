@@ -98,8 +98,9 @@
             <span class="nav-profile-initial" id="nav-profile-initial">?</span>
         </button>
 
-        <span class="nav-version">v{{ app_version }}</span>
+        <span class="nav-version" id="nav-version" title="Click for dashboard">v{{ app_version }}</span>
     </nav>
+    <script>window.__appVersion = '{{ app_version }}';</script>
 
     <!-- ================================================================
          APP CONTENT (all views live here)
