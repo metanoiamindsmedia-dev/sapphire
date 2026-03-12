@@ -1,12 +1,31 @@
 # Sapphire Consumer Docker Image
-# Self-contained: Kokoro TTS + Faster Whisper STT + Nomic Embeddings (all CPU)
-# GPU: docker build --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-runtime-ubuntu22.04 -t sapphire:gpu .
+# Self-contained: Kokoro TTS + Faster Whisper STT + Nomic Embeddings
+#
+# CPU:  docker build -t sapphire:cpu .
+# GPU:  docker build --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-runtime-ubuntu22.04 -t sapphire:gpu .
 
 # ============================================================
 # Stage 1: Base + system deps
 # ============================================================
 ARG BASE_IMAGE=python:3.11
 FROM ${BASE_IMAGE} AS base
+
+# Prevent interactive prompts during apt-get (tzdata, etc.)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# GPU images (Ubuntu base) don't have Python — install 3.11 from deadsnakes PPA
+RUN if ! command -v python3.11 >/dev/null 2>&1 && ! python3 --version 2>&1 | grep -q "3.11"; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            software-properties-common \
+        && add-apt-repository -y ppa:deadsnakes/ppa \
+        && apt-get update && apt-get install -y --no-install-recommends \
+            python3.11 python3.11-venv python3.11-dev python3.11-distutils tzdata \
+        && python3.11 -m ensurepip \
+        && ln -sf python3.11 /usr/bin/python3 \
+        && ln -sf python3.11 /usr/bin/python \
+        && ln -sf /usr/local/bin/pip3.11 /usr/bin/pip || true \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
@@ -17,8 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Non-root user
-RUN groupadd -g 1000 sapphire && \
-    useradd -u 1000 -g sapphire -m sapphire
+RUN groupadd -g 1000 sapphire 2>/dev/null || true && \
+    useradd -u 1000 -g 1000 -m sapphire 2>/dev/null || true
 
 # ============================================================
 # Stage 2: Python dependencies (cached layer — rarely changes)
