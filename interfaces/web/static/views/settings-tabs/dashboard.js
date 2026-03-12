@@ -353,14 +353,14 @@ function renderModelChart(el, models) {
     const top = models.slice(0, 5);
     const maxTotal = Math.max(...top.map(m => m.total)) || 1;
 
-    const BAR_H = 18, GAP = 6, LABEL_W = 130, BAR_AREA = 320, PAD_R = 60;
+    const BAR_H = 18, GAP = 6, LABEL_W = 100, BAR_AREA = 370, PAD_R = 70;
     const W = LABEL_W + BAR_AREA + PAD_R;
     const H = top.length * (BAR_H + GAP) + GAP;
 
     const bars = top.map((m, i) => {
         const y = GAP + i * (BAR_H + GAP);
         const barW = Math.max(2, (m.total / maxTotal) * BAR_AREA);
-        const label = m.model.length > 18 ? m.model.slice(0, 17) + '\u2026' : m.model;
+        const label = m.model.length > 14 ? m.model.slice(0, 13) + '\u2026' : m.model;
         const cacheInfo = m.cache_read > 0 && m.prompt > 0
             ? ` \u00B7 cache ${Math.round((m.cache_read / m.prompt) * 100)}%` : '';
 
