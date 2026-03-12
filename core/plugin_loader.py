@@ -327,6 +327,19 @@ class PluginLoader:
                     } for src in event_sources]
                 logger.info(f"[PLUGINS] Registered {len(event_sources)} event source(s) for {name}")
 
+            # Start daemon background thread if entry point declared
+            daemon_entry = daemon_config.get("entry")
+            if daemon_entry:
+                try:
+                    daemon_mod = self._load_daemon_module(plugin_dir, daemon_entry)
+                    if daemon_mod and hasattr(daemon_mod, "start"):
+                        settings = self.get_plugin_settings(name)
+                        daemon_mod.start(self, settings)
+                        info["daemon_module"] = daemon_mod
+                        logger.info(f"[PLUGINS] Started daemon thread for {name}")
+                except Exception as e:
+                    logger.error(f"[PLUGINS] Failed to start daemon for {name}: {e}", exc_info=True)
+
         info["loaded"] = True
 
         # Seed default settings if manifest declares schema and no settings file exists
@@ -343,13 +356,38 @@ class PluginLoader:
         logger.info(f"[PLUGINS] Loaded: {name} (priority {base_priority}, {band})")
         return True
 
-    def _load_handler(self, plugin_dir: Path, handler_path: str, hook_name: str):
+    def _load_daemon_module(self, plugin_dir: Path, entry_path: str):
+        """Load a daemon module from a plugin. Returns the module namespace."""
+        full_path = plugin_dir / entry_path
+        try:
+            full_path.resolve().relative_to(plugin_dir.resolve())
+        except ValueError:
+            logger.error(f"[PLUGINS] Path traversal blocked in daemon entry: {entry_path}")
+            return None
+        if not full_path.exists():
+            logger.warning(f"[PLUGINS] Daemon entry not found: {full_path}")
+            return None
+
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                f"plugin_daemon_{plugin_dir.name}", str(full_path)
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+        except Exception as e:
+            logger.error(f"[PLUGINS] Failed to load daemon module {full_path}: {e}", exc_info=True)
+            return None
+
+    def _load_handler(self, plugin_dir: Path, handler_path: str, hook_name: str, ns_cache: dict = None):
         """Import a Python handler from a plugin directory.
 
         Args:
             plugin_dir: Plugin root (e.g., plugins/stop/)
             handler_path: Relative path (e.g., "hooks/stop.py")
             hook_name: The hook this handler is for (used as function name to look up)
+            ns_cache: Optional dict to cache namespaces per file path (for shared state)
 
         Returns:
             Callable or None
@@ -371,6 +409,10 @@ class PluginLoader:
             source = full_path.read_text(encoding="utf-8")
             namespace = {"__file__": str(full_path), "__name__": f"plugin_{plugin_dir.name}_{full_path.stem}"}
             exec(compile(source, str(full_path), "exec"), namespace)
+
+            # Cache namespace so other handlers from the same file share module-level state
+            if ns_cache is not None:
+                ns_cache[handler_path] = namespace
 
             # Look for a function matching the hook name (e.g., pre_chat, prompt_inject)
             handler = namespace.get(hook_name)
@@ -406,7 +448,16 @@ class PluginLoader:
                 self._plugins[name].pop("schedule_task_ids", None)
             self._event_sources.pop(name, None)
             self._reply_handlers.pop(name, None)
+            # Stop daemon thread if running
             if name in self._plugins:
+                daemon_mod = self._plugins[name].get("daemon_module")
+                if daemon_mod and hasattr(daemon_mod, "stop"):
+                    try:
+                        daemon_mod.stop()
+                        logger.info(f"[PLUGINS] Stopped daemon for {name}")
+                    except Exception as e:
+                        logger.warning(f"[PLUGINS] Failed to stop daemon for {name}: {e}")
+                    self._plugins[name].pop("daemon_module", None)
                 self._plugins[name]["loaded"] = False
         logger.info(f"[PLUGINS] Unloaded: {name}")
 
@@ -650,6 +701,8 @@ class PluginLoader:
     def _register_routes(self, name: str, plugin_dir: Path, routes: list):
         """Register HTTP route handlers declared in plugin manifest."""
         registered = []
+        # Cache namespaces per file so multiple handlers from the same file share state
+        ns_cache = {}
         for route_def in routes:
             method = route_def.get("method", "GET").upper()
             path = route_def.get("path", "")
@@ -670,10 +723,18 @@ class PluginLoader:
                 file_path = handler_ref
                 func_name = "handle"
 
-            handler_func = self._load_handler(plugin_dir, file_path, func_name)
-            if not handler_func:
-                logger.warning(f"[PLUGINS] {name}: failed to load route handler '{handler_ref}'")
-                continue
+            # Load from cached namespace if same file, otherwise exec fresh
+            if file_path in ns_cache:
+                ns = ns_cache[file_path]
+                handler_func = ns.get(func_name)
+                if not handler_func or not callable(handler_func):
+                    logger.warning(f"[PLUGINS] {name}: no '{func_name}' in cached {file_path}")
+                    continue
+            else:
+                handler_func = self._load_handler(plugin_dir, file_path, func_name, ns_cache=ns_cache)
+                if not handler_func:
+                    logger.warning(f"[PLUGINS] {name}: failed to load route handler '{handler_ref}'")
+                    continue
 
             # Convert path pattern like "capture/{request_id}" to regex
             param_names = re.findall(r'\{(\w+)\}', path)
