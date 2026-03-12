@@ -48,7 +48,10 @@ class Updater:
             resp = requests.get(GITHUB_VERSION_URL, timeout=10)
             if resp.status_code == 200:
                 self.latest_version = resp.text.strip()
-                self.update_available = self.latest_version != self.current_version
+                self.update_available = (
+                    tuple(int(x) for x in self.latest_version.split('.')) >
+                    tuple(int(x) for x in self.current_version.split('.'))
+                )
                 self.last_check = now
                 if self.update_available:
                     logger.info(f"Update available: {self.current_version} → {self.latest_version}")
