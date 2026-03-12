@@ -22,46 +22,48 @@ Docker works in **layers** — the base system, Python packages, AI models, and 
 
 ### 1. Install Docker
 
-- **Mac/Windows**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **Windows/Mac**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - **Linux**: Install [Docker Engine](https://docs.docker.com/engine/install/)
 
-### 2. Create a directory for Sapphire
+### 2. Create a directory and download the compose file
+
+#### Linux / Mac (Terminal)
 
 ```bash
 mkdir ~/sapphire && cd ~/sapphire
-```
-
-### 3. Download the compose file
-
-```bash
 curl -fsSL https://raw.githubusercontent.com/ddxfish/sapphire/main/docker-compose.yml -o docker-compose.yml
+mkdir -p sapphire-data sapphire-backups sapphire-config
 ```
 
-### 4. Edit your settings (optional)
+#### Windows (PowerShell)
+
+```powershell
+mkdir $HOME\sapphire; cd $HOME\sapphire
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ddxfish/sapphire/main/docker-compose.yml" -OutFile "docker-compose.yml"
+mkdir sapphire-data, sapphire-backups, sapphire-config
+```
+
+> **Windows note**: Use PowerShell (not cmd.exe). Right-click Start → "Windows PowerShell" or search for "PowerShell."
+
+### 3. Edit your settings (optional)
 
 Open `docker-compose.yml` in any text editor and set:
 - **Timezone** — Change `America/New_York` to yours ([timezone list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))
 - **API keys** — Uncomment and fill in whichever LLM provider you use (Claude, OpenAI, etc.)
 
-### 5. Create data directories
-
-If you don't make these, root owns them, but no big deal just ```chown -R youruser:youruser ~/sapphire``` to change to your user name.
-
-```bash
-mkdir -p sapphire-data sapphire-backups sapphire-config
-```
-
-### 6. Start Sapphire
+### 4. Start Sapphire
 
 ```bash
 docker compose up -d
 ```
 
-### 7. Open the web UI
+### 5. Open the web UI
 
 Go to **https://localhost:8073** in your browser and complete the setup wizard.
 
 > **Note**: You'll see a browser security warning about the self-signed certificate. This is normal — click "Advanced" → "Proceed" to continue.
+
+> **Permissions note (Linux only)**: If you skipped step 2's `mkdir` commands, Docker creates the data directories as root. Fix with: `sudo chown -R $USER:$USER ~/sapphire`
 
 ---
 
@@ -148,7 +150,18 @@ Your data stays in `sapphire-data/`, `sapphire-backups/`, and `sapphire-config/`
 ```bash
 docker compose down
 docker rmi ghcr.io/ddxfish/sapphire:latest
+```
+
+Then delete the data directories:
+
+**Linux / Mac:**
+```bash
 rm -rf sapphire-data sapphire-backups sapphire-config
+```
+
+**Windows (PowerShell):**
+```powershell
+Remove-Item -Recurse -Force sapphire-data, sapphire-backups, sapphire-config
 ```
 
 ---
@@ -158,16 +171,16 @@ rm -rf sapphire-data sapphire-backups sapphire-config
 Everything is stored in plain folders next to your `docker-compose.yml`:
 
 ```
-~/sapphire/
-├── docker-compose.yml        ← Configuration
-├── sapphire-data/            ← Chats, memories, settings, plugins
+sapphire/                         ← ~/sapphire (Linux/Mac) or %USERPROFILE%\sapphire (Windows)
+├── docker-compose.yml            ← Configuration
+├── sapphire-data/                ← Chats, memories, settings, plugins
 │   ├── settings.json
 │   ├── history/
 │   ├── memory.db
 │   ├── knowledge.db
 │   └── ...
-├── sapphire-backups/         ← Automatic backups
-└── sapphire-config/          ← Credentials and secrets
+├── sapphire-backups/             ← Automatic backups
+└── sapphire-config/              ← Credentials and secrets
 ```
 
 These are normal folders on your machine. You can browse them, back them up, or move them to another computer.
@@ -194,11 +207,11 @@ Make sure LM Studio's server is running and set to allow network connections.
 
 ## Troubleshooting
 
-**"Permission denied" on data directories**
+**"Permission denied" on data directories (Linux)**
 ```bash
 mkdir -p sapphire-data sapphire-backups sapphire-config
 ```
-Create the directories before first run so they're owned by your user, not root.
+Create the directories before first run so they're owned by your user, not root. If they already exist as root: `sudo chown -R $USER:$USER sapphire-data sapphire-backups sapphire-config`. This doesn't apply to Windows/Mac — Docker Desktop handles permissions automatically.
 
 **Browser shows "connection refused"**
 Sapphire takes 30-60 seconds to start on first run (loading AI models). Check progress with `docker compose logs -f`.
