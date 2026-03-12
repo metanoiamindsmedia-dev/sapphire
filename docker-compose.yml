@@ -9,7 +9,9 @@
 
 services:
   sapphire:
-    build: .
+    image: ghcr.io/ddxfish/sapphire:latest
+    # For local development builds, comment out 'image' above and uncomment:
+    # build: .
     container_name: sapphire
     restart: unless-stopped
     ports:
