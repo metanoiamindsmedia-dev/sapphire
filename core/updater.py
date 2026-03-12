@@ -10,7 +10,9 @@ import requests
 logger = logging.getLogger(__name__)
 
 VERSION_FILE = Path(__file__).parent.parent / 'VERSION'
-GITHUB_VERSION_URL = 'https://raw.githubusercontent.com/ddxfish/sapphire/main/VERSION'
+REPO_DIR = VERSION_FILE.parent
+GITHUB_REPO = 'ddxfish/sapphire'
+GITHUB_RAW_URL = f'https://raw.githubusercontent.com/{GITHUB_REPO}'
 CHECK_INTERVAL = 86400  # 24 hours
 
 
@@ -22,6 +24,8 @@ class Updater:
         self.last_check = 0
         self.checking = False
         self._thread = None
+        self.branch = self._detect_branch()
+        self.is_fork = self._detect_fork()
 
     def _read_local_version(self):
         try:
@@ -29,9 +33,36 @@ class Updater:
         except Exception:
             return '?'
 
+    def _detect_branch(self):
+        """Get current git branch name."""
+        try:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                cwd=str(REPO_DIR), capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
+        return 'main'
+
+    def _detect_fork(self):
+        """Check if origin points to the official repo."""
+        try:
+            result = subprocess.run(
+                ['git', 'remote', 'get-url', 'origin'],
+                cwd=str(REPO_DIR), capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                url = result.stdout.strip().lower()
+                return GITHUB_REPO.lower() not in url
+        except Exception:
+            pass
+        return False
+
     def has_git(self):
         """Check if we're in a git repo."""
-        git_dir = VERSION_FILE.parent / '.git'
+        git_dir = REPO_DIR / '.git'
         return git_dir.exists()
 
     def check_for_update(self, force=False):
@@ -45,7 +76,9 @@ class Updater:
 
         self.checking = True
         try:
-            resp = requests.get(GITHUB_VERSION_URL, timeout=10)
+            # Always check official repo — branch-aware
+            url = f'{GITHUB_RAW_URL}/{self.branch}/VERSION'
+            resp = requests.get(url, timeout=10)
             if resp.status_code == 200:
                 self.latest_version = resp.text.strip()
                 self.update_available = (
@@ -55,6 +88,16 @@ class Updater:
                 self.last_check = now
                 if self.update_available:
                     logger.info(f"Update available: {self.current_version} → {self.latest_version}")
+            elif resp.status_code == 404:
+                # Branch doesn't exist on official repo — fall back to main
+                resp = requests.get(f'{GITHUB_RAW_URL}/main/VERSION', timeout=10)
+                if resp.status_code == 200:
+                    self.latest_version = resp.text.strip()
+                    self.update_available = (
+                        tuple(int(x) for x in self.latest_version.split('.')) >
+                        tuple(int(x) for x in self.current_version.split('.'))
+                    )
+                    self.last_check = now
             else:
                 logger.warning(f"Version check failed: HTTP {resp.status_code}")
         except Exception as e:
@@ -71,12 +114,16 @@ class Updater:
             'available': self.update_available,
             'has_git': self.has_git(),
             'last_check': self.last_check,
+            'branch': self.branch,
+            'is_fork': self.is_fork,
         }
 
     def do_update(self):
         """Run backup then git pull. Returns (success, message)."""
         if not self.has_git():
             return False, "Not a git repository. Download the latest release from GitHub."
+        if self.is_fork:
+            return False, "Fork detected — pull updates from upstream manually."
 
         # Run backup first
         try:
@@ -88,10 +135,9 @@ class Updater:
 
         # Git pull
         try:
-            repo_dir = VERSION_FILE.parent
             result = subprocess.run(
                 ['git', 'pull', '--ff-only'],
-                cwd=str(repo_dir),
+                cwd=str(REPO_DIR),
                 capture_output=True,
                 text=True,
                 timeout=60,

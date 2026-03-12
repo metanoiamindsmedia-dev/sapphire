@@ -14,7 +14,7 @@ export default {
             <div class="dashboard-grid">
                 <div class="dash-card">
                     <h4>System</h4>
-                    <div class="dash-version" id="dash-version">v${window.__appVersion || '?'}</div>
+                    <div class="dash-version" id="dash-version">v${window.__appVersion || '?'} <span class="text-muted" id="dash-branch"></span></div>
                     <div class="dash-controls">
                         <button class="btn-primary btn-sm" id="dash-restart">Restart</button>
                         <button class="btn-sm danger" id="dash-shutdown">Shutdown</button>
@@ -84,13 +84,23 @@ async function checkForUpdate(el) {
         if (!res.ok) throw new Error('Check failed');
         updateStatus = await res.json();
 
+        // Show branch name in System card
+        const branchEl = el.querySelector('#dash-branch');
+        if (branchEl && updateStatus.branch) {
+            const tag = updateStatus.is_fork ? `${updateStatus.branch} · fork` : updateStatus.branch;
+            branchEl.textContent = `· ${tag}`;
+        }
+
         if (updateStatus.available) {
             statusEl.innerHTML = `
                 <span class="dash-update-badge">v${updateStatus.latest} available</span>
                 <span class="text-muted" style="font-size:var(--font-xs)">Current: v${updateStatus.current}</span>
             `;
 
-            if (updateStatus.docker || updateStatus.managed) {
+            if (updateStatus.is_fork) {
+                // Fork: show upstream version, link to releases, no update button
+                actionsEl.innerHTML = `<p class="text-muted" style="font-size:var(--font-xs);margin:0">Upstream update — get it from <a href="https://github.com/ddxfish/sapphire/releases" target="_blank">Sapphire releases</a></p>`;
+            } else if (updateStatus.docker || updateStatus.managed) {
                 actionsEl.innerHTML = `<p class="text-muted" style="font-size:var(--font-xs);margin:0">Update via: <code>docker compose pull && docker compose up -d</code></p>`;
             } else if (updateStatus.has_git) {
                 actionsEl.innerHTML = `<button class="btn-primary btn-sm" id="dash-do-update">Update Now</button>`;
