@@ -2555,9 +2555,9 @@ div.hb-response-summary {
 /* Dashboard grid */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
-    max-width: 800px;
+    max-width: 600px;
 }
 .dash-card {
     padding: 16px;
@@ -2596,14 +2596,61 @@ div.hb-response-summary {
 .dash-card-wide {
     grid-column: 1 / -1;
 }
-.metrics-grid {
+.dash-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.dash-card-header h4 {
+    margin: 0;
+}
+.metrics-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    user-select: none;
+}
+.metrics-toggle input[type="checkbox"] {
+    display: none;
+}
+.toggle-track {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    background: var(--border);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--bg-primary);
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.metrics-toggle input:checked + .toggle-track {
+    background: var(--trim, var(--accent));
+}
+.metrics-toggle input:checked + .toggle-track::after {
+    transform: translateX(12px);
+}
+.metrics-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
+    margin-bottom: 16px;
 }
 .metric-item {
     text-align: center;
-    min-width: 70px;
+    min-width: 65px;
 }
 .metric-value {
     font-size: var(--font-lg, 1.1rem);
@@ -2615,26 +2662,62 @@ div.hb-response-summary {
     color: var(--text-muted);
     margin-top: 2px;
 }
-.metrics-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--font-sm);
+.metrics-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
-.metrics-table th,
-.metrics-table td {
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
+.metrics-chart-container {
+    min-width: 0;
 }
-.metrics-table th {
-    color: var(--text-muted);
-    font-weight: 500;
+.chart-title {
     font-size: var(--font-xs);
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
 }
-.metrics-table .text-right {
-    text-align: right;
+.chart-area {
+    min-height: 80px;
+}
+.chart-svg {
+    width: 100%;
+    height: auto;
+}
+.chart-grid {
+    stroke: var(--border);
+    stroke-width: 0.5;
+    stroke-dasharray: 2 2;
+}
+.chart-label {
+    fill: var(--text-muted);
+    font-size: 9px;
+    font-family: inherit;
+}
+.chart-line {
+    fill: none;
+    stroke: var(--trim, var(--accent));
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+.chart-area-fill {
+    fill: var(--trim, var(--accent));
+    opacity: 0.1;
+}
+.chart-dot {
+    fill: var(--trim, var(--accent));
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.chart-dot:hover {
+    opacity: 1;
+}
+.chart-bar {
+    fill: var(--trim, var(--accent));
+    opacity: 0.7;
+}
+.chart-bar:hover {
+    opacity: 1;
 }
 .danger-section h5 { margin: 0 0 6px; font-size: var(--font-sm); color: var(--text-secondary); }
 

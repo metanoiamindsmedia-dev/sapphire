@@ -57,6 +57,12 @@ class TokenMetrics:
     def record(self, chat_name: str, provider: str, model: str,
                call_type: str, metadata: Dict, estimated: bool = False):
         """Record a single LLM call's token usage from metadata dict."""
+        try:
+            import config
+            if not getattr(config, 'METRICS_ENABLED', True):
+                return
+        except Exception:
+            pass
         tokens = metadata.get("tokens", {})
         duration = metadata.get("duration_seconds", 0)
 

@@ -539,6 +539,22 @@ async def do_update(request: Request, _=Depends(require_login)):
 # METRICS ROUTES
 # =============================================================================
 
+@router.get("/api/metrics/enabled")
+async def metrics_enabled(request: Request, _=Depends(require_login)):
+    """Check if metrics tracking is enabled."""
+    return {"enabled": getattr(config, 'METRICS_ENABLED', True)}
+
+
+@router.put("/api/metrics/enabled")
+async def set_metrics_enabled(request: Request, _=Depends(require_login)):
+    """Toggle metrics tracking."""
+    from core.settings_manager import settings
+    data = await request.json()
+    enabled = bool(data.get("enabled", True))
+    settings.set("METRICS_ENABLED", enabled)
+    return {"enabled": enabled}
+
+
 @router.get("/api/metrics/summary")
 async def metrics_summary(request: Request, _=Depends(require_login)):
     """Aggregate token usage summary."""

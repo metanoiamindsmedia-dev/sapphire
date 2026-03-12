@@ -28,14 +28,15 @@ export default {
                     <div class="dash-update-actions" id="dash-update-actions"></div>
                 </div>
                 <div class="dash-card dash-card-wide">
-                    <h4>Token Usage <span class="text-muted" style="font-size:var(--font-xs);font-weight:normal">(30 days)</span></h4>
-                    <div id="dash-metrics-summary" class="dash-metrics">
-                        <span class="text-muted">Loading...</span>
+                    <div class="dash-card-header">
+                        <h4>Token Metrics <span class="text-muted" style="font-size:var(--font-xs);font-weight:normal">(30 days)</span></h4>
+                        <label class="metrics-toggle" id="metrics-toggle">
+                            <input type="checkbox" id="metrics-enabled-cb">
+                            <span class="toggle-track"></span>
+                            <span class="toggle-label">Track</span>
+                        </label>
                     </div>
-                </div>
-                <div class="dash-card dash-card-wide">
-                    <h4>Usage by Model</h4>
-                    <div id="dash-metrics-breakdown" class="dash-metrics">
+                    <div id="dash-metrics" class="dash-metrics">
                         <span class="text-muted">Loading...</span>
                     </div>
                 </div>
@@ -63,10 +64,7 @@ export default {
             } catch { ui.showToast('Shutdown failed', 'error'); }
         });
 
-        // Check for updates
         checkForUpdate(el);
-
-        // Load metrics
         loadMetrics(el);
     }
 };
@@ -129,7 +127,6 @@ async function doUpdate(el) {
             const err = await res.json();
             throw new Error(err.detail || 'Update failed');
         }
-        const result = await res.json();
         ui.showToast('Updated! Restarting...', 'success');
 
         const statusEl = el.querySelector('#dash-update-status');
@@ -168,31 +165,64 @@ const fmt = n => {
 };
 
 async function loadMetrics(el) {
-    const summaryEl = el.querySelector('#dash-metrics-summary');
-    const breakdownEl = el.querySelector('#dash-metrics-breakdown');
+    const metricsEl = el.querySelector('#dash-metrics');
+    const cb = el.querySelector('#metrics-enabled-cb');
+    if (!metricsEl) return;
+
+    // Load toggle state
+    try {
+        const toggleRes = await fetch('/api/metrics/enabled');
+        if (toggleRes.ok) {
+            const { enabled } = await toggleRes.json();
+            if (cb) cb.checked = enabled;
+        }
+    } catch {}
+
+    // Wire toggle
+    if (cb) {
+        cb.addEventListener('change', async () => {
+            try {
+                await fetch('/api/metrics/enabled', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: cb.checked })
+                });
+                loadMetricsData(metricsEl, cb.checked);
+            } catch { cb.checked = !cb.checked; }
+        });
+    }
+
+    loadMetricsData(metricsEl, cb?.checked !== false);
+}
+
+async function loadMetricsData(el, enabled) {
+    if (!enabled) {
+        el.innerHTML = '<span class="text-muted">Metrics tracking is off. Per-message stats still show in chat.</span>';
+        return;
+    }
 
     try {
-        const [sumRes, brkRes] = await Promise.all([
+        const [sumRes, brkRes, dailyRes] = await Promise.all([
             fetch('/api/metrics/summary?days=30'),
-            fetch('/api/metrics/breakdown?days=30')
+            fetch('/api/metrics/breakdown?days=30'),
+            fetch('/api/metrics/daily?days=30')
         ]);
 
-        if (!sumRes.ok || !brkRes.ok) throw new Error('Metrics fetch failed');
+        if (!sumRes.ok || !brkRes.ok || !dailyRes.ok) throw new Error('Metrics fetch failed');
 
         const summary = await sumRes.json();
         const breakdown = await brkRes.json();
+        const daily = await dailyRes.json();
 
-        renderSummary(summaryEl, summary);
-        renderBreakdown(breakdownEl, breakdown.models || []);
+        renderMetrics(el, summary, breakdown.models || [], daily.daily || []);
     } catch (e) {
-        if (summaryEl) summaryEl.innerHTML = '<span class="text-muted">No metrics data yet</span>';
-        if (breakdownEl) breakdownEl.innerHTML = '<span class="text-muted">Send some messages to start collecting metrics</span>';
+        el.innerHTML = '<span class="text-muted">No metrics data yet — send some messages to start collecting</span>';
     }
 }
 
-function renderSummary(el, s) {
-    if (!el || !s.total_calls) {
-        if (el) el.innerHTML = '<span class="text-muted">No data yet — metrics start recording from this version</span>';
+function renderMetrics(el, s, models, daily) {
+    if (!s.total_calls) {
+        el.innerHTML = '<span class="text-muted">No data yet — metrics start recording from this version</span>';
         return;
     }
 
@@ -200,7 +230,7 @@ function renderSummary(el, s) {
         ? Math.round((s.total_cache_read / s.total_prompt) * 100) : null;
 
     el.innerHTML = `
-        <div class="metrics-grid">
+        <div class="metrics-stats">
             <div class="metric-item">
                 <div class="metric-value">${fmt(s.total_calls)}</div>
                 <div class="metric-label">LLM Calls</div>
@@ -228,42 +258,124 @@ function renderSummary(el, s) {
                 <div class="metric-label">Cache Hit</div>
             </div>` : ''}
         </div>
+        <div class="metrics-charts">
+            <div class="metrics-chart-container">
+                <div class="chart-title">Daily Usage</div>
+                <div id="chart-daily" class="chart-area"></div>
+            </div>
+            <div class="metrics-chart-container">
+                <div class="chart-title">Models</div>
+                <div id="chart-models" class="chart-area"></div>
+            </div>
+        </div>
     `;
+
+    renderDailyChart(el.querySelector('#chart-daily'), daily);
+    renderModelChart(el.querySelector('#chart-models'), models);
 }
 
-function renderBreakdown(el, models) {
-    if (!el || !models.length) {
-        if (el) el.innerHTML = '<span class="text-muted">No model data yet</span>';
+
+// =============================================================================
+// SVG CHARTS
+// =============================================================================
+
+function renderDailyChart(el, daily) {
+    if (!el || daily.length < 2) {
+        if (el) el.innerHTML = '<span class="text-muted" style="font-size:var(--font-xs)">Need 2+ days of data</span>';
         return;
     }
 
-    const rows = models.slice(0, 8).map(m => {
-        const cacheInfo = m.cache_read > 0
-            ? `<span class="text-muted" style="font-size:var(--font-xs)">cache ${Math.round((m.cache_read / (m.prompt || 1)) * 100)}%</span>`
-            : '';
+    const W = 540, H = 120, PAD_L = 40, PAD_R = 8, PAD_T = 8, PAD_B = 20;
+    const chartW = W - PAD_L - PAD_R;
+    const chartH = H - PAD_T - PAD_B;
+
+    const maxTokens = Math.max(...daily.map(d => d.tokens)) || 1;
+    const points = daily.map((d, i) => {
+        const x = PAD_L + (i / (daily.length - 1)) * chartW;
+        const y = PAD_T + chartH - (d.tokens / maxTokens) * chartH;
+        return { x, y, ...d };
+    });
+
+    const polyline = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+    // Fill area under line
+    const areaPoints = `${PAD_L},${PAD_T + chartH} ${polyline} ${points[points.length - 1].x.toFixed(1)},${PAD_T + chartH}`;
+
+    // Y-axis labels (0, mid, max)
+    const yMid = fmt(Math.round(maxTokens / 2));
+    const yMax = fmt(maxTokens);
+
+    // X-axis labels (first and last date)
+    const firstDate = daily[0].date.slice(5); // MM-DD
+    const lastDate = daily[daily.length - 1].date.slice(5);
+
+    // Tooltip dots
+    const dots = points.map(p =>
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" class="chart-dot">
+            <title>${p.date}: ${fmt(p.tokens)} tokens, ${p.calls} calls</title>
+        </circle>`
+    ).join('');
+
+    el.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+            <!-- Grid lines -->
+            <line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L + chartW}" y2="${PAD_T}" class="chart-grid"/>
+            <line x1="${PAD_L}" y1="${PAD_T + chartH / 2}" x2="${PAD_L + chartW}" y2="${PAD_T + chartH / 2}" class="chart-grid"/>
+            <line x1="${PAD_L}" y1="${PAD_T + chartH}" x2="${PAD_L + chartW}" y2="${PAD_T + chartH}" class="chart-grid"/>
+
+            <!-- Y labels -->
+            <text x="${PAD_L - 4}" y="${PAD_T + 4}" class="chart-label" text-anchor="end">${yMax}</text>
+            <text x="${PAD_L - 4}" y="${PAD_T + chartH / 2 + 3}" class="chart-label" text-anchor="end">${yMid}</text>
+            <text x="${PAD_L - 4}" y="${PAD_T + chartH + 3}" class="chart-label" text-anchor="end">0</text>
+
+            <!-- X labels -->
+            <text x="${PAD_L}" y="${H - 2}" class="chart-label">${firstDate}</text>
+            <text x="${PAD_L + chartW}" y="${H - 2}" class="chart-label" text-anchor="end">${lastDate}</text>
+
+            <!-- Area fill -->
+            <polygon points="${areaPoints}" class="chart-area-fill"/>
+
+            <!-- Line -->
+            <polyline points="${polyline}" class="chart-line"/>
+
+            <!-- Dots -->
+            ${dots}
+        </svg>
+    `;
+}
+
+function renderModelChart(el, models) {
+    if (!el || !models.length) {
+        if (el) el.innerHTML = '<span class="text-muted" style="font-size:var(--font-xs)">No model data yet</span>';
+        return;
+    }
+
+    const top = models.slice(0, 5);
+    const maxTotal = Math.max(...top.map(m => m.total)) || 1;
+
+    const BAR_H = 18, GAP = 6, LABEL_W = 130, BAR_AREA = 320, PAD_R = 60;
+    const W = LABEL_W + BAR_AREA + PAD_R;
+    const H = top.length * (BAR_H + GAP) + GAP;
+
+    const bars = top.map((m, i) => {
+        const y = GAP + i * (BAR_H + GAP);
+        const barW = Math.max(2, (m.total / maxTotal) * BAR_AREA);
+        const label = m.model.length > 18 ? m.model.slice(0, 17) + '\u2026' : m.model;
+        const cacheInfo = m.cache_read > 0 && m.prompt > 0
+            ? ` \u00B7 cache ${Math.round((m.cache_read / m.prompt) * 100)}%` : '';
+
         return `
-            <tr>
-                <td>${m.model}</td>
-                <td class="text-right">${fmt(m.calls)}</td>
-                <td class="text-right">${fmt(m.total)}</td>
-                <td class="text-right">${m.duration > 0 ? `${m.duration.toFixed(0)}s` : '-'}</td>
-                <td class="text-right">${cacheInfo}</td>
-            </tr>
+            <text x="${LABEL_W - 4}" y="${y + BAR_H / 2 + 4}" class="chart-label" text-anchor="end">${label}</text>
+            <rect x="${LABEL_W}" y="${y}" width="${barW.toFixed(1)}" height="${BAR_H}" class="chart-bar" rx="2">
+                <title>${m.model}: ${fmt(m.total)} tokens, ${m.calls} calls${cacheInfo}</title>
+            </rect>
+            <text x="${LABEL_W + barW + 4}" y="${y + BAR_H / 2 + 4}" class="chart-label">${fmt(m.total)}${cacheInfo}</text>
         `;
     }).join('');
 
     el.innerHTML = `
-        <table class="metrics-table">
-            <thead>
-                <tr>
-                    <th>Model</th>
-                    <th class="text-right">Calls</th>
-                    <th class="text-right">Tokens</th>
-                    <th class="text-right">Time</th>
-                    <th class="text-right">Cache</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
+        <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+            ${bars}
+        </svg>
     `;
 }
