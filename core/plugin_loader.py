@@ -84,6 +84,8 @@ class PluginLoader:
         self._watcher_thread = None
         # Route registry: {plugin_name: [(method, compiled_regex, param_names, handler_func), ...]}
         self._routes: Dict[str, list] = {}
+        # Daemon event source registry: {plugin_name: [source_defs]}
+        self._event_sources: Dict[str, list] = {}
 
     def _is_managed(self):
         """Check if running in managed/Docker mode (single source of truth)."""
@@ -307,6 +309,21 @@ class PluginLoader:
                     logger.error(f"[PLUGINS] Failed to register schedule for {name}: {e}")
             info["schedule_task_ids"] = task_ids
 
+        # Register daemon event sources
+        daemon_config = capabilities.get("daemon", {})
+        if daemon_config:
+            event_sources = daemon_config.get("event_sources", [])
+            if event_sources:
+                with self._lock:
+                    self._event_sources[name] = [{
+                        "name": src.get("name", f"{name}_event"),
+                        "label": src.get("label", src.get("name", name)),
+                        "plugin": name,
+                        "filter_fields": src.get("filter_fields", []),
+                        "description": src.get("description", ""),
+                    } for src in event_sources]
+                logger.info(f"[PLUGINS] Registered {len(event_sources)} event source(s) for {name}")
+
         info["loaded"] = True
 
         # Seed default settings if manifest declares schema and no settings file exists
@@ -370,12 +387,12 @@ class PluginLoader:
             return None
 
     def unload_plugin(self, name: str):
-        """Unload a plugin — deregister all hooks, tools, routes, and schedule tasks."""
+        """Unload a plugin — deregister all hooks, tools, routes, schedule tasks, and event sources."""
         hook_runner.unregister_plugin(name)
         if self._function_manager:
             self._function_manager.unregister_plugin_tools(name)
         self._unregister_routes(name)
-        # Remove plugin schedule tasks
+        # Remove plugin schedule tasks and event sources
         with self._lock:
             if self._scheduler and name in self._plugins:
                 for tid in self._plugins[name].get("schedule_task_ids", []):
@@ -384,6 +401,7 @@ class PluginLoader:
                     except Exception as e:
                         logger.warning(f"[PLUGINS] Failed to delete schedule task {tid}: {e}")
                 self._plugins[name].pop("schedule_task_ids", None)
+            self._event_sources.pop(name, None)
             if name in self._plugins:
                 self._plugins[name]["loaded"] = False
         logger.info(f"[PLUGINS] Unloaded: {name}")
@@ -687,6 +705,35 @@ class PluginLoader:
             if match:
                 return handler, match.groupdict()
         return None
+
+    # ── Event source helpers ──
+
+    def get_event_sources(self) -> List[dict]:
+        """Get all registered daemon event sources across loaded plugins."""
+        sources = []
+        with self._lock:
+            for plugin_sources in self._event_sources.values():
+                sources.extend(plugin_sources)
+        return sources
+
+    def emit_daemon_event(self, source_name: str, event_data: str):
+        """Emit an event from a daemon plugin, triggering matching tasks.
+
+        Args:
+            source_name: The event source name (matches trigger_config.source)
+            event_data: String payload to pass to the task
+        """
+        if not self._scheduler:
+            logger.warning(f"[PLUGINS] Cannot emit event '{source_name}': no scheduler")
+            return
+
+        tasks = self._scheduler.find_tasks_by_event(source_name)
+        if not tasks:
+            logger.debug(f"[PLUGINS] No tasks listening for event source '{source_name}'")
+            return
+
+        for task in tasks:
+            self._scheduler.fire_event_task(task["id"], event_data)
 
     # ── Settings helpers ──
 
