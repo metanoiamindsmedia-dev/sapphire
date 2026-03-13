@@ -5111,56 +5111,211 @@ a.gallery-caption:hover {
    PLUGIN TOGGLES (Settings → Plugins tab)
    ============================================================================= */
 
-.plugin-toggles-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
+/* ── Plugin Manager ── */
 
-.plugin-toggle-item {
+.pm-header { margin-bottom: 16px; }
+.pm-header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.pm-summary {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+.pm-count-total {
+    font-size: 0.8em;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 6px;
+}
+.pm-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pm-action-btn {
+    font-weight: 500;
+    padding: 6px 14px !important;
+}
+.pm-unsigned-row {
+    margin-bottom: 10px;
+}
+.pm-unsigned-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.pm-unsigned-toggle input { width: 15px; height: 15px; accent-color: var(--trim, var(--accent)); }
+
+/* Filter pills */
+.pm-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.pm-filter {
+    padding: 5px 12px;
+    font-size: 0.82em;
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.pm-filter:hover {
+    border-color: var(--border);
+    color: var(--text-light);
+}
+.pm-filter.active {
+    background: var(--trim, var(--accent));
+    border-color: var(--trim, var(--accent));
+    color: #fff;
+}
+.pm-filter-count {
+    font-size: 0.9em;
+    opacity: 0.7;
+    margin-left: 2px;
+}
+
+/* Install section */
+.pm-install-section {
+    margin-bottom: 16px;
+    padding: 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+/* Card grid — minmax(0, 1fr) prevents content from stretching columns */
+.pm-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+@media (max-width: 768px) {
+    .pm-grid { grid-template-columns: 1fr; }
+}
+
+/* Card */
+.pm-card {
+    padding: 14px 16px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    transition: border-color 0.15s ease;
+    transition: border-color 0.15s ease, opacity 0.15s ease;
+    opacity: 0.55;
 }
-
-.plugin-toggle-item.enabled {
+.pm-card.pm-enabled {
+    opacity: 1;
     border-color: var(--trim-border, rgba(74,158,255,0.3));
 }
 
-.plugin-toggle-info {
+/* Card body: left (gear+icon stacked) | right (title+meta) */
+.pm-card-body {
+    display: flex;
+    gap: 14px;
+}
+.pm-card-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-width: 38px;
+}
+.pm-card-right {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.plugin-toggle-header {
+/* Card top row: title + toggle */
+.pm-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pm-gear {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.pm-gear:hover { color: var(--text-light); }
+.pm-gear-spacer { height: 1.5em; }
+
+.pm-icon { font-size: 2.2em; line-height: 1; }
+.pm-title {
+    font-weight: 600;
+    font-size: 1.15em;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* iOS-style toggle slider */
+.pm-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.pm-toggle input { opacity: 0; width: 0; height: 0; }
+.pm-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    transition: background 0.2s;
+}
+.pm-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.pm-toggle input:checked + .pm-slider {
+    background: var(--trim, var(--accent, #4a9eff));
+}
+.pm-toggle input:checked + .pm-slider::before {
+    transform: translateX(18px);
+}
+.pm-toggle input:disabled + .pm-slider {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pm-card-meta {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.plugin-toggle-name {
-    font-weight: 500;
-}
-
-.plugin-toggle-meta {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-
-.plugin-toggle-link {
-    font-size: 11px;
-    color: var(--trim-border, rgba(74,158,255,0.8));
-    text-decoration: none;
-}
-.plugin-toggle-link:hover { text-decoration: underline; }
-
-.plugin-toggle-badge {
+/* Trust badges */
+.pm-badge {
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
@@ -5170,34 +5325,62 @@ a.gallery-caption:hover {
     background: var(--highlight-subtle);
     color: var(--text-muted);
 }
-.plugin-toggle-badge.verified {
+.pm-badge-official {
     background: rgba(46,160,67,0.15);
     color: #3fb950;
 }
-.plugin-toggle-badge.author {
+.pm-badge-core {
     background: rgba(56,139,253,0.15);
     color: #388bfd;
 }
-.plugin-toggle-badge.unsigned {
+.pm-badge-author {
+    background: rgba(56,139,253,0.15);
+    color: #388bfd;
+}
+.pm-badge-unsigned {
     background: rgba(210,153,34,0.15);
     color: #d2992a;
 }
-.plugin-toggle-badge.failed {
+.pm-badge-tampered {
     background: rgba(248,81,73,0.15);
     color: #f85149;
 }
+
+.pm-version {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Card action row */
+.pm-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.pm-card-actions .btn { font-size: 0.75em; padding: 3px 10px; }
+.pm-view-btn {
+    text-decoration: none;
+    color: var(--text-muted);
+}
+.pm-view-btn:hover { color: var(--text-light); }
 
 .plugin-tab-container {
     min-height: 100px;
 }
 
+/* Plugin tabs hidden from sidebar — accessed via gear icon on plugin cards */
 .settings-nav-item.plugin-tab {
-    font-size: 0.92em;
-    opacity: 0.85;
+    display: none;
 }
-.settings-nav-item.plugin-tab:hover,
 .settings-nav-item.plugin-tab.active {
-    opacity: 1;
+    display: flex;
+}
+/* Also hide from mobile menu */
+.settings-mobile-option.plugin-tab {
+    display: none;
+}
+.settings-mobile-option.plugin-tab.active {
+    display: flex;
 }
 
 /* =============================================================================

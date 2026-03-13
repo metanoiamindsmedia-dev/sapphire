@@ -229,7 +229,7 @@ function render() {
                     </button>
                     <div class="settings-mobile-menu hidden" id="settings-mobile-menu">
                         ${tabs.map(t => `
-                            <button class="settings-mobile-option${t.id === activeTab ? ' active' : ''}" data-tab="${t.id}">
+                            <button class="settings-mobile-option${t.id === activeTab ? ' active' : ''}${t.isPlugin ? ' plugin-tab' : ''}" data-tab="${t.id}">
                                 <span class="settings-mobile-opt-icon">${t.icon}</span>
                                 <span>${t.name}</span>
                             </button>
@@ -407,6 +407,22 @@ function renderAccordion(id, keys, title = 'Advanced Settings') {
 // ── Events ──
 
 function bindShellEvents() {
+    // Navigate to a specific tab programmatically (used by plugin gear icons)
+    container.addEventListener('settings-navigate', e => {
+        const tabId = e.detail?.tab;
+        if (!tabId) return;
+        flushCurrentInputs();
+        activeTab = tabId;
+        container.querySelectorAll('.settings-nav-item').forEach(b =>
+            b.classList.toggle('active', b.dataset.tab === activeTab));
+        const meta = getTabMeta();
+        const title = container.querySelector('#stab-title');
+        const desc = container.querySelector('#stab-desc');
+        if (title) title.textContent = `${meta.icon} ${meta.name}`;
+        if (desc) desc.textContent = meta.description || '';
+        renderTabContent();
+    });
+
     // Sidebar nav
     container.querySelector('.settings-sidebar')?.addEventListener('click', e => {
         const btn = e.target.closest('.settings-nav-item');
