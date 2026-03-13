@@ -236,6 +236,15 @@ def _reply_handler(task, event_data: dict, response_text: str):
         logger.warning("[TELEGRAM] Reply handler missing chat_id or account")
         return
 
+    # Strip think tags — greedy to last close tag (handles nested/malformed)
+    import re
+    clean = re.sub(r'<(?:seed:)?think[^>]*>[\s\S]*</(?:seed:think|seed:cot_budget_reflect|think)>', '', response_text, flags=re.IGNORECASE)
+    clean = re.sub(r'<(?:seed:)?think[^>]*>.*$', '', clean, flags=re.DOTALL | re.IGNORECASE)
+    clean = re.sub(r'^[\s\S]*</(?:seed:think|seed:cot_budget_reflect|think)>', '', clean, flags=re.IGNORECASE)
+    clean = clean.strip()
+    if not clean:
+        return
+
     # Determine parse mode from task config
     reply_format = task.get("trigger_config", {}).get("reply_format", "text")
     parse_mode = None
@@ -250,7 +259,7 @@ def _reply_handler(task, event_data: dict, response_text: str):
 
     try:
         future = asyncio.run_coroutine_threadsafe(
-            send_message(account, chat_id, response_text, parse_mode=parse_mode),
+            send_message(account, chat_id, clean, parse_mode=parse_mode),
             _loop
         )
         future.result(timeout=15)

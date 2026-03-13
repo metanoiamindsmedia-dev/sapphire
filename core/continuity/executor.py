@@ -4,6 +4,7 @@ Continuity Executor - Runs scheduled tasks with proper context isolation.
 Switches chat context, applies settings, runs LLM, restores original state.
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import Dict, Any
@@ -21,7 +22,32 @@ class ContinuityExecutor:
             system: VoiceChatSystem instance with llm_chat, tts, etc.
         """
         self.system = system
-    
+
+    @staticmethod
+    def _format_event_data(event_data: str) -> str:
+        """Format raw event JSON into clean text for the AI.
+
+        If the data is JSON with a 'text' field (e.g. messaging daemons),
+        present it as a clean message. Otherwise pass through raw.
+        """
+        try:
+            obj = json.loads(event_data) if isinstance(event_data, str) else event_data
+        except (json.JSONDecodeError, TypeError):
+            return event_data
+
+        if not isinstance(obj, dict) or "text" not in obj:
+            return event_data
+
+        # Build clean message from common fields
+        sender = obj.get("first_name") or obj.get("username") or obj.get("sender") or ""
+        text = obj.get("text", "")
+        parts = []
+        if sender:
+            parts.append(f"{sender}: {text}")
+        else:
+            parts.append(text)
+        return "\n".join(parts)
+
     def run(self, task: Dict[str, Any], event_data: str = None,
             progress_callback=None, response_callback=None) -> Dict[str, Any]:
         """
@@ -45,11 +71,12 @@ class ContinuityExecutor:
         # For event-triggered tasks, build message from instructions + event data
         if event_data is not None:
             task = dict(task)  # don't mutate original
+            event_display = self._format_event_data(event_data)
             instructions = task.get("initial_message", "").strip()
             if instructions:
-                task["initial_message"] = f"{instructions}\n\n--- Event Data ---\n{event_data}"
+                task["initial_message"] = f"{instructions}\n\n{event_display}"
             else:
-                task["initial_message"] = event_data
+                task["initial_message"] = event_display
 
         # Resolve persona defaults into task (task-level fields override persona)
         task = self._resolve_persona(task)
@@ -197,6 +224,9 @@ class ContinuityExecutor:
                     raise RuntimeError(f"Failed to create chat: {target_chat}")
                 # create_chat lowercases, so resolve the actual name
                 target_chat = target_chat.replace(' ', '_').lower()
+                # Notify frontend so chat dropdown refreshes
+                from core.event_bus import publish, Events
+                publish(Events.CHAT_CREATED, {"name": target_chat})
 
             # Switch to target chat
             if not session_manager.set_active_chat(target_chat):
@@ -448,10 +478,14 @@ class ContinuityExecutor:
     def _apply_task_settings(self, task: Dict[str, Any], session_manager) -> None:
         """Apply task's prompt/ability/LLM/memory/datetime settings to current chat."""
         settings = {}
-        
+
+        # Persona — must be set on chat so messages get tagged correctly
+        if task.get("persona"):
+            settings["persona"] = task["persona"]
+
         if task.get("prompt"):
             settings["prompt"] = task["prompt"]
-            
+
             # Also apply to live LLM
             from core import prompts
             prompt_data = prompts.get_prompt(task["prompt"])

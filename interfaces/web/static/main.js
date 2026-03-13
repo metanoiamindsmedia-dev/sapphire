@@ -359,6 +359,10 @@ function initEventBus() {
         populateChatDropdown();
     });
 
+    eventBus.on(eventBus.Events.CHAT_CREATED, () => {
+        populateChatDropdown();
+    });
+
     // Plugin reload/toggle — load new scripts
     eventBus.on(eventBus.Events.PLUGIN_RELOADED, (data) => {
         ui.showToast(`Plugin '${data?.plugin || 'unknown'}' reloaded`, 'success');

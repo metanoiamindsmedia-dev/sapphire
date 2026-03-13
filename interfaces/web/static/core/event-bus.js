@@ -195,6 +195,7 @@ export const Events = {
     MESSAGE_ADDED: 'message_added',
     MESSAGE_REMOVED: 'message_removed',
     CHAT_SWITCHED: 'chat_switched',
+    CHAT_CREATED: 'chat_created',
     CHAT_CLEARED: 'chat_cleared',
     
     // TTS events
