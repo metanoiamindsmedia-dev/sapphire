@@ -1,3 +1,13 @@
+# 2.3.0 - Daemons and Webhooks
+- Daemon checks for activity, only triggers a chat when needed
+- Daemons are far cheaper than heartbeats, no polling!
+- Webhooks trigger sapphire via GET/POST/PUT to integrate with your other systems
+- Plugin manager now has full daemon support
+- Added Telegram Plugin with daemon support to trigger chat
+# 2.2.9 - Metrics, Dashboard, Auto update
+- See your local usage metrics, all local
+- Dashboard page for sapphire
+- Auto Updater (required git)
 # 2.2.8 - Docker Support
 - Added Docker image to main build in github
 - One for CPU, one for Nvidia GPU

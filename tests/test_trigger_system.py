@@ -362,13 +362,28 @@ class TestCronSkipsEventTasks:
 # ============================================================================
 
 class TestExecutorEventData:
-    """Test that executor prepends initial_message before event data."""
+    """Test that executor formats event data and passes to ExecutionContext."""
 
-    def test_event_data_prepended(self):
+    def test_event_data_formatted(self):
+        """Event data with 'text' field should be formatted as clean message."""
+        from core.continuity.executor import ContinuityExecutor
+        result = ContinuityExecutor._format_event_data('{"first_name": "Bob", "text": "hello"}')
+        assert result == "Bob: hello"
+
+    def test_event_data_raw_passthrough(self):
+        """Event data without 'text' field passes through as-is."""
+        from core.continuity.executor import ContinuityExecutor
+        raw = '{"action": "deploy", "status": "ok"}'
+        assert ContinuityExecutor._format_event_data(raw) == raw
+
+    def test_event_data_prepended_to_instructions(self):
+        """When initial_message + event_data, event display is appended."""
         from core.continuity.executor import ContinuityExecutor
 
         mock_system = MagicMock()
-        mock_system.llm_chat.isolated_chat.return_value = "Response here"
+        mock_system.llm_chat.function_manager.all_possible_tools = []
+        mock_system.llm_chat.function_manager._mode_filters = {}
+        mock_system.llm_chat.function_manager._apply_mode_filter.return_value = []
         mock_system.tts = None
 
         executor = ContinuityExecutor(mock_system)
@@ -377,7 +392,7 @@ class TestExecutorEventData:
             "id": "test-id",
             "name": "Test Daemon",
             "type": "daemon",
-            "initial_message": "Respond to Discord messages casually.",
+            "initial_message": "Respond casually.",
             "prompt": "default",
             "toolset": "none",
             "provider": "auto",
@@ -393,20 +408,19 @@ class TestExecutorEventData:
             "goal_scope": "none",
         }
 
-        result = executor.run(task, event_data='{"user": "bob", "message": "hello"}')
-
-        # Check isolated_chat was called with combined message
-        call_args = mock_system.llm_chat.isolated_chat.call_args
-        msg = call_args[0][0]
-        assert "Respond to Discord messages casually." in msg
-        assert "--- Event Data ---" in msg
-        assert '"user": "bob"' in msg
+        with patch('core.continuity.execution_context.ExecutionContext.run', return_value="ok") as mock_run:
+            executor.run(task, event_data='{"first_name": "Bob", "text": "hello"}')
+            msg = mock_run.call_args[0][0]
+            assert "Respond casually." in msg
+            assert "Bob: hello" in msg
 
     def test_no_event_data_uses_initial_message(self):
         from core.continuity.executor import ContinuityExecutor
 
         mock_system = MagicMock()
-        mock_system.llm_chat.isolated_chat.return_value = "Hi"
+        mock_system.llm_chat.function_manager.all_possible_tools = []
+        mock_system.llm_chat.function_manager._mode_filters = {}
+        mock_system.llm_chat.function_manager._apply_mode_filter.return_value = []
         mock_system.tts = None
 
         executor = ContinuityExecutor(mock_system)
@@ -431,47 +445,10 @@ class TestExecutorEventData:
             "goal_scope": "none",
         }
 
-        result = executor.run(task)
-        call_args = mock_system.llm_chat.isolated_chat.call_args
-        msg = call_args[0][0]
-        assert msg == "Say hello."
-        assert "Event Data" not in msg
-
-    def test_event_data_empty_instructions(self):
-        """When initial_message is empty, just use event_data."""
-        from core.continuity.executor import ContinuityExecutor
-
-        mock_system = MagicMock()
-        mock_system.llm_chat.isolated_chat.return_value = "ok"
-        mock_system.tts = None
-
-        executor = ContinuityExecutor(mock_system)
-
-        task = {
-            "id": "test-id",
-            "name": "No Instructions",
-            "type": "webhook",
-            "initial_message": "",
-            "prompt": "default",
-            "toolset": "none",
-            "provider": "auto",
-            "model": "",
-            "persona": "",
-            "chat_target": "",
-            "tts_enabled": False,
-            "browser_tts": False,
-            "inject_datetime": False,
-            "memory_scope": "none",
-            "knowledge_scope": "none",
-            "people_scope": "none",
-            "goal_scope": "none",
-        }
-
-        result = executor.run(task, event_data='{"action": "deploy"}')
-        call_args = mock_system.llm_chat.isolated_chat.call_args
-        msg = call_args[0][0]
-        assert msg == '{"action": "deploy"}'
-        assert "--- Event Data ---" not in msg
+        with patch('core.continuity.execution_context.ExecutionContext.run', return_value="Hi") as mock_run:
+            executor.run(task)
+            msg = mock_run.call_args[0][0]
+            assert msg == "Say hello."
 
 
 # ============================================================================

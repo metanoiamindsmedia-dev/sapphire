@@ -367,33 +367,39 @@ class TestForegroundStreamingGuard:
         with patch.object(ContinuityExecutor, '__init__', lambda self: None):
             executor = ContinuityExecutor()
             executor._resolve_persona = lambda t: t
-            executor._apply_task_settings = MagicMock()
             executor._snapshot_voice = MagicMock(return_value={})
             executor._restore_voice = MagicMock()
+            executor._apply_voice = MagicMock()
 
             mock_session = MagicMock()
             mock_session.get_active_chat_name.return_value = "main"
             mock_session.set_active_chat.return_value = True
             mock_session.list_chat_files.return_value = [{"name": "task_chat"}]
-            mock_session.get_chat_settings.return_value = {}
+            mock_session.get_messages_for_llm.return_value = []
+
+            mock_fm = MagicMock()
+            mock_fm.all_possible_tools = []
+            mock_fm._mode_filters = {}
+            mock_fm._apply_mode_filter.return_value = []
 
             executor.system = MagicMock()
             executor.system.llm_chat.session_manager = mock_session
             executor.system.llm_chat.streaming_chat.is_streaming = False
-            executor.system.llm_chat.function_manager.current_toolset_name = "all"
-            executor.system.process_llm_query.return_value = "ok"
+            executor.system.llm_chat.function_manager = mock_fm
 
             task = {
                 "name": "heartbeat",
                 "chat_target": "task_chat",
-                "prompt": "",
-                "toolset": "",
+                "prompt": "default",
+                "toolset": "none",
                 "tts_enabled": False,
                 "initial_message": "hello",
             }
             result = {"success": False, "task_id": "1", "task_name": "heartbeat",
                        "responses": [], "errors": []}
-            out = executor._run_foreground(task, result)
+
+            with patch('core.continuity.execution_context.ExecutionContext.run', return_value="ok"):
+                out = executor._run_foreground(task, result)
             assert out["success"] is True
             mock_session.set_active_chat.assert_called()
 
