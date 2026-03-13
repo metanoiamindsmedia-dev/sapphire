@@ -32,6 +32,7 @@ class ExecutionContext:
         # Resolve everything upfront — all read-only operations
         self.system_prompt = self._build_prompt()
         self.tools = self._resolve_tools()
+        self._allowed_tool_names = {t["function"]["name"] for t in self.tools if "function" in t} if self.tools else None
         self.scopes = self._build_scopes()
         self.provider_key, self.provider, self.model_override = self._resolve_provider()
         self.gen_params = self._build_gen_params()
@@ -210,7 +211,8 @@ class ExecutionContext:
                     "tool_calls": tool_calls
                 })
                 tools_executed, tool_images = self.tool_engine.execute_tool_calls(
-                    tool_calls, messages, None, self.provider, scopes=self.scopes
+                    tool_calls, messages, None, self.provider, scopes=self.scopes,
+                    allowed_tools=self._allowed_tool_names
                 )
                 if tool_images:
                     _inject_tool_images(messages, tool_images)
@@ -222,7 +224,8 @@ class ExecutionContext:
                 if fn_data:
                     filtered = filter_to_thinking_only(response_msg.content)
                     _, tool_images = self.tool_engine.execute_text_based_tool_call(
-                        fn_data, filtered, messages, None, self.provider, scopes=self.scopes
+                        fn_data, filtered, messages, None, self.provider, scopes=self.scopes,
+                        allowed_tools=self._allowed_tool_names
                     )
                     if tool_images:
                         _inject_tool_images(messages, tool_images)

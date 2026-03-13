@@ -1,3 +1,7 @@
+# 2.3.1 - Discord Support 
+- Improved 'tool not available' when changing plugins
+- Discord tools
+- Discord daemon
 # 2.3.0 - Daemons and Webhooks
 - Daemon checks for activity, only triggers a chat when needed
 - Daemons are far cheaper than heartbeats, no polling!

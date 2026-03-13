@@ -154,7 +154,9 @@ class StreamingChat:
             _scopes = self.main_chat.function_manager.snapshot_scopes()
 
             # Send only enabled tools - model should only know about active tools
+            # Snapshot names too — used to validate tool calls against what LLM actually received
             enabled_tools = self.main_chat.function_manager.enabled_tools
+            _allowed_tool_names = {t["function"]["name"] for t in enabled_tools if "function" in t}
             provider_key, provider, model_override = self.main_chat._select_provider()
             
             # Determine effective model (per-chat override or provider default)
@@ -421,7 +423,7 @@ class StreamingChat:
                         publish(Events.TOOL_EXECUTING, {"name": function_name})
 
                         try:
-                            function_result = self.main_chat.function_manager.execute_function(function_name, function_args, scopes=_scopes)
+                            function_result = self.main_chat.function_manager.execute_function(function_name, function_args, scopes=_scopes, allowed_tools=_allowed_tool_names)
                             result_str, tool_imgs = _extract_tool_images(function_result, self.main_chat.session_manager)
                             if tool_imgs:
                                 iteration_tool_images.extend(tool_imgs)

@@ -460,7 +460,9 @@ class LLMChat:
             _scopes = self.function_manager.snapshot_scopes()
 
             # Send only enabled tools - model should only know about active tools
+            # Snapshot names for validation — prevents race if plugins reload mid-chat
             enabled_tools = self.function_manager.enabled_tools
+            _allowed_tool_names = {t["function"]["name"] for t in enabled_tools if "function" in t}
 
             # DIAGNOSTIC: Log what tools are being sent
             enabled_names = [t['function']['name'] for t in enabled_tools] if enabled_tools else []
@@ -593,7 +595,8 @@ class LLMChat:
                         messages,
                         self.session_manager,
                         provider,
-                        scopes=_scopes
+                        scopes=_scopes,
+                        allowed_tools=_allowed_tool_names
                     )
                     tool_call_count += tools_executed
 
@@ -603,6 +606,7 @@ class LLMChat:
 
                     # Refresh tools list — tool_load may have added new tools
                     enabled_tools = self.function_manager.enabled_tools
+                    _allowed_tool_names = {t["function"]["name"] for t in enabled_tools if "function" in t}
 
                     logger.info(f"Tool execution iteration {i+1} completed")
                     continue
@@ -632,7 +636,8 @@ class LLMChat:
                             messages,
                             self.session_manager,
                             provider,
-                            scopes=_scopes
+                            scopes=_scopes,
+                            allowed_tools=_allowed_tool_names
                         )
 
                         if tool_images:
@@ -988,10 +993,12 @@ class LLMChat:
                 self.function_manager.set_private_chat(False)
                 self.function_manager.update_enabled_functions([toolset])
                 tools = self.function_manager.enabled_tools
+                _allowed_tool_names = {t["function"]["name"] for t in tools if "function" in t}
                 _scopes = self.function_manager.snapshot_scopes()
                 logger.info(f"[ISOLATED] Using toolset '{toolset}' with {len(tools)} tools")
             else:
                 _scopes = None
+                _allowed_tool_names = None
 
             # Select provider
             provider_key = task_settings.get("provider", "auto")
@@ -1047,7 +1054,8 @@ class LLMChat:
                         "tool_calls": tool_calls
                     })
                     tools_executed, tool_images = self.tool_engine.execute_tool_calls(
-                        tool_calls, messages, None, provider, scopes=_scopes
+                        tool_calls, messages, None, provider, scopes=_scopes,
+                        allowed_tools=_allowed_tool_names
                     )
                     tool_call_count += tools_executed
                     if tool_images:

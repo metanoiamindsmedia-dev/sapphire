@@ -35,13 +35,22 @@ class ContinuityExecutor:
         except (json.JSONDecodeError, TypeError):
             return event_data
 
-        if not isinstance(obj, dict) or "text" not in obj:
+        text = obj.get("text") or obj.get("content") or None
+        if not isinstance(obj, dict) or not text:
             return event_data
 
         # Build clean message from common fields
-        sender = obj.get("first_name") or obj.get("username") or obj.get("sender") or ""
-        text = obj.get("text", "")
+        sender = obj.get("display_name") or obj.get("first_name") or obj.get("username") or obj.get("sender") or ""
+        channel = obj.get("channel_name", "")
+        guild = obj.get("guild_name", "")
+
         parts = []
+        # Add channel/server context if available (Discord, etc.)
+        if channel and guild:
+            parts.append(f"[#{channel} in {guild}]")
+        elif channel:
+            parts.append(f"[#{channel}]")
+
         if sender:
             parts.append(f"{sender}: {text}")
         else:
@@ -77,6 +86,19 @@ class ContinuityExecutor:
                 task["initial_message"] = f"{instructions}\n\n{event_display}"
             else:
                 task["initial_message"] = event_display
+
+            # Auto-set plugin scopes from event data (e.g. discord account)
+            try:
+                obj = json.loads(event_data) if isinstance(event_data, str) else event_data
+                if isinstance(obj, dict) and obj.get("account"):
+                    trigger = task.get("trigger_config", {})
+                    source = trigger.get("source", "") or trigger.get("event_source", "")
+                    if "discord" in source and not task.get("discord_scope"):
+                        task["discord_scope"] = obj["account"]
+                    elif "email" in source and not task.get("email_scope"):
+                        task["email_scope"] = obj["account"]
+            except (json.JSONDecodeError, TypeError):
+                pass
 
         # Resolve persona defaults into task (task-level fields override persona)
         task = self._resolve_persona(task)
@@ -117,6 +139,7 @@ class ContinuityExecutor:
             "goal_scope": task.get("goal_scope", "none"),
             "email_scope": task.get("email_scope", "default"),
             "bitcoin_scope": task.get("bitcoin_scope", "default"),
+            "discord_scope": task.get("discord_scope", "default"),
         }
 
     def _run_background(self, task: Dict[str, Any], result: Dict[str, Any],
@@ -373,6 +396,7 @@ class ContinuityExecutor:
                 "goal_scope": "goal_scope",
                 "email_scope": "email_scope",
                 "bitcoin_scope": "bitcoin_scope",
+                "discord_scope": "discord_scope",
             }
             for persona_key, task_key in field_map.items():
                 persona_val = ps.get(persona_key)
