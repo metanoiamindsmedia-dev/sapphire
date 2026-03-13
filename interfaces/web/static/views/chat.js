@@ -397,7 +397,7 @@ async function loadSidebar() {
     if (!chatName) return;
 
     try {
-        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, gcalAccountsResp, presetsResp, spiceSetsResp, personasResp, ttsVoicesResp, toolsetCurrentResp] = await Promise.allSettled([
+        const [settingsResp, initData, llmResp, scopesResp, goalScopesResp, knowledgeScopesResp, peopleScopesResp, emailAccountsResp, bitcoinWalletsResp, gcalAccountsResp, telegramAccountsResp, presetsResp, spiceSetsResp, personasResp, ttsVoicesResp, toolsetCurrentResp] = await Promise.allSettled([
             api.getChatSettings(chatName),
             getInitData(),
             fetch('/api/llm/providers').then(r => r.ok ? r.json() : null),
@@ -408,6 +408,7 @@ async function loadSidebar() {
             fetch('/api/email/accounts').then(r => r.ok ? r.json() : null),
             fetch('/api/bitcoin/wallets').then(r => r.ok ? r.json() : null),
             fetch('/api/gcal/accounts').then(r => r.ok ? r.json() : null),
+            fetch('/api/plugin/telegram/accounts').then(r => r.ok ? r.json() : null),
             fetch('/api/story/presets').then(r => r.ok ? r.json() : null),
             fetch('/api/spice-sets').then(r => r.ok ? r.json() : null),
             fetch('/api/personas').then(r => r.ok ? r.json() : null),
@@ -433,6 +434,7 @@ async function loadSidebar() {
         const emailAccountsData = emailAccountsResp.status === 'fulfilled' ? emailAccountsResp.value : null;
         const bitcoinWalletsData = bitcoinWalletsResp.status === 'fulfilled' ? bitcoinWalletsResp.value : null;
         const gcalAccountsData = gcalAccountsResp.status === 'fulfilled' ? gcalAccountsResp.value : null;
+        const telegramAccountsData = telegramAccountsResp.status === 'fulfilled' ? telegramAccountsResp.value : null;
         const presetsData = presetsResp.status === 'fulfilled' ? presetsResp.value : null;
         const spiceSetsData = spiceSetsResp.status === 'fulfilled' ? spiceSetsResp.value : null;
         const personasData = personasResp.status === 'fulfilled' ? personasResp.value : null;
@@ -572,6 +574,17 @@ async function loadSidebar() {
                     `<option value="${a.scope}">${a.label || a.scope}${a.has_token ? ' ✓' : ''}</option>`
                 ).join('');
             setSelect(gcalScopeSel, settings.gcal_scope || 'default');
+        }
+
+        // Populate telegram scope dropdown
+        const telegramScopeSel = container.querySelector('#sb-telegram-scope');
+        if (telegramScopeSel) {
+            const accounts = telegramAccountsData?.accounts || [];
+            telegramScopeSel.innerHTML = '<option value="none">None</option>' +
+                accounts.map(a =>
+                    `<option value="${a.name}">${a.label || a.name}${a.username ? ' (@' + a.username + ')' : ''}</option>`
+                ).join('');
+            setSelect(telegramScopeSel, settings.telegram_scope || 'default');
         }
 
         // Hide plugin scope dropdowns when their plugin is disabled
@@ -744,6 +757,7 @@ function collectSettings(container) {
         email_scope: getVal(container, '#sb-email-scope') || 'default',
         bitcoin_scope: getVal(container, '#sb-bitcoin-scope') || 'default',
         gcal_scope: getVal(container, '#sb-gcal-scope') || 'default',
+        telegram_scope: getVal(container, '#sb-telegram-scope') || 'default',
         story_engine_enabled: getChecked(container, '#sb-story-enabled'),
         story_preset: getVal(container, '#sb-story-preset') || null,
         story_in_prompt: getChecked(container, '#sb-story-in-prompt'),

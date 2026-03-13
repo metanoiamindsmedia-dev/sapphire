@@ -23,6 +23,7 @@ scope_people:    ContextVar[str]  = ContextVar('scope_people',    default='defau
 scope_email:     ContextVar[str]  = ContextVar('scope_email',     default='default')
 scope_bitcoin:   ContextVar[str]  = ContextVar('scope_bitcoin',   default='default')
 scope_gcal:      ContextVar[str]  = ContextVar('scope_gcal',      default='default')
+scope_telegram:  ContextVar[str]  = ContextVar('scope_telegram',  default='default')
 scope_rag:       ContextVar       = ContextVar('scope_rag',       default=None)
 scope_private:   ContextVar[bool] = ContextVar('scope_private',   default=False)
 
@@ -37,6 +38,7 @@ SCOPE_REGISTRY = {
     'email':     {'var': scope_email,     'default': 'default', 'setting': 'email_scope'},
     'bitcoin':   {'var': scope_bitcoin,   'default': 'default', 'setting': 'bitcoin_scope'},
     'gcal':      {'var': scope_gcal,      'default': 'default', 'setting': 'gcal_scope'},
+    'telegram':  {'var': scope_telegram,  'default': 'default', 'setting': 'telegram_scope'},
     'rag':       {'var': scope_rag,       'default': None,      'setting': None},
     'private':   {'var': scope_private,   'default': False,     'setting': 'private_chat'},
 }

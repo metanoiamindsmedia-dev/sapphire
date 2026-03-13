@@ -370,10 +370,20 @@ class PluginLoader:
 
         try:
             import importlib.util
-            spec = importlib.util.spec_from_file_location(
-                f"plugin_daemon_{plugin_dir.name}", str(full_path)
-            )
+            import sys
+
+            # Derive the natural package import path so that tools doing
+            # "from plugins.telegram.daemon import X" find this same module
+            # instead of importing a second copy with separate state.
+            try:
+                rel = full_path.resolve().relative_to(Path.cwd())
+                pkg_name = str(rel.with_suffix("")).replace("/", ".").replace("\\", ".")
+            except ValueError:
+                pkg_name = f"plugin_daemon_{plugin_dir.name}"
+
+            spec = importlib.util.spec_from_file_location(pkg_name, str(full_path))
             mod = importlib.util.module_from_spec(spec)
+            sys.modules[pkg_name] = mod
             spec.loader.exec_module(mod)
             return mod
         except Exception as e:
