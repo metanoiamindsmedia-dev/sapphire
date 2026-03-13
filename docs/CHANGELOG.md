@@ -1,7 +1,7 @@
 # 2.3.1 - Discord Support 
 - Improved 'tool not available' when changing plugins
-- Discord tools
-- Discord daemon
+- Discord tools - list chan, read, send
+- Discord daemon - gives AI last 10 messages before @
 # 2.3.0 - Daemons and Webhooks
 - Daemon checks for activity, only triggers a chat when needed
 - Daemons are far cheaper than heartbeats, no polling!
