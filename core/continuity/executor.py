@@ -187,24 +187,15 @@ class ContinuityExecutor:
     
     def _run_foreground(self, task: Dict[str, Any], result: Dict[str, Any],
                         progress_cb=None, response_cb=None) -> Dict[str, Any]:
-        """Run task in foreground mode — switches to named chat, uses ExecutionContext for LLM."""
+        """Run task with persistent chat history — no UI switching."""
         from core.continuity.execution_context import ExecutionContext
 
-        # Don't switch active chat while user is streaming — would corrupt chat context
-        if self.system.llm_chat.streaming_chat.is_streaming:
-            task_name = task.get("name", "Unknown")
-            logger.warning(f"[Continuity] Deferring foreground task '{task_name}' — user stream active")
-            result["errors"].append("Deferred: user stream in progress")
-            result["completed_at"] = datetime.now().isoformat()
-            return result
-
         session_manager = self.system.llm_chat.session_manager
-        original_chat = session_manager.get_active_chat_name()
         original_voice = self._snapshot_voice()
         target_chat = task.get("chat_target", "").strip()
 
         try:
-            logger.info(f"[Continuity] Running '{task.get('name')}' in FOREGROUND mode, chat='{target_chat}'")
+            logger.info(f"[Continuity] Running '{task.get('name')}' with chat persistence, chat='{target_chat}'")
 
             # Find existing chat or create new one
             normalized = target_chat.replace(' ', '_').lower()
@@ -218,10 +209,6 @@ class ContinuityExecutor:
                     raise RuntimeError(f"Failed to create chat: {target_chat}")
                 target_chat = target_chat.replace(' ', '_').lower()
                 publish(Events.CHAT_CREATED, {"name": target_chat})
-
-            # Switch to target chat (loads its history)
-            if not session_manager.set_active_chat(target_chat):
-                raise RuntimeError(f"Failed to switch to chat: {target_chat}")
 
             # Build ExecutionContext — isolated, no singleton mutation
             task_settings = self._extract_task_settings(task)
@@ -237,17 +224,17 @@ class ContinuityExecutor:
             browser_tts = task.get("browser_tts", False)
             msg = task.get("initial_message", "Hello.")
 
-            # Get existing history for continuity (foreground chats persist)
-            history_messages = session_manager.get_messages_for_llm(
-                provider=task_settings.get("provider")
+            # Read history from target chat WITHOUT switching active chat
+            history_messages = session_manager.read_chat_messages(
+                target_chat, provider=task_settings.get("provider")
             )
 
             try:
                 # Run through isolated ExecutionContext — no singleton contact
                 response = ctx.run(msg, history_messages=history_messages)
 
-                # Persist both messages to chat history
-                session_manager.add_message_pair(msg, response or "")
+                # Persist both messages to target chat WITHOUT switching active chat
+                session_manager.append_to_chat(target_chat, msg, response or "")
 
                 if response_cb and response:
                     try: response_cb(response)
@@ -278,20 +265,11 @@ class ContinuityExecutor:
             result["success"] = len(result["errors"]) == 0
 
         except Exception as e:
-            error_msg = f"Foreground task failed: {e}"
+            error_msg = f"Persistent chat task failed: {e}"
             logger.error(f"[Continuity] {error_msg}", exc_info=True)
             result["errors"].append(error_msg)
 
         finally:
-            # Restore original chat — no toolset/prompt restore needed (ExecutionContext didn't touch them)
-            try:
-                if session_manager.get_active_chat_name() != original_chat:
-                    session_manager.set_active_chat(original_chat)
-                    logger.debug(f"[Continuity] Restored chat context to '{original_chat}'")
-            except Exception as e:
-                logger.error(f"[Continuity] Failed to restore chat context: {e}")
-                result["errors"].append(f"Context restore failed: {e}")
-
             self._restore_voice(original_voice)
 
         result["completed_at"] = datetime.now().isoformat()

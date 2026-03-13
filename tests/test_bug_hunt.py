@@ -666,26 +666,21 @@ class TestExtractTaskSettingsAllScopes:
 # Tier 1: _run_foreground saves and restores ALL context
 # =============================================================================
 
-class TestRunForegroundRestoresContext:
-    """_run_foreground must restore chat context after running (ExecutionContext never touches toolset)."""
+class TestRunForegroundNoUISwitch:
+    """_run_foreground must NOT switch active chat — persists via append_to_chat."""
 
-    def test_run_foreground_restores_chat(self):
-        """After foreground execution, original chat must be restored. Toolset is never mutated."""
+    def test_run_foreground_never_switches_chat(self):
+        """Foreground task must not call set_active_chat — reads/writes directly."""
         from core.continuity.executor import ContinuityExecutor
 
         with patch.object(ContinuityExecutor, '__init__', lambda self: None):
             executor = ContinuityExecutor()
 
-            _active_chat = ["original_chat"]
             mock_session = MagicMock()
-            mock_session.get_active_chat_name.side_effect = lambda: _active_chat[0]
-            mock_session.set_active_chat.side_effect = lambda name: (_active_chat.__setitem__(0, name) or True)
             mock_session.list_chat_files.return_value = [{"name": "task_chat"}]
-            mock_session.get_messages_for_llm.return_value = []
+            mock_session.read_chat_messages.return_value = []
 
             mock_fm = MagicMock()
-            mock_fm.current_toolset_name = "original_toolset"
-            mock_fm._tools_lock = threading.Lock()
             mock_fm.all_possible_tools = []
             mock_fm._mode_filters = {}
             mock_fm._apply_mode_filter.return_value = []
@@ -693,9 +688,7 @@ class TestRunForegroundRestoresContext:
             executor.system = MagicMock()
             executor.system.llm_chat.session_manager = mock_session
             executor.system.llm_chat.function_manager = mock_fm
-            executor.system.llm_chat.streaming_chat.is_streaming = False
 
-            # Mock ExecutionContext.run to avoid real LLM call
             with patch('core.continuity.execution_context.ExecutionContext.run', return_value="done"):
                 task = {
                     "name": "test_task",
@@ -714,11 +707,11 @@ class TestRunForegroundRestoresContext:
 
                 result = executor.run(task)
 
-            # Toolset was NEVER mutated (ExecutionContext is read-only)
-            mock_fm.update_enabled_functions.assert_not_called()
+            # NEVER switches active chat
+            mock_session.set_active_chat.assert_not_called()
 
-            # We ended up back on original chat
-            assert _active_chat[0] == "original_chat"
+            # Persists via append_to_chat instead
+            mock_session.append_to_chat.assert_called_once_with("task_chat", "hello", "done")
 
 
 # =============================================================================
