@@ -213,9 +213,9 @@ function _updateFilterHints(modal) {
         return;
     }
 
-    hintsEl.innerHTML = `<strong>Available keys:</strong> ${fields.map(f =>
-        `<code>${f.key}</code>${f.label && f.label !== f.key ? ` (${f.label})` : ''}`
-    ).join(', ')}`;
+    hintsEl.innerHTML = `<strong>Filter keys:</strong> ${fields.map(f =>
+        `<code>${f.key}</code> ${f.label || ''}`
+    ).join(' &middot; ')}`;
 }
 
 function _renderTaskFields(modal) {
@@ -256,9 +256,8 @@ function _renderTaskFields(modal) {
                 <label>${_esc(f.label || f.key)}${req}${help}</label>
                 <select id="ed-tf-${f.key}" data-task-field="${f.key}">${opts}</select></div>`;
         } else if (f.type === 'boolean') {
-            html += `<div class="sched-field" style="flex-direction:row;align-items:center;gap:8px">
-                <input type="checkbox" id="ed-tf-${f.key}" data-task-field="${f.key}" ${val ? 'checked' : ''}>
-                <label for="ed-tf-${f.key}">${_esc(f.label || f.key)}${help}</label></div>`;
+            html += `<div class="sched-checkbox">
+                <label><input type="checkbox" id="ed-tf-${f.key}" data-task-field="${f.key}" ${val ? 'checked' : ''}> ${_esc(f.label || f.key)}${help}</label></div>`;
         } else if (f.type === 'number') {
             html += `<div class="sched-field">
                 <label>${_esc(f.label || f.key)}${req}${help}</label>

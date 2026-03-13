@@ -1120,7 +1120,7 @@ class ChatSessionManager:
                     return []
                 messages = json.loads(row["messages"])
                 # Apply same trimming as get_messages_for_llm
-                chat = ChatHistory()
+                chat = ConversationHistory()
                 chat.messages = messages
                 return chat.get_messages_for_llm(provider=provider)
         except Exception as e:

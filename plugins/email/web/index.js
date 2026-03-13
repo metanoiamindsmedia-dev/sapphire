@@ -182,6 +182,44 @@ function renderEmailEditor(body, scope, item, helpers) {
 }
 
 
+function renderWithDaemonSettings(container) {
+    // Poll interval setting above accounts
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div style="margin-bottom:20px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary)">
+            <div style="display:flex;align-items:center;gap:12px">
+                <label for="email-poll-interval" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">Poll Interval</label>
+                <input type="number" id="email-poll-interval" min="30" max="3600" style="width:80px" value="120">
+                <span style="font-size:12px;color:var(--text-muted)">seconds (min 30, requires restart)</span>
+            </div>
+        </div>
+    `;
+    container.appendChild(wrapper);
+
+    // Load current value
+    fetch('/api/webui/plugins/email/settings').then(r => r.json()).then(data => {
+        const input = container.querySelector('#email-poll-interval');
+        if (input && data.settings?.poll_interval != null) {
+            input.value = data.settings.poll_interval;
+        }
+        input?.addEventListener('change', async () => {
+            const val = Math.max(30, parseInt(input.value) || 120);
+            input.value = val;
+            const headers = { 'Content-Type': 'application/json' };
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+            await fetch('/api/webui/plugins/email/settings', {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ poll_interval: val })
+            });
+        });
+    }).catch(() => {});
+
+    // Accounts below
+    manager.renderList(container);
+}
+
 export default {
     name: 'email',
 
@@ -191,7 +229,7 @@ export default {
             name: 'Email',
             icon: '\uD83D\uDCE7',
             helpText: 'Configure email accounts for each persona/scope. Each chat can select which email account to use via the sidebar. Works with any IMAP/SMTP server.',
-            render: (c) => manager.renderList(c),
+            render: (c) => renderWithDaemonSettings(c),
             load: async () => { await manager.loadItems(); return {}; },
             save: async () => ({ success: true }),
             getSettings: () => ({})

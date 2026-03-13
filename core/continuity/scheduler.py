@@ -631,12 +631,18 @@ class ContinuityScheduler:
                     event_obj = json.loads(event_data) if isinstance(event_data, str) else event_data
                     if isinstance(event_obj, dict):
                         for key, val in task_filter.items():
-                            ev_val = event_obj.get(key)
-                            # Coerce types for comparison (JSON filter values are
-                            # always strings, but event data may have ints/floats)
-                            if str(ev_val) != str(val):
-                                logger.debug(f"[Continuity] '{task_name}' filter mismatch on '{key}': {ev_val!r} != {val!r}")
-                                return {"success": False, "error": "Event filtered out"}
+                            # Support _contains suffix for substring matching
+                            if key.endswith("_contains"):
+                                field = key[:-9]  # strip _contains
+                                ev_val = str(event_obj.get(field, ""))
+                                if str(val).lower() not in ev_val.lower():
+                                    logger.debug(f"[Continuity] '{task_name}' filter mismatch on '{field}' (contains): {val!r} not in {ev_val!r}")
+                                    return {"success": False, "error": "Event filtered out"}
+                            else:
+                                ev_val = event_obj.get(key)
+                                if str(ev_val).lower() != str(val).lower():
+                                    logger.debug(f"[Continuity] '{task_name}' filter mismatch on '{key}': {ev_val!r} != {val!r}")
+                                    return {"success": False, "error": "Event filtered out"}
                 except (json.JSONDecodeError, TypeError):
                     pass  # Can't parse as JSON, skip filter check
 

@@ -4,6 +4,7 @@
 - Webhooks trigger sapphire via GET/POST/PUT to integrate with your other systems
 - Plugin manager now has full daemon support
 - Added Telegram Plugin with daemon support to trigger chat
+- Added daemon support to email plugin
 # 2.2.9 - Metrics, Dashboard, Auto update
 - See your local usage metrics, all local
 - Dashboard page for sapphire
