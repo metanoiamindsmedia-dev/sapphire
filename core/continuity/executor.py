@@ -243,7 +243,9 @@ class ContinuityExecutor:
             logger.info(f"[Continuity] Running '{task.get('name')}' with chat persistence, chat='{target_chat}'")
 
             # Find existing chat or create new one
-            normalized = target_chat.replace(' ', '_').lower()
+            # Normalize the same way create_chat sanitizes: keep alnum/space/dash/underscore
+            normalized = "".join(c for c in target_chat if c.isalnum() or c in (' ', '-', '_')).strip()
+            normalized = normalized.replace(' ', '_').lower()
             existing_chats = {c["name"]: c["name"] for c in session_manager.list_chat_files()}
             match = existing_chats.get(normalized)
             if match:
@@ -251,9 +253,11 @@ class ContinuityExecutor:
             else:
                 logger.info(f"[Continuity] Creating new chat: {target_chat}")
                 if not session_manager.create_chat(target_chat):
-                    raise RuntimeError(f"Failed to create chat: {target_chat}")
-                target_chat = target_chat.replace(' ', '_').lower()
-                publish(Events.CHAT_CREATED, {"name": target_chat})
+                    # Chat was created between our check and now — use the sanitized name
+                    target_chat = normalized
+                else:
+                    target_chat = normalized
+                    publish(Events.CHAT_CREATED, {"name": target_chat})
 
             # Build ExecutionContext — isolated, no singleton mutation
             task_settings = self._extract_task_settings(task)
