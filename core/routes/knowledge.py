@@ -414,7 +414,8 @@ async def list_tabs(request: Request, _=Depends(require_login)):
 @router.get("/api/knowledge/tabs/{tab_id}")
 async def get_tab(tab_id: int, request: Request, _=Depends(require_login)):
     from functions import knowledge
-    entries = knowledge.get_tab_entries(tab_id)
+    scope = request.query_params.get('scope', 'default')
+    entries = knowledge.get_tab_entries(tab_id, scope)
     return {"entries": entries}
 
 

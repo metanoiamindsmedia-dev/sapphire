@@ -619,7 +619,7 @@ async function renderKnowledge(el, tabType) {
 async function loadEntries(inner, tabId, tabType) {
     const isAI = tabType === 'ai';
     try {
-        const resp = await fetch(`/api/knowledge/tabs/${tabId}`);
+        const resp = await fetch(`/api/knowledge/tabs/${tabId}?scope=${encodeURIComponent(currentScope)}`);
         if (!resp.ok) { inner.innerHTML = '<div class="mind-empty">Failed to load</div>'; return; }
         const data = await resp.json();
         const entries = data.entries || [];
