@@ -242,6 +242,11 @@ export const Events = {
     // Plugin events
     PLUGIN_RELOADED: 'plugin_reloaded',
 
+    // Scout events
+    SCOUT_SPAWNED: 'scout_spawned',
+    SCOUT_COMPLETED: 'scout_completed',
+    SCOUT_DISMISSED: 'scout_dismissed',
+
     // Connection events
     CONNECTED: 'connected',           // Server confirms SSE subscription
     BUS_CONNECTED: 'bus_connected',   // Client-side: EventSource opened

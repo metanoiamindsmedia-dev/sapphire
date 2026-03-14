@@ -239,3 +239,8 @@ class Events:
     # Daemon/webhook events
     DAEMON_EVENT = "daemon_event"
     WEBHOOK_FIRED = "webhook_fired"
+
+    # Scout events
+    SCOUT_SPAWNED = "scout_spawned"
+    SCOUT_COMPLETED = "scout_completed"
+    SCOUT_DISMISSED = "scout_dismissed"

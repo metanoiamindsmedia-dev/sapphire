@@ -9,6 +9,7 @@ import { handleNewChat, handleDeleteChat, handleChatChange } from '../features/c
 import { getInitData, refreshInitData } from '../shared/init-data.js';
 import { switchView } from '../core/router.js';
 import { loadPersona, createFromChat, avatarImg, avatarFallback, avatarUrl } from '../shared/persona-api.js';
+import { initScoutStatus } from '../features/scout-status.js';
 
 let sidebarLoaded = false;
 let saveTimer = null;
@@ -45,6 +46,9 @@ function updateStoryPromptLabel(container) {
 
 export default {
     init(container) {
+        // Scout pill bar
+        initScoutStatus();
+
         // Sidebar collapse/expand
         const toggle = container.querySelector('#chat-sidebar-toggle');
         if (toggle) toggle.addEventListener('click', () => toggleSidebar(container));

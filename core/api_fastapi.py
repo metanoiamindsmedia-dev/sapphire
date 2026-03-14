@@ -422,6 +422,7 @@ from core.routes.story_engine import router as story_engine_router
 from core.routes.system import router as system_router
 from core.routes.plugins import router as plugins_router
 from core.routes.media import router as media_router
+from core.routes.scouts import router as scouts_router
 
 app.include_router(chat_router)
 app.include_router(tts_router)
@@ -432,4 +433,5 @@ app.include_router(story_engine_router)
 app.include_router(system_router)
 app.include_router(plugins_router)
 app.include_router(media_router)
+app.include_router(scouts_router)
 

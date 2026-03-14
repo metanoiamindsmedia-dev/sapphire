@@ -567,6 +567,14 @@ def run():
         continuity_scheduler.start()
         logger.info("Continuity scheduler started")
 
+        # Scout system — background LLM workers
+        from core.scouts import ScoutManager
+        voice_chat.scout_manager = ScoutManager(
+            voice_chat.llm_chat.function_manager,
+            voice_chat.llm_chat.tool_engine
+        )
+        logger.info("Scout manager initialized")
+
         # Wire scheduler into plugin loader for plugin schedule tasks
         from core.plugin_loader import plugin_loader
         plugin_loader.set_scheduler(continuity_scheduler)

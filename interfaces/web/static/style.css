@@ -3603,6 +3603,53 @@ a.gallery-caption:hover {
     z-index: 1;
 }
 
+/* Scout pill bar */
+#scout-bar {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 12px;
+    max-width: var(--chat-max-width);
+    margin: 0 auto;
+}
+
+.scout-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.3s, opacity 0.3s;
+    white-space: nowrap;
+}
+
+.scout-pill[data-status="running"] {
+    animation: scout-pulse 2s ease-in-out infinite;
+}
+
+.scout-pill .scout-x {
+    margin-left: 2px;
+    opacity: 0.4;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.scout-pill .scout-x:hover {
+    opacity: 1;
+    color: var(--text-bright);
+}
+
+@keyframes scout-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
 #chat-form {
     display: flex;
     gap: var(--msg-gap);
