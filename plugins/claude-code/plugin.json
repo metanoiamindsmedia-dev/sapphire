@@ -1,0 +1,40 @@
+{
+  "name": "claude-code",
+  "version": "1.0.0",
+  "description": "Dispatch Claude Code sessions to build, analyze, and modify code autonomously",
+  "author": "Sapphire",
+  "emoji": "⚡",
+  "priority": 50,
+  "capabilities": {
+    "tools": ["tools/claude_code_tools.py"],
+    "settings": [
+      {
+        "key": "mode",
+        "type": "string",
+        "label": "Execution Mode",
+        "default": "standard",
+        "widget": "select",
+        "options": [
+          {"label": "Strict (file ops only, no shell)", "value": "strict"},
+          {"label": "Standard (code + run + test)", "value": "standard"},
+          {"label": "System Killer (unrestricted — danger)", "value": "system_killer", "confirm": "System Killer mode gives Claude Code FULL unrestricted access including shell, package installs, and system commands. Are you sure?"}
+        ],
+        "help": "Controls what Claude Code is allowed to do"
+      },
+      {
+        "key": "workspace_dir",
+        "type": "string",
+        "label": "Workspace Directory",
+        "default": "~/claude-workspaces",
+        "help": "Where Claude Code creates project directories (outside Sapphire)"
+      },
+      {
+        "key": "max_turns",
+        "type": "number",
+        "label": "Max Turns Per Session",
+        "default": 50,
+        "help": "Limits how many iterations Claude Code can take per session"
+      }
+    ]
+  }
+}
