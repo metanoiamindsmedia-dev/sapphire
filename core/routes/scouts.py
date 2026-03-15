@@ -17,6 +17,27 @@ async def scout_status(chat: str = Query('', description="Filter by chat name"),
     return {"scouts": system.scout_manager.check_all(chat_name=chat)}
 
 
+@router.get("/api/scouts/providers")
+async def scout_providers(_=Depends(require_login)):
+    """Get enabled providers + their model options for the roster UI."""
+    import config as cfg
+    from core.chat.llm_providers import PROVIDER_METADATA
+    providers = []
+    for key, pconf in getattr(cfg, 'LLM_PROVIDERS', {}).items():
+        if not pconf.get('enabled'):
+            continue
+        meta = PROVIDER_METADATA.get(key, {})
+        models = meta.get('model_options') or {}
+        current = pconf.get('model', '')
+        providers.append({
+            'key': key,
+            'name': pconf.get('display_name', meta.get('display_name', key)),
+            'current_model': current,
+            'models': models,  # {model_id: display_name}
+        })
+    return {"providers": providers}
+
+
 @router.post("/api/scouts/{scout_id}/dismiss")
 async def dismiss_scout(scout_id: str, _=Depends(require_login)):
     """Dismiss/cancel a scout from the UI."""

@@ -1,27 +1,12 @@
 {
     "name": "scouts",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Spawn background AI scouts — parallel LLM workers with their own model, tools, and mission",
     "author": "sapphire",
     "icon": "\ud83d\udd2d",
     "priority": 50,
     "capabilities": {
         "tools": ["tools/scout_tools.py"],
-        "settings": [
-            {
-                "key": "max_concurrent",
-                "type": "number",
-                "label": "Max Concurrent Scouts",
-                "default": 3,
-                "help": "Maximum scouts running simultaneously (1-5)"
-            },
-            {
-                "key": "default_toolset",
-                "type": "string",
-                "label": "Default Toolset",
-                "default": "default",
-                "help": "Toolset for scouts when not specified"
-            }
-        ]
+        "web": true
     }
 }

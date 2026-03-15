@@ -120,6 +120,9 @@ const setAvatarWithFallback = async (img, role) => {
     }
 };
 
+// Cache: persona name → resolved avatar URL (or null if no custom avatar)
+const _personaAvatarCache = new Map();
+
 const setPersonaAvatar = (img, personaName) => {
     if (!avatarsInChat) {
         img.style.display = 'none';
@@ -127,11 +130,31 @@ const setPersonaAvatar = (img, personaName) => {
     }
     img.loading = 'lazy';
 
-    // Use cached URL or build it
+    // Check cache first — avoids repeated 404s for personas without avatars
+    if (_personaAvatarCache.has(personaName)) {
+        const cached = _personaAvatarCache.get(personaName);
+        if (cached) {
+            img.src = cached;
+            img.onerror = () => { img.style.display = 'none'; };
+        } else {
+            // Cached as no custom avatar — use default
+            loadAvatarPaths().then(paths => {
+                if (paths.assistant) {
+                    img.src = paths.assistant;
+                    img.onerror = () => { img.style.display = 'none'; };
+                } else {
+                    img.style.display = 'none';
+                }
+            });
+        }
+        return;
+    }
+
     const url = `/api/personas/${encodeURIComponent(personaName)}/avatar`;
     img.src = url;
+    img.onload = () => { _personaAvatarCache.set(personaName, url); };
     img.onerror = async () => {
-        // Fall back to default assistant avatar
+        _personaAvatarCache.set(personaName, null);
         const paths = await loadAvatarPaths();
         if (paths.assistant) {
             img.src = paths.assistant;

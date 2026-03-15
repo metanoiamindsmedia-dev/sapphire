@@ -1,5 +1,6 @@
 # core/scouts/worker.py — Individual scout worker thread
 import logging
+import re
 import threading
 import time
 
@@ -58,7 +59,9 @@ class ScoutWorker:
         try:
             ctx = ExecutionContext(self._fm, self._tool_engine, self._task_settings)
             # Run ephemeral (no history)
-            self.result = ctx.run(self.mission)
+            raw = ctx.run(self.mission)
+            # Strip <think> tags — scouts return clean results
+            self.result = re.sub(r'<think>[\s\S]*?</think>\s*', '', raw).strip() if raw else ''
             self.tool_log = ctx.tool_log
             if self._cancelled.is_set():
                 self.status = 'cancelled'

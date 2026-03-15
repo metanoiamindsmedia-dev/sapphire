@@ -73,7 +73,7 @@ class ScoutManager:
     def _active_count(self):
         return sum(1 for s in self._scouts.values() if s.status == 'running')
 
-    def spawn(self, mission, model='', toolset='default', prompt='sapphire',
+    def spawn(self, mission, model='', toolset='default', prompt='scout',
               persist_history=False, chat_name='') -> dict:
         """Spawn a new scout. Returns {id, name} or {error}."""
         with self._lock:

@@ -51,7 +51,7 @@ TOOLS = [
                     },
                     "prompt": {
                         "type": "string",
-                        "description": "Which prompt/personality the scout uses. Default: 'sapphire'."
+                        "description": "Which prompt/personality the scout uses. Default: 'scout' (lean, no personality). Use a named prompt like 'sapphire' if you want personality."
                     }
                 },
                 "required": ["mission"]
@@ -153,13 +153,23 @@ def execute(function_name, arguments, config):
         manager.max_concurrent = max(1, min(5, int(max_c)))
 
         if function_name == 'get_scout_options':
+            roster = ps.get('roster', [])
             options = manager.get_options()
             lines = []
-            lines.append("Available Models:")
-            for m in options['models']:
-                lines.append(f"  - {m['key']} ({m['name']}) — model: {m['model']}")
-            if not options['models']:
-                lines.append("  (no providers enabled)")
+
+            if roster:
+                lines.append("Model Roster:")
+                for r in roster:
+                    lines.append(f"  - \"{r['name']}\" → {r['provider']}/{r.get('model', 'default')}")
+                lines.append("\nUse the roster name in the model parameter (e.g. model=\"Big Brain\").")
+                lines.append("Leave model empty to use the current chat model.")
+            else:
+                lines.append("Available Providers (no roster configured — scouts use current chat model by default):")
+                for m in options['models']:
+                    lines.append(f"  - {m['key']} ({m['name']}) — model: {m['model']}")
+                if not options['models']:
+                    lines.append("  (no providers enabled)")
+
             lines.append("\nAvailable Toolsets:")
             for t in options['toolsets']:
                 lines.append(f"  - {t}")
@@ -173,14 +183,23 @@ def execute(function_name, arguments, config):
             mission = arguments.get('mission')
             if not mission:
                 return "Mission is required.", False
-            model = arguments.get('model', '')
+            model_arg = arguments.get('model', '')
             toolset = arguments.get('toolset', ps.get('default_toolset', 'default'))
             prompt = arguments.get('prompt', 'sapphire')
-            result = manager.spawn(mission, model=model, toolset=toolset, prompt=prompt, chat_name=_get_active_chat())
+
+            # Resolve roster name to provider:model
+            resolved_model = model_arg
+            roster = ps.get('roster', [])
+            if model_arg and roster:
+                match = next((r for r in roster if r['name'].lower() == model_arg.lower()), None)
+                if match:
+                    resolved_model = f"{match['provider']}:{match.get('model', '')}" if match.get('model') else match['provider']
+
+            result = manager.spawn(mission, model=resolved_model, toolset=toolset, prompt=prompt, chat_name=_get_active_chat())
             if 'error' in result:
                 return result['error'], False
-            provider_info = f" on {model}" if model else ""
-            return f"Scout {result['name']} dispatched{provider_info} (id: {result['id']}). Use check_scouts() to monitor progress.", True
+            label = model_arg if model_arg else "current model"
+            return f"Scout {result['name']} dispatched on {label} (id: {result['id']}). Use check_scouts() to monitor progress.", True
 
         elif function_name == 'check_scouts':
             scouts = manager.check_all(chat_name=_get_active_chat())
