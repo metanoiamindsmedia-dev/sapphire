@@ -7,6 +7,7 @@ let pollTimer = null;
 let initialized = false;
 let scouts = new Map(); // id -> {name, status, mission, chat_name}
 let pendingScoutReport = null; // queued report if Sapphire is mid-stream
+let pendingScoutChat = null;   // which chat the report belongs to
 
 const STATUS_COLORS = {
     running: '#f0ad4e',
@@ -132,6 +133,12 @@ function stopPolling() {
 async function drainScoutReport() {
     if (!pendingScoutReport) return;
     try {
+        // Verify we're still on the correct chat
+        const activeChat = getActiveChat();
+        if (pendingScoutChat && pendingScoutChat !== activeChat) {
+            console.log('[Scouts] Wrong chat — report is for', pendingScoutChat, 'but active is', activeChat, '— holding');
+            return; // keep queued, CHAT_SWITCHED will retry
+        }
         const { getIsProc } = await import('../core/state.js');
         if (getIsProc()) {
             console.log('[Scouts] Still processing, will retry on ai_typing_end');
@@ -139,12 +146,14 @@ async function drainScoutReport() {
         }
         const report = pendingScoutReport;
         pendingScoutReport = null;
+        pendingScoutChat = null;
         console.log('[Scouts] Sending auto-return report to chat');
         const { triggerSendWithText } = await import('../handlers/send-handlers.js');
         await triggerSendWithText(report);
     } catch (err) {
         console.error('[Scouts] Auto-return failed:', err);
-        pendingScoutReport = null; // don't loop forever on error
+        pendingScoutReport = null;
+        pendingScoutChat = null;
     }
 }
 
@@ -184,29 +193,27 @@ export function initScoutStatus() {
         renderPills();
     });
 
-    // Re-render pills on chat switch
-    eventBus.on(eventBus.Events.CHAT_SWITCHED, () => {
-        renderPills();
-    });
-
     // Scout batch auto-return — send report as a message when all scouts finish
     eventBus.on('scout_batch_complete', (data) => {
         console.log('[Scouts] Batch complete event received:', data.chat_name, 'scouts:', data.scout_count);
-        const activeChat = getActiveChat();
-        if (data.chat_name !== activeChat) {
-            console.log('[Scouts] Chat mismatch:', data.chat_name, '!==', activeChat);
-            return;
-        }
-        // Use setTimeout to ensure all pending SSE events (like ai_typing_end) process first
         pendingScoutReport = data.report;
+        pendingScoutChat = data.chat_name;
         setTimeout(() => drainScoutReport(), 1500);
     });
 
-    // Also drain on ai_typing_end (catches the case where Sapphire was mid-stream)
+    // Drain on ai_typing_end (catches the case where Sapphire was mid-stream)
     eventBus.on('ai_typing_end', () => {
         if (!pendingScoutReport) return;
         console.log('[Scouts] ai_typing_end — draining queued report');
         setTimeout(() => drainScoutReport(), 800);
+    });
+
+    // Drain when user switches to the chat the report belongs to
+    eventBus.on(eventBus.Events.CHAT_SWITCHED, () => {
+        renderPills();
+        if (!pendingScoutReport) return;
+        console.log('[Scouts] Chat switched — checking if report can drain');
+        setTimeout(() => drainScoutReport(), 500);
     });
 
     // Initial poll on load
