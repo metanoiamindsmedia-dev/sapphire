@@ -15,7 +15,7 @@ SCOUT_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']
 class ScoutWorker:
     """Runs an isolated LLM + tool loop in a background thread."""
 
-    def __init__(self, scout_id, name, mission, task_settings, function_manager, tool_engine, chat_name=''):
+    def __init__(self, scout_id, name, mission, task_settings, function_manager, tool_engine, chat_name='', on_complete=None):
         self.id = scout_id
         self.name = name
         self.mission = mission
@@ -31,6 +31,7 @@ class ScoutWorker:
         self._task_settings = task_settings
         self._fm = function_manager
         self._tool_engine = tool_engine
+        self._on_complete = on_complete
 
     @property
     def elapsed(self):
@@ -80,6 +81,11 @@ class ScoutWorker:
                 'elapsed': self.elapsed,
             })
             logger.info(f"Scout {self.name} finished: {self.status} ({self.elapsed}s)")
+            if self._on_complete:
+                try:
+                    self._on_complete(self.id, self.chat_name)
+                except Exception as e:
+                    logger.error(f"Scout {self.name} on_complete callback failed: {e}")
 
     def to_dict(self):
         return {

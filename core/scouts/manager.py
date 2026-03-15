@@ -107,7 +107,8 @@ class ScoutManager:
             'discord_scope': 'none',
         }
 
-        worker = ScoutWorker(scout_id, name, mission, task_settings, self._fm, self._tool_engine, chat_name=chat_name)
+        worker = ScoutWorker(scout_id, name, mission, task_settings, self._fm, self._tool_engine,
+                             chat_name=chat_name, on_complete=self._check_batch_complete)
 
         with self._lock:
             self._scouts[scout_id] = worker
@@ -164,6 +165,41 @@ class ScoutManager:
         publish(Events.SCOUT_DISMISSED, {'id': scout_id, 'name': scout.name})
         logger.info(f"Scout {scout.name} ({scout_id}) dismissed")
         return {'name': scout.name, 'status': 'dismissed', 'last_result': scout.result}
+
+    def _check_batch_complete(self, scout_id, chat_name):
+        """Called when a scout finishes. If all scouts for this chat are done, publish batch report."""
+        with self._lock:
+            chat_scouts = [s for s in self._scouts.values() if s.chat_name == chat_name]
+            if not chat_scouts:
+                return
+            if any(s.status == 'running' for s in chat_scouts):
+                return
+
+            # All done — compile report
+            report_lines = []
+            for s in chat_scouts:
+                icon = '✓' if s.status == 'done' else '✗'
+                body = s.result or s.error or 'No result.'
+                report_lines.append(f"{icon} Scout {s.name} ({s.status}, {s.elapsed}s):\n{body}")
+
+            report = "[SCOUT REPORT — All scouts complete]\n\n" + "\n\n".join(report_lines)
+
+            # Auto-dismiss all completed scouts
+            dismissed_ids = []
+            for s in chat_scouts:
+                dismissed_ids.append((s.id, s.name))
+                self._scouts.pop(s.id, None)
+
+        # Publish outside lock
+        for sid, sname in dismissed_ids:
+            publish(Events.SCOUT_DISMISSED, {'id': sid, 'name': sname})
+
+        publish(Events.SCOUT_BATCH_COMPLETE, {
+            'chat_name': chat_name,
+            'report': report,
+            'scout_count': len(dismissed_ids),
+        })
+        logger.info(f"Scout batch complete for chat '{chat_name}': {len(dismissed_ids)} scouts reported")
 
     def get_options(self) -> dict:
         """Return available models, toolsets, and prompts for spawning scouts."""
