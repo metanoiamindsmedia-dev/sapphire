@@ -6,6 +6,7 @@ import threading
 import config
 from core.event_bus import publish, Events
 from core.scouts.worker import ScoutWorker, SCOUT_NAMES
+from core.scouts.code_worker import CodeScoutWorker
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,35 @@ class ScoutManager:
         publish(Events.SCOUT_DISMISSED, {'id': scout_id, 'name': scout.name})
         logger.info(f"Scout {scout.name} ({scout_id}) dismissed")
         return {'name': scout.name, 'status': 'dismissed', 'last_result': scout.result}
+
+    def spawn_code(self, mission, project_name, settings, chat_name='') -> dict:
+        """Spawn a code scout (Claude Code in background). Returns {id, name} or {error}."""
+        with self._lock:
+            if self._active_count() >= self.max_concurrent:
+                return {'error': f'Scout limit reached ({self.max_concurrent}). Dismiss or wait for a scout to finish.'}
+
+            scout_id = uuid.uuid4().hex[:8]
+            name = self._next_name()
+
+        worker = CodeScoutWorker(
+            scout_id, name, mission, project_name, settings,
+            chat_name=chat_name, on_complete=self._check_batch_complete
+        )
+
+        with self._lock:
+            self._scouts[scout_id] = worker
+
+        worker.start()
+
+        publish(Events.SCOUT_SPAWNED, {
+            'id': scout_id,
+            'name': name,
+            'mission': mission,
+            'chat_name': chat_name,
+        })
+
+        logger.info(f"Code scout {name} ({scout_id}) dispatched: project={project_name}, mission={mission[:80]}")
+        return {'id': scout_id, 'name': name}
 
     def _check_batch_complete(self, scout_id, chat_name):
         """Called when a scout finishes. If all scouts for this chat are done, publish batch report."""

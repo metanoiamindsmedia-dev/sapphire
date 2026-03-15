@@ -2,8 +2,8 @@
   "plugin": "claude-code",
   "version": "1.0.0",
   "files": {
-    "plugin.json": "sha256:3b6e31141b44484a0a0383f3a6b9ba20d3553ca2454ccb5cb8cc5ad087b143c3",
-    "tools/claude_code_tools.py": "sha256:e42f90ac99b392e128ec1af82f81fd83967ba1f0c4a64d05535d0d69c5685dd3"
+    "plugin.json": "sha256:8899448b6acb331b8867aaec03a740813ce5b87fe8dbbd5776ce753c2bf5dfd1",
+    "tools/claude_code_tools.py": "sha256:4aace1c9a8ed83a9a9ce6039b7a47ad29fb90123d1924877e801fbdcd2ecff8c"
   },
-  "signature": "XFpM1wPzOqbksQ6arZGeg5VrCarxp+6TQHKAynWi2uYJw3f31d+Zl6sB8wCdA7jgag+XSLxe3ZucAPSmUAHaBA=="
+  "signature": "DobGbQCivEoH/of0z3jyYNwaFswkZZrzhHu62k94dhkquLf0e4R89lE9dAp7woT5u9QWroFQGBcFncDV6X/NBQ=="
 }

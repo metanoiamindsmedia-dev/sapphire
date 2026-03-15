@@ -33,7 +33,7 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "spawn_scout",
-            "description": "Launch a background AI scout to perform a task independently. The scout runs in isolation with its own context and reports back when done. Use check_scouts() to monitor and recall_scout() to get the report.",
+            "description": "Launch a background AI scout for research, lookups, or analysis tasks. NOT for coding or building apps — use dispatch_code_scout for that. The scout runs in isolation and reports back automatically when done.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -185,6 +185,12 @@ def execute(function_name, arguments, config):
                 return "Mission is required.", False
             model_arg = arguments.get('model', '')
             toolset = arguments.get('toolset', ps.get('default_toolset', 'default'))
+
+            # Block claude-code toolset — redirect to dispatch_code_scout
+            if toolset and 'claude' in toolset.lower():
+                return ("Cannot use Claude Code tools through a regular scout. "
+                        "Use dispatch_code_scout() instead — it runs Claude Code "
+                        "in the background and reports back automatically."), False
             prompt = arguments.get('prompt', 'sapphire')
 
             # Resolve roster name to provider:model

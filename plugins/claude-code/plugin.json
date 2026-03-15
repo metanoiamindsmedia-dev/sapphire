@@ -34,6 +34,14 @@
         "label": "Max Turns Per Session",
         "default": 50,
         "help": "Limits how many iterations Claude Code can take per session"
+      },
+      {
+        "key": "coder_instructions",
+        "type": "string",
+        "widget": "textarea",
+        "label": "Coder Instructions",
+        "default": "You are a code builder. Write clean, working code.\n- Test your work by running it before reporting done\n- Include a README.md with usage instructions\n- Keep it simple and minimal — no over-engineering\n- If you hit a problem you can't solve, describe it clearly in your final response",
+        "help": "Instructions written into CLAUDE.md in every new workspace. Controls Claude Code's behavior and coding style."
       }
     ]
   }
