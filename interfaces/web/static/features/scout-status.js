@@ -6,6 +6,7 @@ let bar = null;
 let pollTimer = null;
 let initialized = false;
 let scouts = new Map(); // id -> {name, status, mission, chat_name}
+let pendingScoutReport = null; // queued report if Sapphire is mid-stream
 
 const STATUS_COLORS = {
     running: '#f0ad4e',
@@ -128,6 +129,25 @@ function stopPolling() {
     }
 }
 
+async function drainScoutReport() {
+    if (!pendingScoutReport) return;
+    try {
+        const { getIsProc } = await import('../core/state.js');
+        if (getIsProc()) {
+            console.log('[Scouts] Still processing, will retry on ai_typing_end');
+            return; // keep pendingScoutReport, ai_typing_end will retry
+        }
+        const report = pendingScoutReport;
+        pendingScoutReport = null;
+        console.log('[Scouts] Sending auto-return report to chat');
+        const { triggerSendWithText } = await import('../handlers/send-handlers.js');
+        await triggerSendWithText(report);
+    } catch (err) {
+        console.error('[Scouts] Auto-return failed:', err);
+        pendingScoutReport = null; // don't loop forever on error
+    }
+}
+
 function esc(s) {
     return s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -167,6 +187,26 @@ export function initScoutStatus() {
     // Re-render pills on chat switch
     eventBus.on(eventBus.Events.CHAT_SWITCHED, () => {
         renderPills();
+    });
+
+    // Scout batch auto-return — send report as a message when all scouts finish
+    eventBus.on('scout_batch_complete', (data) => {
+        console.log('[Scouts] Batch complete event received:', data.chat_name, 'scouts:', data.scout_count);
+        const activeChat = getActiveChat();
+        if (data.chat_name !== activeChat) {
+            console.log('[Scouts] Chat mismatch:', data.chat_name, '!==', activeChat);
+            return;
+        }
+        // Use setTimeout to ensure all pending SSE events (like ai_typing_end) process first
+        pendingScoutReport = data.report;
+        setTimeout(() => drainScoutReport(), 1500);
+    });
+
+    // Also drain on ai_typing_end (catches the case where Sapphire was mid-stream)
+    eventBus.on('ai_typing_end', () => {
+        if (!pendingScoutReport) return;
+        console.log('[Scouts] ai_typing_end — draining queued report');
+        setTimeout(() => drainScoutReport(), 800);
     });
 
     // Initial poll on load

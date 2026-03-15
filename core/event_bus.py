@@ -244,3 +244,4 @@ class Events:
     SCOUT_SPAWNED = "scout_spawned"
     SCOUT_COMPLETED = "scout_completed"
     SCOUT_DISMISSED = "scout_dismissed"
+    SCOUT_BATCH_COMPLETE = "scout_batch_complete"
