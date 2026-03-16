@@ -556,22 +556,51 @@ function bindEvents() {
         } catch (e) { ui.showToast(e.message || 'Export failed', 'error'); }
     });
 
-    // Import
+    // Import (accepts both persona bundles and plain prompt exports)
     container.querySelector('#pa-import')?.addEventListener('click', () => {
         showImportDialog({
-            type: 'Persona',
+            type: 'Persona or Prompt',
             overwrites: [
                 { key: 'prompt', label: 'Overwrite prompt if it already exists' },
                 { key: 'avatar', label: 'Overwrite avatar if it already exists' },
             ],
             existingNames: personas.map(p => p.name),
-            validate: (d) => (!d.sapphire_export || d.type !== 'persona') ? 'Not a valid Sapphire persona export' : null,
+            validate: (d) => {
+                // Full persona bundle
+                if (d.sapphire_export && d.type === 'persona') return null;
+                // Prompt export (sapphire_export format)
+                if (d.sapphire_export && d.type === 'prompt' && d.prompt) return null;
+                // Legacy prompt export (just {name, prompt, components})
+                if (d.prompt && (d.prompt.type || d.prompt.content)) return null;
+                return 'Not a valid Sapphire persona or prompt export';
+            },
             getName: (d) => d.name || 'imported',
             onImport: async (parsed, { name, overwrites }) => {
-                parsed.name = name;
-                parsed.overwrite_prompt = overwrites.prompt || false;
-                parsed.overwrite_avatar = overwrites.avatar || false;
-                await importPersona(parsed);
+                let bundle;
+                if (parsed.sapphire_export && parsed.type === 'persona') {
+                    // Full persona — pass through
+                    bundle = parsed;
+                } else {
+                    // Prompt-only — wrap into a persona bundle with defaults
+                    const promptData = parsed.prompt || {};
+                    const promptName = parsed.name || name;
+                    bundle = {
+                        sapphire_export: true,
+                        type: 'persona',
+                        version: 1,
+                        name,
+                        tagline: '',
+                        trim_color: '',
+                        voice: {},
+                        avatar: null,
+                        prompt: { name: promptName, data: promptData },
+                    };
+                    if (parsed.components) bundle.components = parsed.components;
+                }
+                bundle.name = name;
+                bundle.overwrite_prompt = overwrites.prompt || false;
+                bundle.overwrite_avatar = overwrites.avatar || false;
+                await importPersona(bundle);
                 selectedName = name.replace(/\s+/g, '_').toLowerCase();
             },
             onDone: async () => {
