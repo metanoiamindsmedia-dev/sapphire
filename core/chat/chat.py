@@ -360,7 +360,9 @@ class LLMChat:
 
         # Build user message content - list if images, string otherwise
         if images:
-            user_content = [{"type": "text", "text": user_input}]
+            user_content = []
+            if user_input:
+                user_content.append({"type": "text", "text": user_input})
             for img in images:
                 user_content.append({
                     "type": "image",
