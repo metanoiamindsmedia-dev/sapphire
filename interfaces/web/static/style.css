@@ -1526,6 +1526,18 @@ body {
 .pr-io-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 .pr-io-status { font-size: var(--font-sm); color: var(--text-muted); margin-top: 8px; }
 
+/* ── Shared import/export modal (io-*) ── */
+.io-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+.io-modal { background: var(--bg-secondary); border-radius: var(--radius-lg); width: 90%; max-width: 500px; max-height: 80vh; overflow: auto; }
+.io-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.io-header h3 { margin: 0; font-size: var(--font-base); }
+.io-body { padding: 20px; }
+.io-option { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: var(--font-sm); }
+.io-buttons { display: flex; gap: 8px; }
+.io-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.io-status { font-size: var(--font-sm); color: var(--text-muted); margin-top: 8px; }
+.io-section-label { font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+
 /* ≥1440px: preview side-by-side with independent scroll */
 @media (min-width: 1440px) {
     .pr-content { display: grid; grid-template-columns: 3fr 2fr; overflow: hidden; }
