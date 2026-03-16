@@ -1,9 +1,11 @@
 // views/personas.js - Persona manager view
 import { listPersonas, getPersona, createPersona, updatePersona, deletePersona,
          duplicatePersona, loadPersona, createFromChat, uploadAvatar, deleteAvatar,
+         exportPersona, importPersona,
          avatarUrl, avatarImg, avatarFallback } from '../shared/persona-api.js';
 import { renderPersonaTabs, bindPersonaTabs } from '../shared/persona-tabs.js';
 import { getInitData } from '../shared/init-data.js';
+import { showExportDialog, showImportDialog } from '../shared/import-export.js';
 import * as ui from '../ui.js';
 import { updateScene } from '../features/scene.js';
 import { applyTrimColor } from '../features/chat-settings.js';
@@ -126,6 +128,7 @@ function render() {
             <div class="panel-left panel-list">
                 <div class="panel-list-header">
                     <span class="panel-list-title">Personas</span>
+                    <button class="btn-sm" id="pa-import" title="Import persona">\u2B07</button>
                     <button class="btn-sm" id="pa-new" title="New from current chat">+</button>
                 </div>
                 <div class="panel-list-items" id="pa-list">
@@ -186,6 +189,7 @@ function renderDetail(p, isActive) {
                             ? '<button class="btn-sm" id="pa-clear-default" title="Remove as default">&#x2B50; Default</button>'
                             : '<button class="btn-sm" id="pa-set-default" title="Set as default for new chats">Set Default</button>'}
                         <button class="btn-sm" id="pa-duplicate">Duplicate</button>
+                        <button class="btn-sm" id="pa-export">Export</button>
                         <button class="btn-sm danger" id="pa-delete">Delete</button>
                     </div>
                 </div>
@@ -536,6 +540,45 @@ function bindEvents() {
             render();
             ui.showToast(`Duplicated`, 'success');
         } catch (e) { ui.showToast(e.message || 'Failed', 'error'); }
+    });
+
+    // Export
+    container.querySelector('#pa-export')?.addEventListener('click', async () => {
+        if (!selectedName) return;
+        try {
+            const bundle = await exportPersona(selectedName);
+            showExportDialog({
+                type: 'Persona',
+                name: selectedName,
+                data: bundle,
+                filename: `${selectedName}.persona.json`,
+            });
+        } catch (e) { ui.showToast(e.message || 'Export failed', 'error'); }
+    });
+
+    // Import
+    container.querySelector('#pa-import')?.addEventListener('click', () => {
+        showImportDialog({
+            type: 'Persona',
+            overwrites: [
+                { key: 'prompt', label: 'Overwrite prompt if it already exists' },
+                { key: 'avatar', label: 'Overwrite avatar if it already exists' },
+            ],
+            existingNames: personas.map(p => p.name),
+            validate: (d) => (!d.sapphire_export || d.type !== 'persona') ? 'Not a valid Sapphire persona export' : null,
+            getName: (d) => d.name || 'imported',
+            onImport: async (parsed, { name, overwrites }) => {
+                parsed.name = name;
+                parsed.overwrite_prompt = overwrites.prompt || false;
+                parsed.overwrite_avatar = overwrites.avatar || false;
+                await importPersona(parsed);
+                selectedName = name.replace(/\s+/g, '_').toLowerCase();
+            },
+            onDone: async () => {
+                await loadData();
+                render();
+            },
+        });
     });
 
     // Delete
