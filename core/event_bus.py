@@ -240,8 +240,8 @@ class Events:
     DAEMON_EVENT = "daemon_event"
     WEBHOOK_FIRED = "webhook_fired"
 
-    # Scout events
-    SCOUT_SPAWNED = "scout_spawned"
-    SCOUT_COMPLETED = "scout_completed"
-    SCOUT_DISMISSED = "scout_dismissed"
-    SCOUT_BATCH_COMPLETE = "scout_batch_complete"
+    # Agent events
+    AGENT_SPAWNED = "agent_spawned"
+    AGENT_COMPLETED = "agent_completed"
+    AGENT_DISMISSED = "agent_dismissed"
+    AGENT_BATCH_COMPLETE = "agent_batch_complete"

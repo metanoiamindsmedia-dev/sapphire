@@ -98,6 +98,13 @@ class VoiceChatSystem:
         self.init_components()
         self._cleanup_orphaned_rag()
 
+        # Agent system — background workers (types registered by plugins during scan)
+        from core.agents import AgentManager
+        import core.agents as agents_module
+        self.agent_manager = AgentManager()
+        agents_module.agent_manager = self.agent_manager
+        logger.info("Agent manager initialized")
+
         # Load plugins (hooks, voice commands, tools, etc.)
         try:
             from core.plugin_loader import plugin_loader
@@ -566,14 +573,6 @@ def run():
         voice_chat.continuity_scheduler = continuity_scheduler  # Attach for stop() and API routes
         continuity_scheduler.start()
         logger.info("Continuity scheduler started")
-
-        # Scout system — background LLM workers
-        from core.scouts import ScoutManager
-        voice_chat.scout_manager = ScoutManager(
-            voice_chat.llm_chat.function_manager,
-            voice_chat.llm_chat.tool_engine
-        )
-        logger.info("Scout manager initialized")
 
         # Wire scheduler into plugin loader for plugin schedule tasks
         from core.plugin_loader import plugin_loader

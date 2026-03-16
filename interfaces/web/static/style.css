@@ -3603,8 +3603,8 @@ a.gallery-caption:hover {
     z-index: 1;
 }
 
-/* Scout pill bar */
-#scout-bar {
+/* Agent pill bar */
+#agent-bar {
     display: none;
     flex-wrap: wrap;
     gap: 6px;
@@ -3613,7 +3613,7 @@ a.gallery-caption:hover {
     margin: 0 auto;
 }
 
-.scout-pill {
+.agent-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -3628,11 +3628,11 @@ a.gallery-caption:hover {
     white-space: nowrap;
 }
 
-.scout-pill[data-status="running"] {
-    animation: scout-pulse 2s ease-in-out infinite;
+.agent-pill[data-status="running"] {
+    animation: agent-pulse 2s ease-in-out infinite;
 }
 
-.scout-pill .scout-x {
+.agent-pill .agent-x {
     margin-left: 2px;
     opacity: 0.4;
     cursor: pointer;
@@ -3640,12 +3640,12 @@ a.gallery-caption:hover {
     line-height: 1;
 }
 
-.scout-pill .scout-x:hover {
+.agent-pill .agent-x:hover {
     opacity: 1;
     color: var(--text-bright);
 }
 
-@keyframes scout-pulse {
+@keyframes agent-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
 }
