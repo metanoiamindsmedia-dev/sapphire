@@ -402,14 +402,7 @@ class FunctionManager:
         # Add story tools if story engine is active (both engine AND flag must be set)
         if self._story_engine and self._story_engine_enabled:
             from core.story_engine import TOOLS as STORY_TOOLS
-            # Only include move tool if navigation is configured
-            has_navigation = (self._story_engine.navigation is not None and
-                              self._story_engine.navigation.is_enabled)
-            if has_navigation:
-                tools = tools + STORY_TOOLS
-            else:
-                # Exclude move tool for non-navigation presets
-                tools = tools + [t for t in STORY_TOOLS if t['function']['name'] != 'move']
+            tools = tools + STORY_TOOLS
 
             # Add custom story tools from story folder
             custom = self._story_engine.get_story_tools()

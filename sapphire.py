@@ -150,8 +150,12 @@ class VoiceChatSystem:
             try:
                 chat_settings = self.llm_chat.session_manager.get_chat_settings()
                 prompt_name = chat_settings.get('prompt')
-                if prompt_name:
+                # __story__ is a sentinel — story engine loads its own prompt.md via _get_system_prompt
+                if prompt_name and prompt_name != '__story__':
                     logger.info(f"Startup prompt from chat settings: '{prompt_name}'")
+                elif prompt_name == '__story__':
+                    logger.info("Startup prompt: story chat (prompt loaded from story engine)")
+                    prompt_name = None  # fall through to defaults
             except Exception:
                 pass
 

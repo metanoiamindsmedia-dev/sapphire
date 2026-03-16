@@ -260,6 +260,9 @@ class LLMChat:
             context_parts.append(custom_ctx)
 
         # Inject story engine block if enabled
+        # Static story content goes into context_parts (cached with system prompt)
+        # Dynamic story content goes into dynamic_context (separate uncached block)
+        dynamic_context = []
         if story_enabled:
             if story_engine:
                 vars_in_prompt = chat_settings.get('story_vars_in_prompt', False)
@@ -268,26 +271,31 @@ class LLMChat:
                 logger.info(f"[STORY] Prompt injection: vars={vars_in_prompt}, story={story_in_prompt}, preset={story_engine.preset_name}")
 
                 if vars_in_prompt or story_in_prompt:
-                    # +1 because we're building prompt for the INCOMING message
                     turn = self.session_manager.get_turn_count() + 1
-                    state_block = story_engine.format_for_prompt(
+                    static_block, dynamic_block = story_engine.format_for_prompt_split(
                         include_vars=vars_in_prompt,
                         include_story=story_in_prompt,
                         current_turn=turn
                     )
-                    logger.info(f"[STORY] State block length: {len(state_block)} chars")
-                    context_parts.append(f"<state turn=\"{turn}\">\n{state_block}\n</state>")
+                    if static_block:
+                        context_parts.append(f"<story>\n{static_block}\n</story>")
+                    if dynamic_block:
+                        dynamic_context.append(f"<state turn=\"{turn}\">\n{dynamic_block}\n</state>")
+                    logger.info(f"[STORY] Static: {len(static_block)} chars, Dynamic: {len(dynamic_block)} chars")
         
         # Plugin prompt_inject hook — append to context_parts
         if hook_runner.has_handlers("prompt_inject"):
             inject_event = HookEvent(context_parts=context_parts, config=config)
             hook_runner.fire("prompt_inject", inject_event)
 
-        # Combine all context
+        # Combine all static context into main prompt
         if context_parts:
             prompt = f"{prompt}\n\n{chr(10).join(context_parts)}"
 
-        return prompt, username
+        # Dynamic context returned separately for cache-friendly injection
+        dynamic = "\n".join(dynamic_context) if dynamic_context else None
+
+        return prompt, username, dynamic
 
     def _update_story_engine(self):
         """Initialize or update story engine based on chat settings."""
@@ -344,7 +352,7 @@ class LLMChat:
         logger.info(f"[STORY] Story engine enabled for chat '{chat_name}'")
 
     def _build_base_messages(self, user_input: str, images: list = None, files: list = None):
-        system_prompt, user_name = self._get_system_prompt()
+        system_prompt, user_name, dynamic_context = self._get_system_prompt()
 
         # Flatten files into user_input as fenced code blocks
         if files:
@@ -377,6 +385,11 @@ class LLMChat:
             *history_messages,
             {"role": "user", "content": user_content}
         ]
+
+        # Dynamic story context — injected as separate system content for cache efficiency
+        # This changes every turn (state vars, clues, exits) while the main system prompt stays cached
+        if dynamic_context:
+            messages.insert(1, {"role": "system", "content": dynamic_context, "_dynamic": True})
 
         # RAG injection — if chat has uploaded documents, search and inject
         rag_context = self._get_rag_context(user_input)
