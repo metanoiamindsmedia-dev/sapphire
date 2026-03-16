@@ -106,7 +106,9 @@ class StreamingChat:
             if not skip_user_message:
                 # Build content list if files or images present, otherwise just text
                 if files or images:
-                    user_content = [{"type": "text", "text": user_input}]
+                    user_content = []
+                    if user_input:
+                        user_content.append({"type": "text", "text": user_input})
                     for f in (files or []):
                         user_content.append({
                             "type": "file",
