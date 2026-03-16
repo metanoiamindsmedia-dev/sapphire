@@ -396,6 +396,20 @@ async def rename_spice_category(name: str, request: Request, _=Depends(require_l
     return {"status": "success", "old_name": name, "new_name": new_name}
 
 
+@router.post("/api/spices/category/{name}/emoji")
+async def set_spice_category_emoji(name: str, request: Request, _=Depends(require_login)):
+    """Set emoji for a spice category."""
+    data = await request.json()
+    emoji = data.get('emoji', '')
+    if name not in prompts.prompt_manager._spices:
+        raise HTTPException(status_code=404, detail=f"Category '{name}' not found")
+    meta = prompts.prompt_manager._spice_meta.get(name, {})
+    meta['emoji'] = emoji
+    prompts.prompt_manager._spice_meta[name] = meta
+    prompts.prompt_manager.save_spices()
+    return {"status": "success", "name": name, "emoji": emoji}
+
+
 @router.post("/api/spices/category/{name}/toggle")
 async def toggle_spice_category(name: str, request: Request, _=Depends(require_login)):
     """Toggle a spice category."""
