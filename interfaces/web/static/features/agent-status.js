@@ -139,8 +139,20 @@ async function drainAgentReport() {
         pendingAgentReport = null;
         pendingAgentChat = null;
         console.log('[Agents] Sending auto-return report to chat');
+
+        // Preserve user's in-progress typing
+        const { getElements } = await import('../core/state.js');
+        const { input } = getElements();
+        const savedText = input?.value || '';
+
         const { triggerSendWithText } = await import('../handlers/send-handlers.js');
         await triggerSendWithText(report);
+
+        // Restore what the user was typing
+        if (savedText && input) {
+            input.value = savedText;
+            input.dispatchEvent(new Event('input'));
+        }
     } catch (err) {
         console.error('[Agents] Auto-return failed:', err);
         pendingAgentReport = null;
