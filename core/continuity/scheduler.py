@@ -631,8 +631,15 @@ class ContinuityScheduler:
                     event_obj = json.loads(event_data) if isinstance(event_data, str) else event_data
                     if isinstance(event_obj, dict):
                         for key, val in task_filter.items():
+                            # Support _not suffix for negative matching
+                            if key.endswith("_not"):
+                                field = key[:-4]  # strip _not
+                                ev_val = str(event_obj.get(field, ""))
+                                if ev_val.lower() == str(val).lower():
+                                    logger.debug(f"[Continuity] '{task_name}' filter excluded on '{field}' (not): {ev_val!r} == {val!r}")
+                                    return {"success": False, "error": "Event filtered out"}
                             # Support _contains suffix for substring matching
-                            if key.endswith("_contains"):
+                            elif key.endswith("_contains"):
                                 field = key[:-9]  # strip _contains
                                 ev_val = str(event_obj.get(field, ""))
                                 if str(val).lower() not in ev_val.lower():

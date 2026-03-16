@@ -18,10 +18,15 @@
         "description": "New message received in a Discord channel",
         "filter_fields": [
           {"key": "mentioned", "label": "bot was @mentioned (True/False)"},
-          {"key": "guild_id", "label": "server ID"},
-          {"key": "channel_id", "label": "channel ID"},
+          {"key": "guild_name", "label": "server name"},
+          {"key": "channel_name", "label": "channel name"},
           {"key": "username", "label": "sender username"},
-          {"key": "content_contains", "label": "keyword in message"}
+          {"key": "content_contains", "label": "keyword in message"},
+          {"key": "channel_name_not", "label": "exclude channel name"},
+          {"key": "guild_name_not", "label": "exclude server name"},
+          {"key": "username_not", "label": "exclude username"},
+          {"key": "guild_id", "label": "server ID (advanced)"},
+          {"key": "channel_id", "label": "channel ID (advanced)"}
         ],
         "task_fields": [
           {
