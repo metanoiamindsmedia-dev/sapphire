@@ -330,18 +330,37 @@ function bindEvents() {
 
     layout.querySelector('#pr-import')?.addEventListener('click', () => {
         showImportDialog({
-            type: 'Prompt',
+            type: 'Prompt or Persona',
             overwrites: [
                 { key: 'overwrite', label: 'Overwrite existing prompt and pieces' },
             ],
             existingNames: prompts.map(p => p.name),
-            validate: (d) => !d.prompt ? 'Invalid format: missing prompt data' : null,
-            getName: (d) => d.name || 'imported',
+            validate: (d) => {
+                // Standard prompt export
+                if (d.prompt) return null;
+                // Persona bundle with embedded prompt
+                if (d.sapphire_export && d.type === 'persona' && d.prompt) return null;
+                return 'Invalid format: missing prompt data';
+            },
+            getName: (d) => {
+                // Persona bundle: prompt name is nested
+                if (d.sapphire_export && d.type === 'persona') return d.prompt?.name || d.name || 'imported';
+                return d.name || 'imported';
+            },
             onImport: async (data, { name, overwrites }) => {
                 const overwrite = overwrites.overwrite || false;
 
+                // Extract prompt data — handle persona bundles
+                let promptData, importPieces;
+                if (data.sapphire_export && data.type === 'persona') {
+                    promptData = data.prompt?.data || data.prompt;
+                    importPieces = data.components;
+                } else {
+                    promptData = data.prompt;
+                    importPieces = data.components || data.pieces;
+                }
+
                 // Import pieces
-                const importPieces = data.components || data.pieces;
                 let skipped = 0, imported = 0;
                 if (importPieces) {
                     for (const [type, defs] of Object.entries(importPieces)) {
@@ -353,7 +372,7 @@ function bindEvents() {
                     }
                 }
 
-                await savePrompt(name, data.prompt);
+                await savePrompt(name, promptData);
                 if (name === activePromptName) await loadPrompt(name);
                 selected = name;
                 await loadAll();
@@ -363,6 +382,7 @@ function bindEvents() {
                 const parts = [`Imported: ${name}`];
                 if (imported) parts.push(`${imported} pieces`);
                 if (skipped) parts.push(`${skipped} skipped`);
+                if (data.sapphire_export && data.type === 'persona') parts.push('(from persona)');
                 ui.showToast(parts.join(' \u2014 '), 'success');
             },
         });
