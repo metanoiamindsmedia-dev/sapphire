@@ -16,7 +16,7 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "code_session",
-            "description": "Run a BLOCKING Claude Code session. Call with no arguments to list recent projects and session IDs. Call with a mission to start or resume work. For bigger tasks, use spawn_agent(agent_type='claude_code') instead to run in background.",
+            "description": "Run a BLOCKING Claude Code session — you wait for it to finish. Call with no arguments to list recent projects/sessions. Call with a mission to start or resume. For anything that takes more than a few seconds, prefer spawn_agent(agent_type='claude_code') via the agents plugin — call agent_options() first to check availability.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -117,6 +117,9 @@ def _create_code_worker():
             lines.append(f"\n**Result:**\n{result_text}")
 
             self.result = '\n'.join(lines)
+
+            # Notify frontend about runnable project
+            _publish_workspace_ready(self.project_name, workspace)
 
     return CodeWorker
 
@@ -476,7 +479,31 @@ def _code_session(arguments):
     lines.append(f"\n**Files in workspace:**\n{file_listing}")
     lines.append(f"\n**Result:**\n{result_text}")
 
+    _publish_workspace_ready(project_name, workspace)
+
     return '\n'.join(lines), True
+
+
+def _publish_workspace_ready(project_name, workspace):
+    """Publish SSE event so frontend can show run/open button."""
+    try:
+        from core.event_bus import publish, Events
+        has_html = os.path.isfile(os.path.join(workspace, 'index.html'))
+        has_python = any(f.endswith('.py') for f in os.listdir(workspace) if os.path.isfile(os.path.join(workspace, f)))
+        if has_html:
+            project_type = 'html'
+        elif has_python:
+            project_type = 'python'
+        else:
+            return  # Nothing runnable
+
+        publish(Events.WORKSPACE_READY, {
+            'project': project_name,
+            'type': project_type,
+            'url': f'/workspace/{project_name}/index.html' if has_html else None,
+        })
+    except Exception as e:
+        logger.warning(f"[claude-code] Could not publish workspace_ready: {e}")
 
 
 # --- Main dispatch ---

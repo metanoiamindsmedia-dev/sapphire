@@ -34,7 +34,7 @@ TOOLS = [
         "is_local": True,
         "function": {
             "name": "spawn_agent",
-            "description": "Launch a background agent for research, coding, or other tasks. The agent runs in isolation and reports back automatically when done. Use agent_options() first to see available types.",
+            "description": "Launch a background agent. IMPORTANT: Always call agent_options() first to see available agent types — there may be specialized types like 'claude_code' for coding tasks. Do NOT default to 'llm' for coding — check what's available. The agent runs in isolation and reports back automatically when done.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -44,7 +44,7 @@ TOOLS = [
                     },
                     "agent_type": {
                         "type": "string",
-                        "description": "Type of agent to spawn (e.g. 'llm', 'claude_code'). Use agent_options() to see available types. Defaults to 'llm'."
+                        "description": "Type of agent to spawn. MUST call agent_options() first to see available types. Use 'claude_code' for coding/building tasks, 'llm' for research/analysis. Defaults to 'llm'."
                     },
                     "model": {
                         "type": "string",

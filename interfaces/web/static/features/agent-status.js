@@ -1,4 +1,4 @@
-// features/agent-status.js — Agent pill bar above chat input
+// features/agent-status.js — Agent pill bar + workspace runner
 import * as eventBus from '../core/event-bus.js';
 import { fetchWithTimeout } from '../shared/fetch.js';
 
@@ -8,6 +8,7 @@ let initialized = false;
 let agents = new Map(); // id -> {name, status, mission, chat_name}
 let pendingAgentReport = null;
 let pendingAgentChat = null;
+let workspaces = new Map(); // project -> {type, url, running}
 
 const STATUS_COLORS = {
     running: '#f0ad4e',
@@ -42,15 +43,17 @@ function renderPills() {
         if (agent.chat_name === chat) visible.set(id, agent);
     }
 
-    if (visible.size === 0) {
+    // Check if we have anything to show (agents or workspaces)
+    if (visible.size === 0 && workspaces.size === 0) {
         bar.style.display = 'none';
         const anyRunning = [...agents.values()].some(a => a.status === 'running');
         if (!anyRunning) stopPolling();
         return;
     }
     bar.style.display = 'flex';
-    startPolling();
+    if (visible.size > 0) startPolling();
 
+    // --- Agent pills ---
     const existing = new Set();
     for (const [id, agent] of visible) {
         existing.add(id);
@@ -85,6 +88,100 @@ function renderPills() {
 
     for (const pill of bar.querySelectorAll('.agent-pill')) {
         if (!existing.has(pill.dataset.agentId)) {
+            pill.remove();
+        }
+    }
+
+    // --- Workspace run pills ---
+    renderWorkspacePills();
+}
+
+function renderWorkspacePills() {
+    if (!bar) return;
+
+    const existingProjects = new Set();
+    for (const [project, ws] of workspaces) {
+        existingProjects.add(project);
+        let pill = bar.querySelector(`[data-workspace="${project}"]`);
+
+        if (!pill) {
+            pill = document.createElement('span');
+            pill.className = 'agent-pill workspace-pill';
+            pill.dataset.workspace = project;
+            pill.style.borderColor = '#5cb85c';
+            bar.appendChild(pill);
+        }
+
+        if (ws.type === 'html') {
+            pill.innerHTML = `<span class="agent-name">\u2197 ${esc(project)}</span><span class="agent-x" title="Dismiss">\u00d7</span>`;
+            pill.title = `Open ${project} in new tab`;
+            pill.onclick = (e) => {
+                if (e.target.classList.contains('agent-x')) return;
+                window.open(ws.url, '_blank');
+            };
+        } else if (ws.running) {
+            pill.innerHTML = `<span class="agent-name">\u25a0 ${esc(project)}</span><span class="agent-x" title="Dismiss">\u00d7</span>`;
+            pill.title = `${project} is running — click to stop`;
+            pill.style.borderColor = '#f0ad4e';
+            pill.style.animation = 'agent-pulse 2s ease-in-out infinite';
+            pill.onclick = async (e) => {
+                if (e.target.classList.contains('agent-x')) return;
+                try {
+                    await fetchWithTimeout('/api/workspace/stop', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ project }),
+                    });
+                    ws.running = false;
+                    renderWorkspacePills();
+                } catch (err) {
+                    console.warn('[Workspace] stop failed:', err);
+                }
+            };
+        } else {
+            pill.innerHTML = `<span class="agent-name">\u25b6 ${esc(project)}</span><span class="agent-x" title="Dismiss">\u00d7</span>`;
+            pill.title = `Run ${project}`;
+            pill.style.borderColor = '#5cb85c';
+            pill.style.animation = '';
+            pill.onclick = async (e) => {
+                if (e.target.classList.contains('agent-x')) return;
+                try {
+                    const res = await fetchWithTimeout('/api/workspace/run', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ project }),
+                    });
+                    if (res.status === 'started' || res.status === 'already_running') {
+                        ws.running = true;
+                        renderWorkspacePills();
+                    }
+                } catch (err) {
+                    console.warn('[Workspace] run failed:', err);
+                }
+            };
+        }
+
+        // Dismiss X — same handler for all types
+        const xBtn = pill.querySelector('.agent-x');
+        xBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Stop if running before dismissing
+            if (ws.running) {
+                fetchWithTimeout('/api/workspace/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project }),
+                }).catch(() => {});
+            }
+            workspaces.delete(project);
+            pill.remove();
+            renderPills();
+        };
+    }
+
+    // Remove stale workspace pills
+    for (const pill of bar.querySelectorAll('.workspace-pill')) {
+        if (!existingProjects.has(pill.dataset.workspace)) {
             pill.remove();
         }
     }
@@ -200,6 +297,18 @@ export function initAgentStatus() {
         pendingAgentReport = data.report;
         pendingAgentChat = data.chat_name;
         setTimeout(() => drainAgentReport(), 1500);
+    });
+
+    // Workspace ready — show run/open button
+    eventBus.on('workspace_ready', (data) => {
+        console.log('[Agents] Workspace ready:', data.project, data.type);
+        ensureBar();
+        workspaces.set(data.project, {
+            type: data.type,
+            url: data.url,
+            running: false,
+        });
+        renderPills();
     });
 
     eventBus.on('ai_typing_end', () => {

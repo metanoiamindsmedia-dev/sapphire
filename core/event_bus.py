@@ -245,3 +245,4 @@ class Events:
     AGENT_COMPLETED = "agent_completed"
     AGENT_DISMISSED = "agent_dismissed"
     AGENT_BATCH_COMPLETE = "agent_batch_complete"
+    WORKSPACE_READY = "workspace_ready"
