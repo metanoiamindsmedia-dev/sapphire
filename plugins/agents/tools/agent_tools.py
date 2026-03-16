@@ -1,4 +1,4 @@
-# Agent tools — unified AI interface to the agent system
+# Agent tools — unified AI interface to the agent system (v2)
 import json
 import logging
 import re

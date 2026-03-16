@@ -112,6 +112,13 @@ class VoiceChatSystem:
         except Exception as e:
             logger.error(f"Plugin loader failed: {e}", exc_info=True)
 
+        # Re-apply toolset now that plugin tools are registered
+        # (toolset was applied before plugins loaded, so plugin tools were missed)
+        fm = self.llm_chat.function_manager
+        if fm.current_toolset_name and fm.current_toolset_name != "none":
+            fm.update_enabled_functions([fm.current_toolset_name])
+            logger.info(f"Toolset '{fm.current_toolset_name}' re-applied after plugin scan")
+
         logger.info(f"System init took: {(time.time() - start_time)*1000:.1f}ms")
 
     @property

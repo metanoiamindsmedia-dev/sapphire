@@ -63,6 +63,13 @@ class AgentManager:
 
     def _next_name(self, type_key):
         names = self._types.get(type_key, {}).get('names', DEFAULT_NAMES)
+        # Reset counter when no agents of this type are active
+        active_of_type = any(
+            a.status == 'running' for a in self._agents.values()
+            if hasattr(a, '_agent_type') and a._agent_type == type_key
+        )
+        if not active_of_type:
+            self._name_counters[type_key] = 0
         idx = self._name_counters.get(type_key, 0)
         name = names[idx % len(names)]
         self._name_counters[type_key] = idx + 1
@@ -93,6 +100,7 @@ class AgentManager:
             on_complete=self._check_batch_complete,
             **kwargs
         )
+        worker._agent_type = agent_type
 
         with self._lock:
             self._agents[agent_id] = worker
