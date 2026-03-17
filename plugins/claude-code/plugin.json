@@ -1,7 +1,7 @@
 {
   "name": "claude-code",
   "version": "1.0.0",
-  "description": "Dispatch Claude Code sessions to build, analyze, and modify code autonomously",
+  "description": "Claude Code",
   "author": "Sapphire",
   "emoji": "⚡",
   "priority": 50,
