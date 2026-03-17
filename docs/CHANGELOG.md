@@ -1,3 +1,24 @@
+# 2.3.8 - Import Export
+- Added import export across most of the app
+- Prepping for import personas from website store
+# 2.3.7 - Story Engine Rebuild
+- Old story engine was one mega-file
+- New story engine is more per-room
+- Working toward AI making stories
+# 2.3.6 - Spawn agents (plugin)
+- Agents are now registered with core
+- spawn_agent reads the registry
+- Plugins can register any background agent
+# 2.3.5 - Claude Code
+- Added Claude Code tools (does not touch API keys)
+- Sapphire simply calls Claude Code if it is installed
+# 2.3.4 - Agent returns
+- Agents return to the chat they are from
+- They wait for the group to finish
+- Dumps return in chat as user message
+# 2.3.3 - Spawn agents 
+- Background runner for spawning agents
+- UI for agent spawn so people can see
 # 2.3.2 - Plugin UI Refactor
 - Complete rework of plugins page
 - Removed all plugins from sidebar
