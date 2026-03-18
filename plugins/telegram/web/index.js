@@ -23,9 +23,6 @@ registerPluginSettings({
     render(container, settings) {
         container.innerHTML = `
             <div id="tg-settings-section"></div>
-            <div style="display:flex;justify-content:flex-end;margin-top:12px;margin-bottom:20px;">
-                <button class="btn btn-primary" id="tg-save-settings">Save Settings</button>
-            </div>
             <hr style="border-color:var(--border);margin:16px 0">
             <h4 style="margin:0 0 12px">Accounts</h4>
             <div id="tg-accounts-list"></div>
@@ -33,22 +30,8 @@ registerPluginSettings({
             <button class="btn btn-sm" id="tg-add-account" style="margin-top:12px">+ Add Account</button>
         `;
 
-        // Render standard settings
-        const settingsBox = container.querySelector('#tg-settings-section');
-        renderSettingsForm(settingsBox, SETTINGS_SCHEMA, settings);
-
-        // Save button
-        container.querySelector('#tg-save-settings')?.addEventListener('click', async () => {
-            const values = readSettingsForm(settingsBox, SETTINGS_SCHEMA);
-            try {
-                await pluginsAPI.saveSettings(PLUGIN_NAME, values);
-                const { showToast } = await import('/static/ui.js');
-                showToast('Telegram settings saved. Restart plugin to apply.', 'success');
-            } catch (e) {
-                const { showToast } = await import('/static/ui.js');
-                showToast('Save failed: ' + e.message, 'error');
-            }
-        });
+        // Render standard settings (saved via header "Save Changes" button)
+        renderSettingsForm(container.querySelector('#tg-settings-section'), SETTINGS_SCHEMA, settings);
 
         // Load accounts
         _loadAccounts(container);

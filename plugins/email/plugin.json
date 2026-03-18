@@ -40,6 +40,14 @@
         "label": "Poll Interval (seconds)",
         "default": 120,
         "help": "How often to check for new emails. Minimum 30 seconds."
+      },
+      {
+        "key": "allow_all_recipients",
+        "type": "boolean",
+        "label": "Allow sending to any address",
+        "default": false,
+        "help": "WARNING: When enabled, the AI can email anyone — not just whitelisted contacts. It can use recipient IDs from People OR type an email address directly. Use with caution.",
+        "confirm": "allow_all_recipients"
       }
     ]
   }

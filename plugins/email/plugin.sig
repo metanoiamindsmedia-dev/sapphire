@@ -3,9 +3,9 @@
   "version": "1.1.0",
   "files": {
     "daemon.py": "sha256:208a1ef412555936c00b3900ac3331f4c40c5e5c2591688d47dd182cf685714d",
-    "plugin.json": "sha256:221cf03d547f9dc9557280f4dd9b3201920288b8249e6568f62f2961855bc5a6",
-    "tools/email_tool.py": "sha256:6fb9d506b1dbda7a373d0a0d1e71c59a4871da517860456dc68429f2e44b72c6",
-    "web/index.js": "sha256:2c498fd14c2d0c0126b157ecc66883836514073d657a06f28c29845c4c1f8b1f"
+    "plugin.json": "sha256:d69ad077168869b9a368f51dca81b4e4d15527d90401fffa3345004fd12da04c",
+    "tools/email_tool.py": "sha256:ad2a68a14eb202504d69a91eeda8facb5265de8245d64f24d4fab579cbb0bac9",
+    "web/index.js": "sha256:7a06bb92b017588fe24610152faaa45365e2a44b4c277a596223cc3cf01e317f"
   },
-  "signature": "MoaZs8gPT5Cs4pwifB0ZqQjpvzQY9/KwkQpanjllAoVpuIU+I3Ll6uNyMNeyeTgfGQrfS4ujxMC8JUkNGRvoAQ=="
+  "signature": "Zf6m+qdgt5wWYDzzFVIYwPNyQRwet3Q/P4FQX/ZWnGOmUdbl1Xp0DAFJs4k4BU6YR2p0H3BHdBLHdnz0xrXkCw=="
 }
