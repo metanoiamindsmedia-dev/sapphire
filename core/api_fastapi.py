@@ -445,6 +445,7 @@ from core.routes.system import router as system_router
 from core.routes.plugins import router as plugins_router
 from core.routes.media import router as media_router
 from core.routes.agents import router as agents_router
+from core.routes.docs import router as docs_router
 
 app.include_router(chat_router)
 app.include_router(tts_router)
@@ -456,4 +457,5 @@ app.include_router(system_router)
 app.include_router(plugins_router)
 app.include_router(media_router)
 app.include_router(agents_router)
+app.include_router(docs_router)
 

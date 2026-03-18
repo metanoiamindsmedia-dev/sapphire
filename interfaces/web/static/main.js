@@ -32,6 +32,7 @@ const VIEW_MODULES = {
     schedule: `./views/schedule.js${_v}`,
     mind:     `./views/mind.js${_v}`,
     settings: `./views/settings.js${_v}`,
+    help:     `./views/help.js${_v}`,
 };
 
 async function loadViews() {
