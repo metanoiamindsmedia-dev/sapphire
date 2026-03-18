@@ -205,6 +205,43 @@ function flushCurrentInputs() {
 
 // ── Rendering ──
 
+function renderSidebarItems(tabs) {
+    const coreTabs = tabs.filter(t => !t.isPlugin);
+    const pluginTabs = tabs.filter(t => t.isPlugin);
+    const pluginChildActive = pluginTabs.some(t => t.id === activeTab);
+
+    let html = '';
+    for (const t of coreTabs) {
+        html += `<button class="settings-nav-item${t.id === activeTab ? ' active' : ''}" data-tab="${t.id}">
+            <span class="settings-nav-icon">${t.icon}</span>
+            <span class="settings-nav-label">${t.name}</span>
+        </button>`;
+        // After the plugins tab, inject the collapsible plugin settings group
+        if (t.id === 'plugins' && pluginTabs.length) {
+            const open = pluginChildActive ? ' open' : '';
+            html += `<details class="settings-plugin-group"${open}>
+                <summary class="settings-plugin-group-label">Plugin Settings</summary>
+                ${pluginTabs.map(pt => `
+                    <button class="settings-nav-item settings-plugin-child${pt.id === activeTab ? ' active' : ''}" data-tab="${pt.id}">
+                        <span class="settings-nav-icon">${pt.icon}</span>
+                        <span class="settings-nav-label">${pt.name}</span>
+                    </button>
+                `).join('')}
+            </details>`;
+        }
+    }
+    return html;
+}
+
+function renderMobileItems(tabs) {
+    return tabs.map(t => `
+        <button class="settings-mobile-option${t.id === activeTab ? ' active' : ''}" data-tab="${t.id}">
+            <span class="settings-mobile-opt-icon">${t.icon}</span>
+            <span>${t.name}</span>
+        </button>
+    `).join('');
+}
+
 function render() {
     if (!container) return;
     const meta = getTabMeta();
@@ -213,12 +250,7 @@ function render() {
     container.innerHTML = `
         <div class="settings-view">
             <div class="settings-sidebar">
-                ${tabs.map(t => `
-                    <button class="settings-nav-item${t.id === activeTab ? ' active' : ''}${t.isPlugin ? ' plugin-tab' : ''}" data-tab="${t.id}">
-                        <span class="settings-nav-icon">${t.icon}</span>
-                        <span class="settings-nav-label">${t.name}</span>
-                    </button>
-                `).join('')}
+                ${renderSidebarItems(tabs)}
             </div>
             <div class="settings-main">
                 <div class="settings-mobile-nav">
@@ -228,12 +260,7 @@ function render() {
                         <span class="settings-mobile-arrow">&#x25BE;</span>
                     </button>
                     <div class="settings-mobile-menu hidden" id="settings-mobile-menu">
-                        ${tabs.map(t => `
-                            <button class="settings-mobile-option${t.id === activeTab ? ' active' : ''}${t.isPlugin ? ' plugin-tab' : ''}" data-tab="${t.id}">
-                                <span class="settings-mobile-opt-icon">${t.icon}</span>
-                                <span>${t.name}</span>
-                            </button>
-                        `).join('')}
+                        ${renderMobileItems(tabs)}
                     </div>
                 </div>
                 <div class="settings-header">
@@ -415,6 +442,12 @@ function bindShellEvents() {
         activeTab = tabId;
         container.querySelectorAll('.settings-nav-item').forEach(b =>
             b.classList.toggle('active', b.dataset.tab === activeTab));
+        // Auto-expand plugin group if navigating to a plugin tab
+        const pluginGroup = container.querySelector('.settings-plugin-group');
+        if (pluginGroup) {
+            const isPluginTab = pluginGroup.querySelector(`.settings-nav-item[data-tab="${tabId}"]`);
+            if (isPluginTab) pluginGroup.open = true;
+        }
         const meta = getTabMeta();
         const title = container.querySelector('#stab-title');
         const desc = container.querySelector('#stab-desc');
