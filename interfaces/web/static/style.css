@@ -5471,14 +5471,21 @@ a.gallery-caption:hover {
     min-height: 100px;
 }
 
-/* Plugin tabs hidden from sidebar — accessed via gear icon on plugin cards */
-.settings-nav-item.plugin-tab {
-    display: none;
+/* Plugin settings collapsible group in sidebar */
+.settings-plugin-group { margin: 0; }
+.settings-plugin-group-label {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; cursor: pointer;
+    font-size: var(--font-xs, 0.75em); font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    list-style: none; user-select: none;
 }
-.settings-nav-item.plugin-tab.active {
-    display: flex;
-}
-/* Also hide from mobile menu */
+.settings-plugin-group-label::-webkit-details-marker { display: none; }
+.settings-plugin-group-label::before { content: '\25B6'; font-size: 0.6em; transition: transform 0.15s; }
+.settings-plugin-group[open] > .settings-plugin-group-label::before { transform: rotate(90deg); }
+.settings-plugin-child { padding-left: 28px !important; font-size: var(--font-xs, 0.75em); }
+
+/* Prevent old plugin-tab hiding on mobile menu items */
 .settings-mobile-option.plugin-tab {
     display: none;
 }

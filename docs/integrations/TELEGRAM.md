@@ -4,18 +4,30 @@ Connect Sapphire to Telegram. She can read chats, send messages, and automatical
 
 ## Setup
 
-1. **Get Telegram API Credentials:**
-   - Go to [my.telegram.org](https://my.telegram.org)
-   - Log in with your phone number
-   - Go to "API development tools"
-   - Create an app — you'll get an **API ID** and **API Hash**
+This is a two-phase process — first save your API credentials, then add an account.
 
-2. **Configure in Sapphire:**
-   - Open Settings → Plugins → Telegram
-   - Enter your API ID and API Hash
-   - Click "Add Account" to start authentication
-   - Enter the code Telegram sends you
-   - If you have 2FA enabled, enter your password when prompted
+### Step 1: Get API Credentials
+
+1. Go to [my.telegram.org](https://my.telegram.org)
+2. Log in with your phone number
+3. Go to "API development tools"
+4. Create an app — you'll get an **API ID** and **API Hash**
+
+### Step 2: Save Credentials in Sapphire
+
+1. Open **Settings → expand Plugin Settings → Telegram**
+2. Enter your **API ID** and **API Hash** in the fields at the top
+3. Click **Save Settings**
+
+You must save these before adding an account — the auth flow needs them to connect.
+
+### Step 3: Add an Account
+
+1. Scroll down to the **Accounts** section
+2. Click **+ Add Account**
+3. Enter a name for this account (e.g., "personal") and your phone number
+4. Enter the verification code Telegram sends you
+5. If you have 2FA enabled, enter your cloud password when prompted
 
 This uses the Telegram Client API (Telethon), not the Bot API — so Sapphire acts as your account, not a separate bot.
 
@@ -98,10 +110,10 @@ Auto-reply: Off
 
 Telegram integration via Client API (Telethon).
 
-SETUP:
-- Settings → Plugins → Telegram
-- Enter API ID + API Hash from my.telegram.org
-- Authenticate with code (+ 2FA if enabled)
+SETUP (two phases):
+- Phase 1: Settings → Plugin Settings → Telegram → enter API ID + API Hash → Save Settings
+- Phase 2: Scroll to Accounts → + Add Account → phone + code (+ 2FA if enabled)
+- API credentials must be saved BEFORE adding an account
 
 AVAILABLE TOOLS:
 - telegram_get_chats(limit?) - list recent chats with previews (default 15)
