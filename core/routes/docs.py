@@ -34,6 +34,10 @@ def _build_tree():
                 children.append({"name": name, "path": rel, "type": "file"})
             if children:
                 items.append({"name": p.name, "path": p.name, "type": "folder", "children": children})
+    # Changelog pinned last
+    changelog = DOCS_DIR / "CHANGELOG.md"
+    if changelog.exists():
+        items.append({"name": "CHANGELOG", "path": "CHANGELOG.md", "type": "file"})
     return items
 
 
@@ -57,8 +61,6 @@ async def search_docs(request: Request, q: str = "", _=Depends(require_login)):
     if root_readme.exists():
         search_files.append(root_readme)
     for md in search_files:
-        if md.name == 'CHANGELOG.md':
-            continue
         try:
             text = md.read_text(encoding='utf-8')
         except Exception:

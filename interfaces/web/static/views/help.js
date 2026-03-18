@@ -66,6 +66,9 @@ function md(src) {
     html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
     // Merge consecutive blockquotes
     html = html.replace(/<\/blockquote>\s*<blockquote>/g, '<br>');
+    // Merge consecutive badge/link-only paragraphs into one line (e.g. shield.io badges)
+    html = html.replace(/(<p>(?:<a [^>]*>(?:<img [^>]*>|[^<]*)<\/a>\s*)+<\/p>\s*){2,}/g, match =>
+        '<p class="help-badges">' + match.replace(/<\/?p[^>]*>/g, ' ').trim() + '</p>');
     // Restore code blocks
     codeBlocks.forEach((block, i) => { html = html.replace(`\x00CB${i}\x00`, block); });
     return html;
@@ -167,8 +170,8 @@ function renderWelcome() {
 
 async function navigateTo(path) {
     if (!path) { renderWelcome(); return; }
-    // Resolve relative links from within docs
-    if (path.startsWith('../')) path = path.replace(/^\.\.\//, '');
+    // Resolve relative links — strip docs/ prefix (README style) and ../ (cross-references)
+    path = path.replace(/^docs\//, '').replace(/^\.\.\//, '');
     activePath = path;
     renderSidebar();
     const content = await fetchDoc(path);
@@ -263,7 +266,7 @@ export default {
         if (target) {
             await navigateTo(target);
         } else if (!activePath) {
-            renderWelcome();
+            await navigateTo('_root/README.md');
         }
     },
 
