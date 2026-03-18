@@ -1,6 +1,7 @@
 // views/mind.js - Mind view: Memories, People, Knowledge, AI Knowledge, Goals
 import * as ui from '../ui.js';
 import { showExportDialog, showImportDialog } from '../shared/import-export.js';
+import { setupModalClose } from '../shared/modal.js';
 
 function csrfHeaders(extra = {}) {
     const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -508,7 +509,7 @@ function showMemoryEditModal(el, memoryId, content) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     // Focus textarea
     const textarea = overlay.querySelector('#mm-content');
@@ -691,7 +692,7 @@ function showPersonModal(el, person = null) {
     document.body.appendChild(overlay);
 
     overlay.querySelector('.mind-modal-close').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    setupModalClose(overlay, () => overlay.remove());
 
     overlay.querySelector('#mp-save').addEventListener('click', async () => {
         const name = overlay.querySelector('#mp-name').value.trim();
@@ -1063,7 +1064,7 @@ function showEntryEditModal(inner, tabId, tabType, entryId, content) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     const textarea = overlay.querySelector('#me-content');
     textarea.focus();
@@ -1123,7 +1124,7 @@ function showAddEntryModal(inner, tabId, tabType) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     overlay.querySelector('#mae-content').focus();
 
@@ -1188,7 +1189,7 @@ function showDeleteScopeConfirmation(scopeName, typeLabel, count) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     const input1 = overlay.querySelector('#del-scope-confirm-1');
     const nextBtn = overlay.querySelector('#del-scope-next');
@@ -1243,7 +1244,7 @@ function showDeleteScopeConfirmation2(scopeName, typeLabel, count) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     const input2 = overlay.querySelector('#del-scope-confirm-2');
     const execBtn = overlay.querySelector('#del-scope-execute');
@@ -1547,7 +1548,7 @@ function showGoalModal(el, goal = null) {
     const close = () => overlay.remove();
     overlay.querySelector('.mind-modal-close').addEventListener('click', close);
     overlay.querySelector('.mind-modal-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    setupModalClose(overlay, close);
 
     overlay.querySelector('#mg-title').focus();
 

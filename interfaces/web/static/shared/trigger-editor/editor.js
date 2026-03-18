@@ -3,6 +3,7 @@
 import { fetchAIConfigData, renderAIConfig, wireAIConfig, readAIConfig } from './ai-config.js';
 import { renderCronTrigger, wireCronTrigger, readCronTrigger } from './trigger-cron.js';
 import { renderEventTrigger, wireEventTrigger, readEventTrigger } from './trigger-event.js';
+import { setupModalClose } from '../modal.js';
 
 const EMOJI_PICKS = [
     '\u2764\uFE0F', '\uD83E\uDE77', '\uD83E\uDDE1', '\uD83D\uDC9B', '\uD83D\uDC9A', '\uD83D\uDC99', '\uD83D\uDC9C',
@@ -114,7 +115,7 @@ export async function openTriggerEditor(task, type, callbacks = {}) {
 
     // Close
     const close = () => { modal.remove(); tipEl.remove(); };
-    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    setupModalClose(modal, close);
     modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
 
     // Delete

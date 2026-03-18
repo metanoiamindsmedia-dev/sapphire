@@ -15,11 +15,14 @@ Sapphire can read your inbox, send emails, and auto-reply to incoming messages. 
 
 ### Gmail Users
 
-Gmail requires an **App Password** (not your regular password):
+Gmail requires an **App Password** (not your regular password). You must have **2-Step Verification enabled first** — App Passwords won't appear without it.
+
 1. Go to [Google Account → Security](https://myaccount.google.com/security)
-2. Enable 2-Step Verification if not already on
-3. Go to App Passwords → generate one for "Mail"
-4. Use that password in Sapphire
+2. Enable **2-Step Verification** if not already on
+3. Go back to your Google Account and **search "App Passwords" in the search bar** at the top — this is the easiest way to find it (the setting is buried)
+4. Create an app password — select "Mail" or name it "Sapphire"
+5. Google gives you a 16-character password — copy it
+6. Use that password in Sapphire (not your regular Google password)
 
 ### Office 365 / Exchange
 

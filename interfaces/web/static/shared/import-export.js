@@ -1,6 +1,7 @@
 // shared/import-export.js — Universal import/export dialogs for Sapphire
 // Used by personas, prompts, toolsets, spices, etc.
 import * as ui from '../ui.js';
+import { setupModalClose } from './modal.js';
 
 /**
  * Show export dialog with copy-to-clipboard and download options.
@@ -161,6 +162,6 @@ function _createOverlay() {
 }
 
 function _bindClose(modal) {
-    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    setupModalClose(modal, () => modal.remove());
     modal.querySelector('.io-close')?.addEventListener('click', () => modal.remove());
 }

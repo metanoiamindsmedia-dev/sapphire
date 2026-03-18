@@ -3,6 +3,7 @@ import { listPrompts, getPrompt, getComponents, savePrompt, deletePrompt,
          saveComponent, deleteComponent, loadPrompt } from '../shared/prompt-api.js';
 import { renderPersonaTabs, bindPersonaTabs } from '../shared/persona-tabs.js';
 import { showExportDialog, showImportDialog } from '../shared/import-export.js';
+import { setupModalClose } from '../shared/modal.js';
 import * as ui from '../ui.js';
 import { updateScene } from '../features/scene.js';
 
@@ -566,7 +567,7 @@ function createPrompt() {
     `;
     document.body.appendChild(modal);
     const close = () => modal.remove();
-    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    setupModalClose(modal, close);
     modal.querySelector('#pr-new-close').addEventListener('click', close);
     modal.querySelector('#pr-new-name').addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 

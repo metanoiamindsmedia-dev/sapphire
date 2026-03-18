@@ -2,6 +2,7 @@
 // Tab handlers live in settings-tabs/*.js — this file stays lean.
 import * as api from '../shared/settings-api.js';
 import * as ui from '../ui.js';
+import { setupModalClose } from '../shared/modal.js';
 
 // Tab registry
 import dashboardTab from './settings-tabs/dashboard.js';
@@ -707,7 +708,7 @@ function showHelpPopup(key) {
         </div>
     `;
     document.body.appendChild(popup);
-    popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+    setupModalClose(popup, () => popup.remove());
     popup.querySelector('#help-close')?.addEventListener('click', () => popup.remove());
 }
 
@@ -736,8 +737,8 @@ function _showVoicePicker(voices, targetInput, parentEl) {
         </div>
     `;
     document.body.appendChild(popup);
+    setupModalClose(popup, () => popup.remove());
     popup.addEventListener('click', e => {
-        if (e.target === popup) { popup.remove(); return; }
         const opt = e.target.closest('.voice-option');
         if (opt) {
             const id = opt.dataset.voiceId;
