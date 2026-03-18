@@ -11,7 +11,8 @@ class BaseWorker:
         self.name = name
         self.mission = mission
         self.chat_name = chat_name
-        self.status = 'pending'  # pending | running | done | failed | cancelled
+        self._status = 'pending'  # pending | running | done | failed | cancelled
+        self._status_lock = threading.Lock()
         self.result = None
         self.error = None
         self.tool_log = []
@@ -20,6 +21,18 @@ class BaseWorker:
         self._cancelled = threading.Event()
         self._thread = None
         self._on_complete = on_complete
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, value):
+        with self._status_lock:
+            # Once terminal, don't allow regression (cancelled can't become done)
+            if self._status in ('cancelled', 'failed') and value == 'done':
+                return
+            self._status = value
 
     @property
     def elapsed(self):

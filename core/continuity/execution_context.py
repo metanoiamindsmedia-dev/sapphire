@@ -104,11 +104,16 @@ class ExecutionContext:
         return tools if tools else None
 
     def _build_scopes(self) -> Optional[Dict]:
-        """Build scopes from task settings. Sets ContextVars for this thread only."""
+        """Build scopes from task settings. Sets ContextVars for this thread only.
+        Always resets scopes to prevent bleed between queued task iterations."""
+        from core.chat.function_manager import apply_scopes_from_settings, reset_scopes, snapshot_all_scopes
+
+        # Always reset first — prevents scope bleed when queue drains multiple
+        # iterations on the same thread (previous task's scopes would linger)
+        reset_scopes()
+
         if not self.tools:
             return None
-
-        from core.chat.function_manager import apply_scopes_from_settings, snapshot_all_scopes
 
         # Apply task-specific scopes to this thread's ContextVars
         apply_scopes_from_settings(self.fm, self.task_settings)

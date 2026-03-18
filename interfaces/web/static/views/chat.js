@@ -377,12 +377,13 @@ async function loadDocuments(container, chatName) {
         if (!resp.ok) return;
         const data = await resp.json();
         const docs = data.documents || [];
-        list.innerHTML = docs.map(d =>
-            `<div class="sb-doc-item">
-                <span title="${d.filename} (${d.chunks} chunks)">${d.filename}</span>
-                <button class="sb-doc-del" data-filename="${d.filename}" title="Remove">&times;</button>
-            </div>`
-        ).join('');
+        list.innerHTML = docs.map(d => {
+            const fn = escapeHtml(d.filename);
+            return `<div class="sb-doc-item">
+                <span title="${fn} (${d.chunks} chunks)">${fn}</span>
+                <button class="sb-doc-del" data-filename="${fn}" title="Remove">&times;</button>
+            </div>`;
+        }).join('');
         if (badge) {
             badge.textContent = docs.length;
             badge.style.display = docs.length ? '' : 'none';

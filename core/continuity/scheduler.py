@@ -145,11 +145,13 @@ class ContinuityScheduler:
             self._tasks = {}
     
     def _save_tasks(self):
-        """Save tasks to JSON file."""
+        """Save tasks to JSON file (atomic write via temp + rename)."""
         try:
             data = {"tasks": list(self._tasks.values())}
-            with open(self._tasks_path, 'w', encoding='utf-8') as f:
+            tmp = self._tasks_path.with_suffix('.tmp')
+            with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
+            tmp.replace(self._tasks_path)
         except Exception as e:
             logger.error(f"[Continuity] Failed to save tasks: {e}")
     

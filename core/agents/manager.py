@@ -148,11 +148,8 @@ class AgentManager:
             agent = self._agents.get(agent_id)
             if not agent:
                 return {'error': f'Agent {agent_id} not found.'}
-
-        if agent.status == 'running':
-            agent.cancel()
-
-        with self._lock:
+            if agent.status == 'running':
+                agent.cancel()
             self._agents.pop(agent_id, None)
 
         publish(Events.AGENT_DISMISSED, {'id': agent_id, 'name': agent.name})

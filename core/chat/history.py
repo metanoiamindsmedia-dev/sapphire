@@ -929,9 +929,9 @@ class ChatSessionManager:
     def delete_chat(self, chat_name: str) -> bool:
         """Delete chat. Recreates default if deleted, switches active if needed."""
         self._ensure_db()
-        
+
         try:
-            with self._get_connection() as conn:
+            with self._lock, self._get_connection() as conn:
                 # Check if exists
                 cursor = conn.execute(
                     "SELECT 1 FROM chats WHERE name = ?", 
@@ -1035,8 +1035,9 @@ class ChatSessionManager:
                 return False
 
     def get_active_chat_name(self) -> str:
-        """Get active chat name."""
-        return self.active_chat_name
+        """Get active chat name (thread-safe)."""
+        with self._lock:
+            return self.active_chat_name
 
     def add_user_message(self, content: Union[str, List[Dict[str, Any]]], persona: Optional[str] = None):
         if persona is None:

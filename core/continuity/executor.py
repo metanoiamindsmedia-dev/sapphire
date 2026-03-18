@@ -194,7 +194,7 @@ class ContinuityExecutor:
 
                 if response_cb and response:
                     try: response_cb(response)
-                    except Exception: pass
+                    except Exception as _e: logger.error(f"[Continuity] Response callback failed: {_e}")
 
                 if response:
                     if browser_tts:
@@ -297,7 +297,7 @@ class ContinuityExecutor:
 
                 if response_cb and response:
                     try: response_cb(response)
-                    except Exception: pass
+                    except Exception as _e: logger.error(f"[Continuity] Response callback failed: {_e}")
 
                 if response:
                     if browser_tts:
@@ -388,7 +388,7 @@ class ContinuityExecutor:
 
             if response_cb and output:
                 try: response_cb(str(output))
-                except Exception: pass
+                except Exception as _e: logger.error(f"[Continuity] Response callback failed: {_e}")
 
         except Exception as e:
             logger.error(f"[Continuity] Plugin task '{task.get('name')}' failed: {e}", exc_info=True)
