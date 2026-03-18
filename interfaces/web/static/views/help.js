@@ -14,10 +14,14 @@ let searchTimeout = null;
 
 function md(src) {
     if (!src) return '';
-    let html = src
-        // code blocks
-        .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
-            `<pre class="help-code"><code>${esc(code.trimEnd())}</code></pre>`)
+    // Extract code blocks first so later passes don't mangle them
+    const codeBlocks = [];
+    let html = src.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        const id = `\x00CB${codeBlocks.length}\x00`;
+        codeBlocks.push(`<pre class="help-code"><code>${esc(code.trimEnd())}</code></pre>`);
+        return id;
+    });
+    html = html
         // inline code
         .replace(/`([^`]+)`/g, '<code class="help-inline-code">$1</code>')
         // tables
@@ -62,6 +66,8 @@ function md(src) {
     html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
     // Merge consecutive blockquotes
     html = html.replace(/<\/blockquote>\s*<blockquote>/g, '<br>');
+    // Restore code blocks
+    codeBlocks.forEach((block, i) => { html = html.replace(`\x00CB${i}\x00`, block); });
     return html;
 }
 
