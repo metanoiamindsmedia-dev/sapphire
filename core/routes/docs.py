@@ -10,11 +10,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 DOCS_DIR = Path(__file__).parent.parent.parent / "docs"
+ROOT_DIR = DOCS_DIR.parent  # project root
 
 
 def _build_tree():
     """Walk docs/ and return a nested list of files/folders."""
     items = []
+    # Root README as the top entry
+    root_readme = ROOT_DIR / "README.md"
+    if root_readme.exists():
+        items.append({"name": "Sapphire", "path": "_root/README.md", "type": "file"})
+
     for p in sorted(DOCS_DIR.iterdir()):
         if p.name.startswith(('.', '_')) or p.name == 'videos':
             continue
@@ -24,7 +30,8 @@ def _build_tree():
             children = []
             for c in sorted(p.rglob('*.md')):
                 rel = str(c.relative_to(DOCS_DIR))
-                children.append({"name": c.stem, "path": rel, "type": "file"})
+                name = "Overview" if c.name == "README.md" else c.stem
+                children.append({"name": name, "path": rel, "type": "file"})
             if children:
                 items.append({"name": p.name, "path": p.name, "type": "folder", "children": children})
     return items
@@ -44,7 +51,12 @@ async def search_docs(request: Request, q: str = "", _=Depends(require_login)):
 
     query = q.lower()
     results = []
-    for md in DOCS_DIR.rglob("*.md"):
+    # Include root README in search
+    search_files = list(DOCS_DIR.rglob("*.md"))
+    root_readme = ROOT_DIR / "README.md"
+    if root_readme.exists():
+        search_files.append(root_readme)
+    for md in search_files:
         if md.name == 'CHANGELOG.md':
             continue
         try:
@@ -65,7 +77,7 @@ async def search_docs(request: Request, q: str = "", _=Depends(require_login)):
                     break
 
         if matches:
-            rel = str(md.relative_to(DOCS_DIR))
+            rel = "_root/README.md" if md == root_readme else str(md.relative_to(DOCS_DIR))
             # Extract title from first heading
             title = md.stem
             for line in lines[:5]:
@@ -82,10 +94,14 @@ async def search_docs(request: Request, q: str = "", _=Depends(require_login)):
 @router.get("/api/docs/{path:path}")
 async def get_doc(path: str, request: Request, _=Depends(require_login)):
     """Return raw markdown content of a doc file."""
-    target = (DOCS_DIR / path).resolve()
-    # Prevent directory traversal
-    if not str(target).startswith(str(DOCS_DIR.resolve())):
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Special prefix for root README
+    if path == "_root/README.md":
+        target = ROOT_DIR / "README.md"
+    else:
+        target = (DOCS_DIR / path).resolve()
+        # Prevent directory traversal
+        if not str(target).startswith(str(DOCS_DIR.resolve())):
+            raise HTTPException(status_code=403, detail="Access denied")
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="Doc not found")
     return {"content": target.read_text(encoding='utf-8'), "path": path}
