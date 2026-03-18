@@ -180,7 +180,8 @@ Everything above gets you a working AI companion. Below are optional integration
 
 Connect Sapphire to your Telegram account.
 
-1. Go to [my.telegram.org](https://my.telegram.org) → API development tools → get **API ID** and **API Hash**
+1. Install Telegram on your phone if you haven't — you need it to receive the login code
+2. Go to [my.telegram.org](https://my.telegram.org) → log in → click **"API development tools"** (not "Bot API") → get **API ID** and **API Hash**
 2. In Sapphire: Settings → expand Plugin Settings → Telegram
 3. Enter API ID and Hash → click **Save Settings** (must save before adding account)
 4. Scroll down → **+ Add Account** → enter phone → enter code Telegram sends you

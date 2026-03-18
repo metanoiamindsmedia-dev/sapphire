@@ -6,12 +6,37 @@ Connect Sapphire to Telegram. She can read chats, send messages, and automatical
 
 This is a two-phase process — first save your API credentials, then add an account.
 
-### Step 1: Get API Credentials
+### Step 1: Have a Telegram Account
 
-1. Go to [my.telegram.org](https://my.telegram.org)
-2. Log in with your phone number
-3. Go to "API development tools"
-4. Create an app — you'll get an **API ID** and **API Hash**
+You need a regular Telegram account before anything else. If you don't have one:
+
+1. Download **Telegram** from your app store (iOS/Android) or [desktop.telegram.org](https://desktop.telegram.org)
+2. Sign up with your phone number
+3. Complete the setup — you need an active account before the next step works
+
+### Step 2: Get API Credentials
+
+**Important:** Go to [my.telegram.org](https://my.telegram.org) — not `core.telegram.org`, not BotFather, not any other Telegram page. Specifically `my.telegram.org`.
+
+1. Enter your phone number **with country code** (e.g., `+15551234567` for US)
+2. Telegram sends a login code **to the Telegram app on your phone** (not SMS)
+3. Enter that code on the website
+4. You'll see two options — click **"API development tools"**
+   - Do NOT click "Delete account"
+   - Do NOT look for "Bot API" — that's a completely different system for chat bots
+5. Fill in the app creation form:
+   - **App title**: anything (e.g., "Sapphire")
+   - **Short name**: anything (e.g., "sapphire")
+   - **Platform**: Desktop
+   - Other fields: leave blank or fill with anything
+6. Submit — you'll see your **API ID** (a number like `12345678`) and **API Hash** (a long hex string)
+7. Copy both — you need them in the next step
+
+**If you get an error at the phone number step:**
+- Make sure you have Telegram installed and signed up on your phone first
+- Make sure you're on `my.telegram.org` (not a different Telegram site)
+- Include the `+` and country code with your phone number
+- If you see anything about "bot ID" — you're on the wrong page. Navigate to `my.telegram.org`
 
 ### Step 2: Save Credentials in Sapphire
 
