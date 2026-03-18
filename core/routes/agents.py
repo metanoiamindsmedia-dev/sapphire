@@ -3,7 +3,10 @@ import logging
 import os
 import signal
 import subprocess
+import sys
 from pathlib import Path
+
+_IS_WINDOWS = sys.platform == 'win32'
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -102,11 +105,14 @@ async def workspace_run(req: RunRequest, _=Depends(require_login)):
 
     # Run it
     try:
-        proc = subprocess.Popen(
-            command, shell=True, cwd=workspace,
+        popen_kwargs = dict(
+            shell=True, cwd=workspace,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL, start_new_session=True
+            stdin=subprocess.DEVNULL,
         )
+        if not _IS_WINDOWS:
+            popen_kwargs['start_new_session'] = True
+        proc = subprocess.Popen(command, **popen_kwargs)
     except Exception as e:
         raise HTTPException(500, f"Failed to start: {e}")
 
@@ -134,14 +140,20 @@ async def workspace_stop(req: RunRequest, _=Depends(require_login)):
         return {"status": "already_stopped", "returncode": proc.returncode}
 
     try:
-        os.killpg(proc.pid, signal.SIGTERM)
+        if _IS_WINDOWS:
+            proc.terminate()
+        else:
+            os.killpg(proc.pid, signal.SIGTERM)
     except ProcessLookupError:
         pass
     try:
         proc.wait(timeout=3)
     except subprocess.TimeoutExpired:
         try:
-            os.killpg(proc.pid, signal.SIGKILL)
+            if _IS_WINDOWS:
+                proc.kill()
+            else:
+                os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
 

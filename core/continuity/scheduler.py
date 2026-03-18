@@ -91,6 +91,7 @@ class ContinuityScheduler:
         self._task_pending: Dict[str, int] = {}
         self._task_last_matched: Dict[str, str] = {}  # task_id -> "YYYY-MM-DD HH:MM"
         self._task_progress: Dict[str, Dict] = {}  # task_id -> {iteration, total}
+        self._event_threads: list = []  # track spawned event worker threads
         
         self._ensure_dirs()
         self._load_tasks()
@@ -714,6 +715,8 @@ class ContinuityScheduler:
 
         thread = threading.Thread(target=_run, daemon=True, name=f"Event-{task_name}")
         thread.start()
+        self._event_threads = [t for t in self._event_threads if t.is_alive()]  # prune dead
+        self._event_threads.append(thread)
 
         logger.info(f"[Continuity] Event-triggered: {task_name} ({task_type})")
         return {"success": True, "queued": False}
@@ -757,11 +760,18 @@ class ContinuityScheduler:
         logger.info("[Continuity] Scheduler started")
     
     def stop(self):
-        """Stop the scheduler."""
+        """Stop the scheduler and wait for any in-flight event threads."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=5)
             self._thread = None
+        # Wait for event-triggered worker threads to finish
+        alive = [t for t in self._event_threads if t.is_alive()]
+        if alive:
+            logger.info(f"[Continuity] Waiting for {len(alive)} event thread(s) to finish...")
+            for t in alive:
+                t.join(timeout=10)
+        self._event_threads.clear()
         logger.info("[Continuity] Scheduler stopped")
     
     def _run_loop(self):

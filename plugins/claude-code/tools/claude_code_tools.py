@@ -264,24 +264,31 @@ def _build_claude_args(mission, settings, session_id=None):
     return args
 
 
+_IS_WINDOWS = sys.platform == 'win32'
+
+
 def _run_claude(args, workspace, timeout_minutes=30):
     env = _clean_env()
     timeout_sec = timeout_minutes * 60
     logger.info(f"[claude-code] Running: {' '.join(args[:6])}... in {workspace}")
     try:
-        proc = subprocess.Popen(
-            args, cwd=workspace, env=env,
+        popen_kwargs = dict(
+            cwd=workspace, env=env,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL, text=True, start_new_session=True
+            stdin=subprocess.DEVNULL, text=True,
         )
+        if not _IS_WINDOWS:
+            popen_kwargs['start_new_session'] = True
+        proc = subprocess.Popen(args, **popen_kwargs)
         try:
             stdout, stderr = proc.communicate(timeout=timeout_sec)
         except subprocess.TimeoutExpired:
-            import signal
-            try:
-                os.killpg(proc.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            if not _IS_WINDOWS:
+                import signal
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
             try:
                 proc.kill()
             except ProcessLookupError:
