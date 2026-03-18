@@ -1,3 +1,6 @@
+# 2.3.9 - Sapphire Encyclopedia
+- Full internal help system
+- Search bar, changelog, quick start
 # 2.3.8 - Import Export
 - Added import export across most of the app
 - Prepping for import personas from website store
