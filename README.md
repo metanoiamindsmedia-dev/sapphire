@@ -181,7 +181,7 @@ This removes the Python environment. Delete the `sapphire/` folder to remove eve
 | Guide | Description |
 |-------|-------------|
 | [Installation](docs/INSTALLATION.md) | Setup guide, systemd service |
-| [Configuration](docs/CONFIGURATION.md) | LLM, scopes, thinking, privacy |
+| [Quick Start](docs/QUICK-START.md) | First persona, LLM setup, integrations |
 | [API](docs/API.md) | All 221 REST endpoints |
 | [SOCKS Proxy](docs/SOCKS.md) | Privacy proxy for web tools |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
