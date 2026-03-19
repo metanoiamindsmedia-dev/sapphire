@@ -2,6 +2,8 @@
 # Single blocking tool + registers claude_code agent type with AgentManager
 import logging
 import os
+import shutil
+import sys
 import time
 
 logger = logging.getLogger(__name__)
@@ -212,8 +214,7 @@ def _sanity_check(workspace_path):
         if marker in ws.lower():
             return f"SAFETY: Workspace '{ws}' appears to be inside a Python environment."
     clean = _clean_env()
-    result = subprocess.run(['which', 'claude'], env=clean, capture_output=True, text=True)
-    if result.returncode != 0:
+    if not shutil.which('claude', path=clean.get('PATH', '')):
         return "Claude Code command not found. Install globally: npm install -g @anthropic-ai/claude-code"
     return None
 
