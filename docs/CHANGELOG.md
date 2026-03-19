@@ -1,3 +1,7 @@
+# 2.4.0 - Presence Update
+## March 19, 2026
+- Milestone release since 2.2.8
+- Bug fixes for stable release
 # 2.3.9 - Sapphire Encyclopedia
 - Full internal help system
 - Search bar, changelog, quick start
