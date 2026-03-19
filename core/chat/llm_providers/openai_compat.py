@@ -580,13 +580,20 @@ class OpenAICompatProvider(BaseProvider):
             if tc["id"] and tc["name"]
         ]
         
+        # If no visible content but we have thinking, use thinking as content
+        # This handles providers that put the full response in reasoning_content
+        # (e.g., DashScope Qwen3 thinking mode)
+        if not full_content and full_thinking:
+            logger.info(f"[REASONING] No content but have thinking ({len(full_thinking)} chars) — using as content")
+            full_content = full_thinking
+
         final_response = LLMResponse(
             content=full_content if full_content else None,
             tool_calls=final_tool_calls,
             finish_reason=finish_reason,
             usage=usage
         )
-        
+
         done_event = {"type": "done", "response": final_response}
         if full_thinking:
             done_event["thinking"] = full_thinking
@@ -606,7 +613,12 @@ class OpenAICompatProvider(BaseProvider):
         if reasoning:
             logger.info(f"[REASONING] Non-stream response has reasoning_content ({len(reasoning)} chars)")
             content = message.content or ""
-            message_content = f"<think>{reasoning}</think>\n\n{content}"
+            if content:
+                message_content = f"<think>{reasoning}</think>\n\n{content}"
+            else:
+                # No visible content — use reasoning as the response
+                # (some providers put everything in reasoning_content)
+                message_content = reasoning
         else:
             message_content = message.content
 
