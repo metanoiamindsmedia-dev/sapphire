@@ -7,6 +7,7 @@ Switches chat context, applies settings, runs LLM, restores original state.
 import copy
 import json
 import logging
+import threading
 from datetime import datetime
 from typing import Dict, Any
 from core.event_bus import publish, Events
@@ -16,13 +17,14 @@ logger = logging.getLogger(__name__)
 
 class ContinuityExecutor:
     """Executes continuity tasks with context isolation."""
-    
+
     def __init__(self, system):
         """
         Args:
             system: VoiceChatSystem instance with llm_chat, tts, etc.
         """
         self.system = system
+        self._voice_lock = threading.Lock()  # guards TTS voice snapshot/apply/restore
 
     @staticmethod
     def _format_event_data(event_data: str) -> str:
@@ -164,7 +166,13 @@ class ContinuityExecutor:
         task_name = task.get("name", "Unknown")
         logger.info(f"[Continuity] Running '{task_name}' in BACKGROUND mode (ExecutionContext)")
 
-        original_voice = self._snapshot_voice()
+        with self._voice_lock:
+            original_voice = self._snapshot_voice()
+            try:
+                self._apply_voice(task)
+            except Exception:
+                self._restore_voice(original_voice)
+                raise
 
         try:
             task_settings = self._extract_task_settings(task)
@@ -173,8 +181,6 @@ class ContinuityExecutor:
                 self.system.llm_chat.tool_engine,
                 task_settings
             )
-
-            self._apply_voice(task)
 
             # Set Discord reply channel for auto-reply targeting
             reply_ch = task.get("_discord_reply_channel_id")
@@ -226,18 +232,25 @@ class ContinuityExecutor:
             result["errors"].append(error_msg)
 
         finally:
-            self._restore_voice(original_voice)
+            with self._voice_lock:
+                self._restore_voice(original_voice)
 
         result["completed_at"] = datetime.now().isoformat()
         return result
-    
+
     def _run_foreground(self, task: Dict[str, Any], result: Dict[str, Any],
                         progress_cb=None, response_cb=None) -> Dict[str, Any]:
         """Run task with persistent chat history — no UI switching."""
         from core.continuity.execution_context import ExecutionContext
 
         session_manager = self.system.llm_chat.session_manager
-        original_voice = self._snapshot_voice()
+        with self._voice_lock:
+            original_voice = self._snapshot_voice()
+            try:
+                self._apply_voice(task)
+            except Exception:
+                self._restore_voice(original_voice)
+                raise
         target_chat = task.get("chat_target", "").strip()
 
         try:
@@ -267,8 +280,6 @@ class ContinuityExecutor:
                 self.system.llm_chat.tool_engine,
                 task_settings
             )
-
-            self._apply_voice(task)
 
             # Set Discord reply channel for auto-reply targeting
             reply_ch = task.get("_discord_reply_channel_id")
@@ -329,7 +340,8 @@ class ContinuityExecutor:
             result["errors"].append(error_msg)
 
         finally:
-            self._restore_voice(original_voice)
+            with self._voice_lock:
+                self._restore_voice(original_voice)
 
         result["completed_at"] = datetime.now().isoformat()
         return result

@@ -684,34 +684,52 @@ class ContinuityScheduler:
                 except Exception as e:
                     logger.error(f"[Continuity] Reply callback failed for '{task_name}': {e}")
 
-        # Run on worker thread
+        # Run on worker thread — executes once then drains any queued events
         def _run():
-            self._log_activity(task_id, task_name, "started", {"trigger": task_type})
-            try:
-                result = self.executor.run(
-                    task,
-                    event_data=event_data,
-                    progress_callback=self._make_progress_callback(task_id),
-                    response_callback=_response_callback,
-                )
+            while True:
+                # Check task still exists and is enabled
                 with self._lock:
-                    if task_id in self._tasks:
-                        self._tasks[task_id]["last_run"] = _user_now().isoformat()
-                        self._save_tasks()
-                    self._task_progress.pop(task_id, None)
-                    self._task_running[task_id] = False
+                    live_task = self._tasks.get(task_id)
+                    if not live_task or not live_task.get("enabled", True):
+                        self._task_pending[task_id] = 0
+                        self._task_running[task_id] = False
+                        self._task_progress.pop(task_id, None)
+                        break
 
-                status = "complete" if result.get("success") else "error"
-                self._log_activity(task_id, task_name, status, {
-                    "trigger": task_type,
-                    "responses": len(result.get("responses", [])),
-                })
-            except Exception as e:
-                logger.error(f"[Continuity] Event task '{task_name}' failed: {e}", exc_info=True)
-                self._log_activity(task_id, task_name, "error", {"exception": str(e)})
+                self._log_activity(task_id, task_name, "started", {"trigger": task_type})
+                try:
+                    result = self.executor.run(
+                        task,
+                        event_data=event_data,
+                        progress_callback=self._make_progress_callback(task_id),
+                        response_callback=_response_callback,
+                    )
+                    with self._lock:
+                        if task_id in self._tasks:
+                            self._tasks[task_id]["last_run"] = _user_now().isoformat()
+                            self._save_tasks()
+                        self._task_progress.pop(task_id, None)
+
+                    status = "complete" if result.get("success") else "error"
+                    self._log_activity(task_id, task_name, status, {
+                        "trigger": task_type,
+                        "responses": len(result.get("responses", [])),
+                    })
+                except Exception as e:
+                    logger.error(f"[Continuity] Event task '{task_name}' failed: {e}", exc_info=True)
+                    self._log_activity(task_id, task_name, "error", {"exception": str(e)})
+                    with self._lock:
+                        self._task_progress.pop(task_id, None)
+
+                # Drain queued events or release
                 with self._lock:
-                    self._task_running[task_id] = False
-                    self._task_progress.pop(task_id, None)
+                    if self._task_pending.get(task_id, 0) > 0:
+                        self._task_pending[task_id] -= 1
+                        logger.info(f"[Continuity] '{task_name}' draining event queue ({self._task_pending[task_id]} remaining)")
+                        continue
+                    else:
+                        self._task_running[task_id] = False
+                        break
 
         thread = threading.Thread(target=_run, daemon=True, name=f"Event-{task_name}")
         thread.start()

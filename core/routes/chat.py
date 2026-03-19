@@ -875,6 +875,13 @@ async def delete_chat(chat_name: str, request: Request, _=Depends(require_login)
                 knowledge.delete_scope(f"__rag__:{chat_name}")
             except Exception:
                 pass
+            # Dismiss any agents spawned for this chat
+            try:
+                if hasattr(system, 'agent_manager') and system.agent_manager:
+                    for agent in system.agent_manager.check_all(chat_name=chat_name):
+                        system.agent_manager.dismiss(agent['id'])
+            except Exception:
+                pass
             return {"status": "success", "message": f"Deleted: {chat_name}"}
         else:
             raise HTTPException(status_code=400, detail=f"Cannot delete '{chat_name}'")
