@@ -273,6 +273,7 @@ async def handle_chat_stream(request: Request, _=Depends(require_login), system=
             msg = friendly_llm_error(e) or str(e)
             yield f"data: {json.dumps({'error': msg})}\n\n"
         finally:
+            system.llm_chat.streaming_chat.cancel_flag = True
             system.web_active_dec()
 
     return StreamingResponse(
