@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Python: Create venv",
+      "type": "shell",
+      "command": "python -m venv .venv",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: Install requirements",
+      "type": "shell",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m pip install -r ${workspaceFolder}\\requirements.txt",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m pip install -r ${workspaceFolder}\\requirements.txt"
+      },
+      "linux": {
+        "command": "${workspaceFolder}/.venv/bin/python -m pip install -r ${workspaceFolder}/requirements.txt"
+      },
+      "osx": {
+        "command": "${workspaceFolder}/.venv/bin/python -m pip install -r ${workspaceFolder}/requirements.txt"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "Python: Create venv"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Python: Run Sapphire",
+      "type": "shell",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe ${workspaceFolder}\\main.py",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe ${workspaceFolder}\\main.py"
+      },
+      "linux": {
+        "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/main.py"
+      },
+      "osx": {
+        "command": "${workspaceFolder}/.venv/bin/python ${workspaceFolder}/main.py"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

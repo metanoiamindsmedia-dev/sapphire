@@ -39,7 +39,7 @@ user_claude/*
 *.pytest_cache*
 test.py
 .socks_config
-/TODO.md
+
 CLAUDE.md
 SAPPHIRE.md
 tmp
