@@ -1,9 +1,28 @@
-# TODO
+# OpenClaw Setup Fix - Free LLMs + MCP/Agents/API
+Breakdown of approved plan. Progress tracked here.
 
-- [ ] Add VSCode workspace integration files (`.vscode/settings.json`, `.vscode/tasks.json`) using `${workspaceFolder}` and relative paths.
-- [ ] Refactor `install/install.sh` to use safer relative/project path handling and consistent requirements installation paths.
-- [ ] Refactor `install/install.ps1` to use safer relative/project path handling and consistent requirements installation paths.
-- [ ] Update docs (`docs/INSTALLATION.md`, `README.md`) to reduce hardcoded absolute paths and align with workspace-relative guidance where applicable.
-- [ ] Mirror equivalent updates under `sapphire/` duplicated tree if corresponding files exist.
-- [ ] Run repository-wide searches to verify remaining hardcoded install path issues and requirements path consistency.
-- [ ] Update this TODO with completion status.
+## Steps:
+### 1. Create .env.example [✅ DONE]
+
+### 2. Edit install/install.ps1 [✅ DONE]
+- Fork clone, Ollama winget, .env copy, MCP validate.
+
+### 3. Edit LOCAL-AND-FREE-MODELS-SETUP.md [✅ DONE]
+- Ollama fixes, MCP validator.
+
+### 4. Edit MCP-QUICKSTART.md [✅ DONE]
+- Validator + free tiers.
+
+### 3. Edit LOCAL-AND-FREE-MODELS-SETUP.md [PENDING]
+- Ollama network fixes (platform flag, IPv6 disable).
+- Add MCP validator run.
+
+### 4. Edit docs/MCP-QUICKSTART.md [PENDING]
+- Add validator + agent example.
+
+### 5. Test & Validate [PENDING]
+- python validate_mcp_setup.py
+- python main.py
+- git commit/push
+
+### 6. ✅ COMPLETED: Initial Git repo sync (MCP files pushed)

@@ -153,14 +153,24 @@ Settings → LLM → Select provider from dropdown
 
 **Solution:** Start at least one provider:
 ```bash
-# Option 1: Start Ollama
-ollama run mistral
+# Option 1: Start Ollama (fix network issues first)
+winget install Ollama.Ollama
+ollama run mistral --platform linux/amd64  # Bypass IPv6/Cloudflare issues
+# Or disable IPv6: netsh interface ipv6 install (admin PowerShell)
 
 # Option 2: Start LM Studio (it auto-serves on 100.113.135.14:1234)
+# Download: https://lmstudio.ai/
 
 # Option 3: Check GitHub Models API key
 # Verify GITHUB_PERSONAL_ACCESS_TOKEN in .env
 ```
+
+### MCP Validation
+```bash
+python validate_mcp_setup.py
+# All green ✓ then ready for agents/API
+```
+
 
 ### Poor response quality
 

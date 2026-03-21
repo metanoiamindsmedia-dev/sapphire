@@ -5,7 +5,7 @@ set -e
 
 SAPPHIRE_DIR="$HOME/sapphire"
 CONDA_ENV="sapphire"
-REPO="https://github.com/ddxfish/sapphire.git"
+REPO="https://github.com/metanoiamindsmedia-dev/sapphire.git"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -93,9 +93,18 @@ info "Creating conda environment (python 3.11)..."
 conda create -n "$CONDA_ENV" python=3.11 -y || fail "Failed to create conda env"
 conda activate "$CONDA_ENV"
 
+# Copy .env.example for free models
+info "Setting up .env.example for free LLMs..."
+cp "$SAPPHIRE_DIR/.env.example" "$SAPPHIRE_DIR/.env"
+
 # Python deps
 info "Installing Python dependencies (this takes a while)..."
 pip install -r "$SAPPHIRE_DIR/requirements.txt" || fail "pip install failed"
+
+# Validate MCP setup
+info "Running MCP validation..."
+python "$SAPPHIRE_DIR/validate_mcp_setup.py"
+
 
 # Launcher script
 cat > "$HOME/sapphire.sh" << 'LAUNCHER'

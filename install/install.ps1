@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 
 $SAPPHIRE_DIR = "$env:USERPROFILE\sapphire"
 $CONDA_ENV = "sapphire"
-$REPO = "https://github.com/ddxfish/sapphire.git"
+$REPO = "https://github.com/metanoiamindsmedia-dev/sapphire.git"
 $LAUNCHER = "$env:USERPROFILE\sapphire.bat"
 
 function Info($msg)  { Write-Host "[Sapphire] $msg" -ForegroundColor Green }
@@ -110,10 +110,24 @@ Info "Creating conda environment (python 3.11)..."
 if ($LASTEXITCODE -ne 0) { Fail "Failed to create conda env" }
 & $conda activate $CONDA_ENV
 
+# Install Ollama
+Info "Installing Ollama for local LLMs..."
+winget install Ollama.Ollama --accept-source-agreements --accept-package-agreements --silent
+$env:PATH = "${env:ProgramFiles}\Ollama;$env:PATH"
+
+# Copy .env.example for free models
+Info "Setting up .env.example for free LLMs..."
+Copy-Item "$SAPPHIRE_DIR\.env.example" "$SAPPHIRE_DIR\.env"
+
 # Python deps
 Info "Installing Python dependencies (this takes a while)..."
 & $conda run -n $CONDA_ENV pip install -r "$SAPPHIRE_DIR\requirements.txt"
 if ($LASTEXITCODE -ne 0) { Fail "pip install failed" }
+
+# Validate MCP setup
+Info "Running MCP validation..."
+& $conda run -n $CONDA_ENV python "$SAPPHIRE_DIR\validate_mcp_setup.py"
+
 
 # Launcher .bat
 $batContent = @"

@@ -10,21 +10,19 @@ Follow these steps to set up Sapphire with MCP Docker Server tools and multi-mod
 
 ## Step 1: Configure Environment Variables
 
-Copy the template and fill in your API keys:
+Install copies .env.example -> .env automatically with free LLM vars.
 
 ```bash
-# Copy template
-cp .env.example .env
+# Edit .env (created by install)
+notepad .env
+# Fill your free keys from .env.example comments:
+# GITHUB_PERSONAL_ACCESS_TOKEN=...
+# GOOGLE_API_KEY=...
 
-# Edit .env with your favorite editor
-# Add your API keys:
-#   ANTHROPIC_API_KEY=sk-ant-...
-#   OPENAI_API_KEY=sk-...
-#   etc.
-
-# Verify .env is in .gitignore to prevent accidental secrets commit
-echo ".env" >> .gitignore
+# Run MCP validator
+python validate_mcp_setup.py
 ```
+
 
 ### Which LLM API Key to Use?
 
