@@ -48,6 +48,8 @@ tmp/*
 DONE.md
 .coverage
 TODO-DONE.md
+.env
+sapphire-data/
 user-krem
 userx
 userz
