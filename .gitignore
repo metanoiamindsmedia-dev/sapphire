@@ -54,3 +54,13 @@ userz
 MEMORIES.md
 claude
 infra
+.env
+
+# Virtual environment
+.venv/
+venv/
+
+# Sensitive data directories
+sapphire-data/
+sapphire-config/
+cache/
